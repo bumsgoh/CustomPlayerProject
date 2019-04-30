@@ -20,6 +20,7 @@ class ContainerPool {
     }
     func pullOutContainer(with name: String) throws -> ContainerType {
         guard let container = containerPool[name] else {
+            print(name)
             throw NSError(domain: "No container with input name", code: 0)
         }
         return container
@@ -73,6 +74,12 @@ class ContainerPool {
             return Ctts()
         case .stsd:
             return Stsd()
+        case .sbgp:
+            return Sbgp()
+        case .sgpd:
+            return Sgpd()
+        case .sdtp:
+            return Sdtp()
         case .avc1:
             return Avc1()
         case .avcc:

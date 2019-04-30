@@ -13,7 +13,7 @@ protocol FileStreamReadable {
     var fileHandler: FileHandle { get }
 
     func read(length: Int, completion: @escaping (Data)->()) 
-    
+
     func seek(offset: UInt64)
     
     func hasAvailableData() -> Bool

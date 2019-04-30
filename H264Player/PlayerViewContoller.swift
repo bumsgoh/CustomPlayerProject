@@ -109,11 +109,13 @@ class PlayerViewContoller: UIViewController {
     }
     
     @objc func readButtonDidTap() {
-        guard let filePath =  Bundle.main.path(forResource: "firewerk", ofType: "mp4") else { return }
+        guard let filePath =  Bundle.main.path(forResource: "walk", ofType: "mp4") else { return }
         let url = URL(fileURLWithPath: filePath)
         let reader = FileReader(url: url)
         let mediaReader = MediaFileReader(fileReader: reader!, type: .mp4)
         mediaReader.decodeFile(type: .mp4)
+        mediaReader.makeTracks()
+        
         
     }
 }

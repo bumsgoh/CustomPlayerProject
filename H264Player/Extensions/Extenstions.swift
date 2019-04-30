@@ -34,6 +34,7 @@ extension Data {
     }
     
     var convertToString: String {
+       
         guard let convertedString = String(data: self, encoding: .utf8) else {
             return ""
         }
@@ -73,7 +74,7 @@ extension Array where Element == UInt8 {
 
 extension UInt8 {
     var toHexNumber: String {
-        return String(self, radix: 16, uppercase: false)
+        return String(format:"%02X", self)
     }
 }
 
@@ -99,25 +100,18 @@ extension Array where Element == String {
 }
 
 extension Container {
+
     var isParent: Bool {
         if type == .moov || type == .trak || type == .mdia || type == .minf
-            || type == .dinf || type == .stbl || type == .udta {
+            || type == .dinf || type == .stbl || type == .edts || type == .esds
+            || type == .mp4a || type == .udta {
             return true
         } else {
             return false
         }
     }
     
-    var isHeader: Bool {
-        if type == .ftyp || type == .free || type == .mvhd || type == .tkhd || type == . edts
-            || type == .mdhd || type == .stbl || type == .hdlr || type == .vmhd
-            || type == .smhd {
-            
-            return true
-        } else {
-            return false
-        }
-    }
+    
 }
 
 extension FileHandle {

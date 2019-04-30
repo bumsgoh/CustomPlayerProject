@@ -33,6 +33,9 @@ enum ContainerType: String, CaseIterable {
     case co64
     case ctts
     case stsd
+    case sbgp
+    case sgpd
+    case sdtp
     case avc1
     case avcc
     case mp4a
@@ -50,7 +53,7 @@ extension ContainerType {
     var isParent: Bool {
         if self == .moov || self == .trak || self == .mdia || self == .minf
             || self == .dinf || self == .stbl || self == .edts || self == .stsd || self == .esds
-        || self == .mp4a || self == .avc1 {
+        || self == .mp4a || self == .avc1 || self == .udta || self == .meta{
             return true
         } else {
             return false
@@ -157,6 +160,7 @@ class Moov: HalfContainer {
     var size: Int = 0
     var data: Data = Data()
     
+    var udta: Udta = Udta()
     var mvhd: Mvhd = Mvhd()
     var iods: Iods = Iods()
     var traks: [Trak] = []
@@ -173,6 +177,9 @@ class Moov: HalfContainer {
             case .iods:
                 $0.parse()
                 self.iods = $0 as! Iods
+            case .udta:
+                $0.parse()
+                self.udta = $0 as! Udta
             case .trak:
                 $0.parse()
                 self.traks.append($0 as! Trak)
@@ -748,8 +755,11 @@ class Stbl: HalfContainer {
     var stsc: Stsc = Stsc()// mandatory
     var stsz: Stsz = Stsz()// mandatory
     var stco: Stco = Stco()// mandatory
-    var co64: Co64 = Co64() // mandatory 이지만 없는경우있는듯
+    var co64: Co64 = Co64() // mandatory 4기가 이상의 파일일 경우
     var ctts: Ctts = Ctts()
+    var sdtp: Sdtp = Sdtp()
+    var sgpd: Sgpd = Sgpd()
+    var sbgp: Sbgp = Sbgp()
     
     var children: [Container] = []
     
@@ -784,8 +794,17 @@ class Stbl: HalfContainer {
             case .ctts:
                 $0.parse()
                 self.ctts = $0 as! Ctts
+            case .sdtp:
+                $0.parse()
+                self.sdtp = $0 as! Sdtp
+            case .sgpd:
+                $0.parse()
+                self.sgpd = $0 as! Sgpd
+            case .sbgp:
+                $0.parse()
+                self.sbgp = $0 as! Sbgp
             default:
-                assertionFailure("failed to make stbl")
+                assertionFailure("failed to make stbl with\($0.type)")
             }
         }
     }
@@ -1201,6 +1220,135 @@ class Stsz: Container {
         self.samplesSize = samplesSize
     }*/
 }
+
+class Sdtp: Container {
+    
+    var type: ContainerType = .sdtp
+    var size: Int = 0
+    var data: Data = Data()
+    
+    var version: Int = 0
+    var flags: Int = 0
+    var entrySizes: [Int] = []
+    var samplesSize: Int = 0
+    var sampleCount: Int = 0
+    
+    init() {}
+    
+    func parse() {
+        print("\(type) is parsing..")
+        let dataArray = data.slice(in: [1,3,4,4])
+        self.version = dataArray[0].convertToInt
+        self.flags = dataArray[1].convertToInt
+        self.samplesSize = dataArray[2].convertToInt
+        self.sampleCount = dataArray[3].convertToInt
+        if samplesSize == 0 {
+            for i in 0..<sampleCount {
+                
+                let entry = data.subdata(in: (12 + 4 * i)..<(16 + 4 * i)).convertToInt
+                self.entrySizes.append(entry)
+            }
+        }
+    }
+    /*init(version: Int,
+     flags: Int,
+     entryCount: [Int],
+     sampleCount: Int,
+     samplesSize: Int) {
+     
+     self.version = version
+     self.flags = flags
+     self.entrySize = entryCount
+     self.sampleCount = sampleCount
+     self.samplesSize = samplesSize
+     }*/
+}
+
+class Sgpd: Container {
+    
+    var type: ContainerType = .sgpd
+    var size: Int = 0
+    var data: Data = Data()
+    
+    var version: Int = 0
+    var flags: Int = 0
+    var entrySizes: [Int] = []
+    var samplesSize: Int = 0
+    var sampleCount: Int = 0
+    
+    init() {}
+    
+    func parse() {
+        print("\(type) is parsing..")
+        let dataArray = data.slice(in: [1,3,4,4])
+        self.version = dataArray[0].convertToInt
+        self.flags = dataArray[1].convertToInt
+        self.samplesSize = dataArray[2].convertToInt
+        self.sampleCount = dataArray[3].convertToInt
+        if samplesSize == 0 {
+            for i in 0..<sampleCount {
+                
+                let entry = data.subdata(in: (12 + 4 * i)..<(16 + 4 * i)).convertToInt
+                self.entrySizes.append(entry)
+            }
+        }
+    }
+    /*init(version: Int,
+     flags: Int,
+     entryCount: [Int],
+     sampleCount: Int,
+     samplesSize: Int) {
+     
+     self.version = version
+     self.flags = flags
+     self.entrySize = entryCount
+     self.sampleCount = sampleCount
+     self.samplesSize = samplesSize
+     }*/
+}
+
+class Sbgp: Container {
+    
+    var type: ContainerType = .sbgp
+    var size: Int = 0
+    var data: Data = Data()
+    
+    var version: Int = 0
+    var flags: Int = 0
+    var entrySizes: [Int] = []
+    var samplesSize: Int = 0
+    var sampleCount: Int = 0
+    
+    init() {}
+    
+    func parse() {
+        print("\(type) is parsing..")
+        let dataArray = data.slice(in: [1,3,4,4])
+        self.version = dataArray[0].convertToInt
+        self.flags = dataArray[1].convertToInt
+        self.samplesSize = dataArray[2].convertToInt
+        self.sampleCount = dataArray[3].convertToInt
+        if samplesSize == 0 {
+            for i in 0..<sampleCount {
+                
+                let entry = data.subdata(in: (12 + 4 * i)..<(16 + 4 * i)).convertToInt
+                self.entrySizes.append(entry)
+            }
+        }
+    }
+    /*init(version: Int,
+     flags: Int,
+     entryCount: [Int],
+     sampleCount: Int,
+     samplesSize: Int) {
+     
+     self.version = version
+     self.flags = flags
+     self.entrySize = entryCount
+     self.sampleCount = sampleCount
+     self.samplesSize = samplesSize
+     }*/
+}
     
 class Stco: Container {
     
@@ -1238,7 +1386,7 @@ class Stco: Container {
     }*/
 }
 
-class Udta: Container {
+class Udta: HalfContainer {
     var offset: UInt64 = 0
     
     
@@ -1246,7 +1394,7 @@ class Udta: Container {
     var size: Int = 0
     var data: Data = Data()
     
-   // var meta: Meta = Meta()
+    var meta: Meta = Meta()
     
     var children: [Container] = []
     
@@ -1254,12 +1402,12 @@ class Udta: Container {
     
     func parse() {
         print("\(type) is parsing..")
-        /*children.forEach {
+        children.forEach {
             if $0.type == .meta {
                     $0.parse()
                     self.meta = $0 as! Meta
             }
-        }*/
+        }
         print(type)
     }
     
@@ -1269,7 +1417,7 @@ class Udta: Container {
 }
 
 
-class Meta: Container {
+class Meta: HalfContainer {
     var offset: UInt64 = 0
     
     
@@ -1279,20 +1427,20 @@ class Meta: Container {
     
     var version: Int = 0
     var flag: Int = 0
-    //var handler: Hdlr = Hdlr()
+    var handler: Hdlr = Hdlr()
     
-    //var children: [Container] = []
+    var children: [Container] = []
     
     init() {}
     
     func parse() {
         print("\(type) is parsing..")
-        /*children.forEach {
+        children.forEach {
             if $0.type == .hdlr {
                 $0.parse()
                 self.handler = $0 as! Hdlr
             }
-        }*/
+        }
     }
     /*init(version: Int, flag: Int, handler: Hdlr) {
         self.version = version

@@ -15,6 +15,9 @@
 		C9A8A21B2277DF1400EB3FBC /* FileReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9A8A2162277DF1300EB3FBC /* FileReader.swift */; };
 		C9A8A21D2277DF1400EB3FBC /* Extenstions.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9A8A2182277DF1400EB3FBC /* Extenstions.swift */; };
 		C9A8A2252277E1F800EB3FBC /* firewerk.mp4 in Resources */ = {isa = PBXBuildFile; fileRef = C9A8A2242277E1F800EB3FBC /* firewerk.mp4 */; };
+		C9A8A2272278183A00EB3FBC /* te.mp4 in Resources */ = {isa = PBXBuildFile; fileRef = C9A8A2262278183A00EB3FBC /* te.mp4 */; };
+		C9A8A2292278ADD500EB3FBC /* coffee.mp4 in Resources */ = {isa = PBXBuildFile; fileRef = C9A8A2282278ADD500EB3FBC /* coffee.mp4 */; };
+		C9A8A22B2278B0E900EB3FBC /* walk.mp4 in Resources */ = {isa = PBXBuildFile; fileRef = C9A8A22A2278B0E900EB3FBC /* walk.mp4 */; };
 		CEF94B82226E8F7D006B7528 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = CEF94B81226E8F7D006B7528 /* AppDelegate.swift */; };
 		CEF94B84226E8F7D006B7528 /* PlayerViewContoller.swift in Sources */ = {isa = PBXBuildFile; fileRef = CEF94B83226E8F7D006B7528 /* PlayerViewContoller.swift */; };
 		CEF94B89226E8F7F006B7528 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = CEF94B88226E8F7F006B7528 /* Assets.xcassets */; };
@@ -36,6 +39,9 @@
 		C9A8A2162277DF1300EB3FBC /* FileReader.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = FileReader.swift; sourceTree = "<group>"; };
 		C9A8A2182277DF1400EB3FBC /* Extenstions.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Extenstions.swift; sourceTree = "<group>"; };
 		C9A8A2242277E1F800EB3FBC /* firewerk.mp4 */ = {isa = PBXFileReference; lastKnownFileType = file; path = firewerk.mp4; sourceTree = "<group>"; };
+		C9A8A2262278183A00EB3FBC /* te.mp4 */ = {isa = PBXFileReference; lastKnownFileType = file; path = te.mp4; sourceTree = "<group>"; };
+		C9A8A2282278ADD500EB3FBC /* coffee.mp4 */ = {isa = PBXFileReference; lastKnownFileType = file; path = coffee.mp4; sourceTree = "<group>"; };
+		C9A8A22A2278B0E900EB3FBC /* walk.mp4 */ = {isa = PBXFileReference; lastKnownFileType = file; path = walk.mp4; sourceTree = "<group>"; };
 		CEF94B7E226E8F7D006B7528 /* H264Player.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = H264Player.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		CEF94B81226E8F7D006B7528 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		CEF94B83226E8F7D006B7528 /* PlayerViewContoller.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerViewContoller.swift; sourceTree = "<group>"; };
@@ -110,6 +116,9 @@
 		CEF94B75226E8F7D006B7528 = {
 			isa = PBXGroup;
 			children = (
+				C9A8A22A2278B0E900EB3FBC /* walk.mp4 */,
+				C9A8A2282278ADD500EB3FBC /* coffee.mp4 */,
+				C9A8A2262278183A00EB3FBC /* te.mp4 */,
 				C9A8A2242277E1F800EB3FBC /* firewerk.mp4 */,
 				CEF94BA8226FE9B4006B7528 /* animation.h264 */,
 				CEF94B80226E8F7D006B7528 /* H264Player */,
@@ -201,6 +210,9 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				C9A8A22B2278B0E900EB3FBC /* walk.mp4 in Resources */,
+				C9A8A2292278ADD500EB3FBC /* coffee.mp4 in Resources */,
+				C9A8A2272278183A00EB3FBC /* te.mp4 in Resources */,
 				C9A8A2252277E1F800EB3FBC /* firewerk.mp4 in Resources */,
 				CEF94BA9226FE9B4006B7528 /* animation.h264 in Resources */,
 				CEF94B8C226E8F7F006B7528 /* LaunchScreen.storyboard in Resources */,
