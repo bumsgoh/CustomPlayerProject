@@ -36,9 +36,17 @@ class PlayerViewContoller: UIViewController {
     }()
     
     private let playButton: UIButton = {
-        let button = UIButton(type: UIButton.ButtonType.system)
+        let button = UIButton(type: .system)
         button.translatesAutoresizingMaskIntoConstraints = false
         button.setImage(#imageLiteral(resourceName: "play-button"), for: .normal)
+        return button
+    }()
+    
+    private let readButton: UIButton = {
+        let button = UIButton(type: .system)
+        button.translatesAutoresizingMaskIntoConstraints = false
+        button.setImage(#imageLiteral(resourceName: "play-button"), for: .normal)
+        button.tintColor = .red
         return button
     }()
     
@@ -64,13 +72,21 @@ class PlayerViewContoller: UIViewController {
     
     private func setUpViews() {
         view.addSubview(playButton)
-        
+        view.addSubview(readButton)
         playButton.centerXAnchor.constraint(
             equalTo: view.centerXAnchor).isActive = true
         playButton.centerYAnchor.constraint(
             equalTo: view.centerYAnchor).isActive = true
         
         playButton.addTarget(self, action: #selector(playButtonDidTap),
+                             for: .touchUpInside)
+        
+        readButton.centerXAnchor.constraint(
+            equalTo: view.centerXAnchor).isActive = true
+        readButton.topAnchor.constraint(
+            equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 20).isActive = true
+        
+        readButton.addTarget(self, action: #selector(readButtonDidTap),
                              for: .touchUpInside)
     }
     
@@ -90,6 +106,15 @@ class PlayerViewContoller: UIViewController {
             let fileURL = URL(fileURLWithPath: filePath)
             self.videoDecoder.decodeFile(url: fileURL)
         }
+    }
+    
+    @objc func readButtonDidTap() {
+        guard let filePath =  Bundle.main.path(forResource: "firewerk", ofType: "mp4") else { return }
+        let url = URL(fileURLWithPath: filePath)
+        let reader = FileReader(url: url)
+        let mediaReader = MediaFileReader(fileReader: reader!, type: .mp4)
+        mediaReader.decodeFile(type: .mp4)
+        
     }
 }
 
