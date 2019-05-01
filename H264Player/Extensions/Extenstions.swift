@@ -110,8 +110,6 @@ extension Container {
             return false
         }
     }
-    
-    
 }
 
 extension FileHandle {

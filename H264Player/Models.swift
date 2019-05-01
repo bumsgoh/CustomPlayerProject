@@ -1142,7 +1142,7 @@ class Stsc: Container {
     var entryCount: Int = 0
     var firstChunks: [Int] = []
     var samplesPerChunks: [Int] = []
-    var sampleDescriptionIndexies: [Int] = []
+    var sampleDescriptionIndexes: [Int] = []
     
     init() {}
     
@@ -1156,9 +1156,9 @@ class Stsc: Container {
             let firstChunk = data.subdata(in: (8 + 12 * i)..<(12 + 12 * i)).convertToInt
             let samplesPerChunk = data.subdata(in: (12 + 12 * i)..<(16 + 12 * i)).convertToInt
             let sampleDescriptionIndex = data.subdata(in: (16 + 12 * i)..<(20 + 12 * i)).convertToInt
-            self.firstChunks.append(firstChunk)
-            self.samplesPerChunks.append(samplesPerChunk)
-            self.sampleDescriptionIndexies.append(sampleDescriptionIndex)
+            firstChunks.append(firstChunk)
+            samplesPerChunks.append(samplesPerChunk)
+            sampleDescriptionIndexes.append(sampleDescriptionIndex)
         }
     }
     
@@ -1449,7 +1449,7 @@ class Meta: HalfContainer {
     }*/
 }
 
-class Chunk {
+struct Chunk {
     var sampleDescriptionIndex: Int = 0
     var firstSample: Int = 0
     var sampleCount: Int = 0
@@ -1469,12 +1469,12 @@ class Chunk {
     }*/
 }
 
-class Sample {
+struct Sample {
     var size: Int = 0
     var offset: Int = 0
     var startTime: Int = 0
     var duration: Int = 0
-    var cto: Int = 0
+    var compositionTimeOffset: Int = 0
     
     init() {}
     

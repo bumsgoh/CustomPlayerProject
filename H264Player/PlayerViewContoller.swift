@@ -114,7 +114,11 @@ class PlayerViewContoller: UIViewController {
         let reader = FileReader(url: url)
         let mediaReader = MediaFileReader(fileReader: reader!, type: .mp4)
         mediaReader.decodeFile(type: .mp4)
-        mediaReader.makeTracks()
+        let traks = mediaReader.makeTracks()
+        traks[0].chunks.forEach {
+            print("real\($0.offset)")
+        }
+        
         
         
     }
