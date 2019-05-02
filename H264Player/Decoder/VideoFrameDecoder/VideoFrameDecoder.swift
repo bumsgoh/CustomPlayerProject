@@ -8,8 +8,11 @@
 
 import Foundation
 import VideoToolbox
+import AVFoundation
 
 class VideoFrameDecoder: VideoFrameDecodable {
+    var layer: AVSampleBufferDisplayLayer = AVSampleBufferDisplayLayer()
+    
     
     var track: Track = Track()
     
@@ -128,9 +131,9 @@ class VideoFrameDecoder: VideoFrameDecodable {
         CFDictionarySetValue(attributes,
                              Unmanaged.passUnretained(kCMSampleAttachmentKey_DisplayImmediately).toOpaque(),
                              Unmanaged.passUnretained(kCFBooleanTrue).toOpaque())
-        
-        self.videoDecoderDelegate?.shouldUpdateVideoLayer(with: buffer)
-    
+        if layer.isReadyForMoreMediaData {
+            self.videoDecoderDelegate?.shouldUpdateVideoLayer(with: buffer)
+        }
         print("here3")
        // var flag = VTDecodeInfoFlags(rawValue: 0)
         //var outputBuffer = UnsafeMutablePointer<CVPixelBuffer>.allocate(capacity: 1)

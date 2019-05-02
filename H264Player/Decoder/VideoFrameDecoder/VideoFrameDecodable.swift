@@ -7,9 +7,11 @@
 //
 
 import Foundation
+import AVFoundation
 
 protocol VideoFrameDecodable {
     
+    var layer: AVSampleBufferDisplayLayer { get set }
     var track: Track { get set }
     var spsSize: Int { get set }
     var ppsSize: Int { get set }

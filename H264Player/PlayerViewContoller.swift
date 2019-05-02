@@ -13,6 +13,8 @@ import AVFoundation
 class PlayerViewContoller: UIViewController {
     
     private var videoDecoder: VideoFrameDecodable
+    private var audioDecoder: AudioFrameDecoder
+    let audioRenderer = AVSampleBufferAudioRenderer()
     private var videoPlayerLayer: AVSampleBufferDisplayLayer = {
         let layer = AVSampleBufferDisplayLayer()
         layer.videoGravity = AVLayerVideoGravity.resizeAspect
@@ -52,7 +54,10 @@ class PlayerViewContoller: UIViewController {
     
     init(videoDecoder: VideoFrameDecodable) {
         self.videoDecoder = videoDecoder
+        self.audioDecoder = AudioFrameDecoder()
+        
         super.init(nibName: nil, bundle: nil)
+        self.audioDecoder.videoDecoderDelegate = self
     }
     
     required init?(coder aDecoder: NSCoder) {
@@ -61,6 +66,7 @@ class PlayerViewContoller: UIViewController {
     
     override func viewDidLoad() {
         super.viewDidLoad()
+        videoDecoder.layer = self.videoPlayerLayer
         setUpLayer()
         setUpViews()
         // Do any additional setup after loading the view.
@@ -109,7 +115,7 @@ class PlayerViewContoller: UIViewController {
     }
     
     @objc func readButtonDidTap() {
-        guard let filePath =  Bundle.main.path(forResource: "walk", ofType: "mp4") else { return }
+        guard let filePath =  Bundle.main.path(forResource: "ma", ofType: "mp4") else { return }
         let url = URL(fileURLWithPath: filePath)
         let reader = FileReader(url: url)
         let mediaReader = MediaFileReader(fileReader: reader!, type: .mp4)
@@ -117,7 +123,7 @@ class PlayerViewContoller: UIViewController {
         let tracks = mediaReader.makeTracks()
         
         var frames: [[UInt8]] = []
-        for sample in tracks[0].samples {
+        for sample in tracks[1].samples {
             //print(sample.offset)
             mediaReader.fileReader.seek(offset: UInt64(sample.offset))
            // print(sample.size)
@@ -133,9 +139,11 @@ class PlayerViewContoller: UIViewController {
               //  print("_________data")
             }
         }
-        videoDecoder.track = tracks[0]
+        //videoDecoder.track = tracks[0]
         
-        videoDecoder.decodeTrack(frames: frames)
+       // videoDecoder.decodeTrack(frames: frames)
+        
+        audioDecoder.decodeTrack(frames: frames)
         
 
     }
@@ -143,12 +151,12 @@ class PlayerViewContoller: UIViewController {
 
 extension PlayerViewContoller: VideoDecoderDelegate {
     func shouldUpdateVideoLayer(with buffer: CMSampleBuffer) {
-        if videoPlayerLayer.isReadyForMoreMediaData {
-        videoPlayerLayer.enqueue(buffer)
+      self.audioRenderer.enqueue(buffer)
         DispatchQueue.main.async {
-            
-            self.videoPlayerLayer.setNeedsDisplay()
+           // self.videoPlayerLayer.enqueue(buffer)
+           
+           // self.videoPlayerLayer.setNeedsDisplay()
         }
         }
-    }
+    
 }

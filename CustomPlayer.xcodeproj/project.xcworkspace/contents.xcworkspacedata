@@ -2,6 +2,6 @@
 <Workspace
    version = "1.0">
    <FileRef
-      location = "self:H264Player.xcodeproj">
+      location = "self:/Users/user/Documents/H264Player/CustomPlayer.xcodeproj">
    </FileRef>
 </Workspace>

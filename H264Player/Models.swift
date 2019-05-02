@@ -115,8 +115,8 @@ class Ftyp: Container {
         let dataArray = data.slice(in: [4,4,4,4])
         majorBrand = dataArray[0].convertToString
         minorVersion = dataArray[1].convertToString
-        compatibleBrand = [dataArray[2].convertToString,
-                           dataArray[3].convertToString]
+        compatibleBrand = [dataArray[2].convertToString]
+                           //dataArray[3].convertToString]
         
     }
     

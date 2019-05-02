@@ -28,6 +28,8 @@
 		CEF94B9A226ED513006B7528 /* VideoFrameDecoder.swift in Sources */ = {isa = PBXBuildFile; fileRef = CEF94B99226ED513006B7528 /* VideoFrameDecoder.swift */; };
 		CEF94B9C226EDE78006B7528 /* VideoDecoderDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = CEF94B9B226EDE78006B7528 /* VideoDecoderDelegate.swift */; };
 		CEF94BA9226FE9B4006B7528 /* animation.h264 in Resources */ = {isa = PBXBuildFile; fileRef = CEF94BA8226FE9B4006B7528 /* animation.h264 */; };
+		CEF94BCE227AD2E0006B7528 /* AudioFrameDecoder.swift in Sources */ = {isa = PBXBuildFile; fileRef = CEF94BCD227AD2E0006B7528 /* AudioFrameDecoder.swift */; };
+		CEF94BD2227ADED5006B7528 /* ma.mp4 in Resources */ = {isa = PBXBuildFile; fileRef = CEF94BD1227ADED5006B7528 /* ma.mp4 */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -42,7 +44,7 @@
 		C9A8A2262278183A00EB3FBC /* te.mp4 */ = {isa = PBXFileReference; lastKnownFileType = file; path = te.mp4; sourceTree = "<group>"; };
 		C9A8A2282278ADD500EB3FBC /* coffee.mp4 */ = {isa = PBXFileReference; lastKnownFileType = file; path = coffee.mp4; sourceTree = "<group>"; };
 		C9A8A22A2278B0E900EB3FBC /* walk.mp4 */ = {isa = PBXFileReference; lastKnownFileType = file; path = walk.mp4; sourceTree = "<group>"; };
-		CEF94B7E226E8F7D006B7528 /* H264Player.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = H264Player.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		CEF94B7E226E8F7D006B7528 /* CustomPlayer.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = CustomPlayer.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		CEF94B81226E8F7D006B7528 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		CEF94B83226E8F7D006B7528 /* PlayerViewContoller.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerViewContoller.swift; sourceTree = "<group>"; };
 		CEF94B88226E8F7F006B7528 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -54,6 +56,8 @@
 		CEF94B99226ED513006B7528 /* VideoFrameDecoder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoFrameDecoder.swift; sourceTree = "<group>"; };
 		CEF94B9B226EDE78006B7528 /* VideoDecoderDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoDecoderDelegate.swift; sourceTree = "<group>"; };
 		CEF94BA8226FE9B4006B7528 /* animation.h264 */ = {isa = PBXFileReference; lastKnownFileType = file; name = animation.h264; path = H264Player/animation.h264; sourceTree = "<group>"; };
+		CEF94BCD227AD2E0006B7528 /* AudioFrameDecoder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioFrameDecoder.swift; sourceTree = "<group>"; };
+		CEF94BD1227ADED5006B7528 /* ma.mp4 */ = {isa = PBXFileReference; lastKnownFileType = file; path = ma.mp4; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -116,6 +120,7 @@
 		CEF94B75226E8F7D006B7528 = {
 			isa = PBXGroup;
 			children = (
+				CEF94BD1227ADED5006B7528 /* ma.mp4 */,
 				C9A8A22A2278B0E900EB3FBC /* walk.mp4 */,
 				C9A8A2282278ADD500EB3FBC /* coffee.mp4 */,
 				C9A8A2262278183A00EB3FBC /* te.mp4 */,
@@ -129,7 +134,7 @@
 		CEF94B7F226E8F7D006B7528 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				CEF94B7E226E8F7D006B7528 /* H264Player.app */,
+				CEF94B7E226E8F7D006B7528 /* CustomPlayer.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -137,7 +142,7 @@
 		CEF94B80226E8F7D006B7528 /* H264Player */ = {
 			isa = PBXGroup;
 			children = (
-				C9A8A2222277DF6E00EB3FBC /* VideoFrameDecoder */,
+				CEF94BCF227AD2EC006B7528 /* Decoder */,
 				C9A8A2212277DF6000EB3FBC /* VideoFrameReader */,
 				C9A8A2202277DF3E00EB3FBC /* FileReader */,
 				C9A8A21F2277DF3000EB3FBC /* Container */,
@@ -152,12 +157,29 @@
 			path = H264Player;
 			sourceTree = "<group>";
 		};
+		CEF94BCF227AD2EC006B7528 /* Decoder */ = {
+			isa = PBXGroup;
+			children = (
+				CEF94BD0227AD326006B7528 /* AudioFrameDecoder */,
+				C9A8A2222277DF6E00EB3FBC /* VideoFrameDecoder */,
+			);
+			path = Decoder;
+			sourceTree = "<group>";
+		};
+		CEF94BD0227AD326006B7528 /* AudioFrameDecoder */ = {
+			isa = PBXGroup;
+			children = (
+				CEF94BCD227AD2E0006B7528 /* AudioFrameDecoder.swift */,
+			);
+			path = AudioFrameDecoder;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		CEF94B7D226E8F7D006B7528 /* H264Player */ = {
+		CEF94B7D226E8F7D006B7528 /* CustomPlayer */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = CEF94B90226E8F7F006B7528 /* Build configuration list for PBXNativeTarget "H264Player" */;
+			buildConfigurationList = CEF94B90226E8F7F006B7528 /* Build configuration list for PBXNativeTarget "CustomPlayer" */;
 			buildPhases = (
 				CEF94B7A226E8F7D006B7528 /* Sources */,
 				CEF94B7B226E8F7D006B7528 /* Frameworks */,
@@ -167,9 +189,9 @@
 			);
 			dependencies = (
 			);
-			name = H264Player;
+			name = CustomPlayer;
 			productName = H264Player;
-			productReference = CEF94B7E226E8F7D006B7528 /* H264Player.app */;
+			productReference = CEF94B7E226E8F7D006B7528 /* CustomPlayer.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -187,7 +209,7 @@
 					};
 				};
 			};
-			buildConfigurationList = CEF94B79226E8F7D006B7528 /* Build configuration list for PBXProject "H264Player" */;
+			buildConfigurationList = CEF94B79226E8F7D006B7528 /* Build configuration list for PBXProject "CustomPlayer" */;
 			compatibilityVersion = "Xcode 9.3";
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
@@ -200,7 +222,7 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				CEF94B7D226E8F7D006B7528 /* H264Player */,
+				CEF94B7D226E8F7D006B7528 /* CustomPlayer */,
 			);
 		};
 /* End PBXProject section */
@@ -210,6 +232,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				CEF94BD2227ADED5006B7528 /* ma.mp4 in Resources */,
 				C9A8A22B2278B0E900EB3FBC /* walk.mp4 in Resources */,
 				C9A8A2292278ADD500EB3FBC /* coffee.mp4 in Resources */,
 				C9A8A2272278183A00EB3FBC /* te.mp4 in Resources */,
@@ -239,6 +262,7 @@
 				C9A8A21A2277DF1400EB3FBC /* MediaFileReader.swift in Sources */,
 				CEF94B9C226EDE78006B7528 /* VideoDecoderDelegate.swift in Sources */,
 				C9A8A2092272ECEC00EB3FBC /* Container.swift in Sources */,
+				CEF94BCE227AD2E0006B7528 /* AudioFrameDecoder.swift in Sources */,
 				CEF94B96226EB7D9006B7528 /* VideoFrameReader.swift in Sources */,
 				CEF94B82226E8F7D006B7528 /* AppDelegate.swift in Sources */,
 			);
@@ -413,7 +437,7 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		CEF94B79226E8F7D006B7528 /* Build configuration list for PBXProject "H264Player" */ = {
+		CEF94B79226E8F7D006B7528 /* Build configuration list for PBXProject "CustomPlayer" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				CEF94B8E226E8F7F006B7528 /* Debug */,
@@ -422,7 +446,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		CEF94B90226E8F7F006B7528 /* Build configuration list for PBXNativeTarget "H264Player" */ = {
+		CEF94B90226E8F7F006B7528 /* Build configuration list for PBXNativeTarget "CustomPlayer" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				CEF94B91226E8F7F006B7528 /* Debug */,

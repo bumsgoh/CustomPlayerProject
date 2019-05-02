@@ -21,7 +21,7 @@ class MediaFileReader {
         self.fileReader = fileReader
         self.typeOfContainer = type
         let root = RootType()
-        root.size = 9097807 + 8
+        root.size = 8316725 + 8
         self.root = root
     }
     
