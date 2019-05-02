@@ -53,6 +53,7 @@ class MediaFileReader {
             containers.append(contentsOf: parentContainers)
         }
         root.parse()
+        print(root.moov.traks[0].mdia.minf.stbl.stsd.avc1.avcc.pictureParameterSet)
         print("________________________")
     }
     
@@ -78,7 +79,6 @@ class MediaFileReader {
                                 box.size = size
                             
                                 if box.isParent {
-                                   // print("type is \(box.type)")
                                     guard var castedBox = box as? HalfContainer else { return }
                                     castedBox.offset = currentOffset//self.fileReader.currentOffset() - UInt64(size + self.headerSize)
                                     containers.append(castedBox)
@@ -101,10 +101,10 @@ class MediaFileReader {
     
     func makeTracks() -> [Track] {
         let numberOftracks = root.moov.traks.count
-        let tracks: [Track] = [Track](repeating: Track(), count: numberOftracks)
+        var tracks: [Track] = []
         
         for (index, trak) in root.moov.traks.enumerated() {
-            let trackItem = tracks[index]
+            let trackItem = Track()
             
             let numberOfChunks = trak.mdia.minf.stbl.stco.entryCount
             var chunks: [Chunk] = [Chunk](repeating: Chunk(), count: numberOfChunks)
@@ -146,6 +146,7 @@ class MediaFileReader {
             for index in 0..<numberOfsamples {
                  samples[index].size = sampleSize == 0 ?
                     trak.mdia.minf.stbl.stsz.entrySizes[index] : sampleSize
+                //print("size\( samples[index].size)")
             }
             
             var sampleId = 0
@@ -184,11 +185,24 @@ class MediaFileReader {
                     }
                 }
             }
+            
+            if trak.mdia.hdlr.handlerType == "vide" {
+                let avcC = trak.mdia.minf.stbl.stsd.avc1.avcc
+                trackItem.sequenceParameters = avcC.sequenceParameters
+                trackItem.sequenceParameterSet = avcC.sequenceParameterSet
+                print(avcC.pictureParams)
+                trackItem.pictureParams = avcC.pictureParams
+                trackItem.pictureParameterSet = avcC.pictureParameterSet
+            }
+            
             trackItem.chunks = chunks
             trackItem.samples = samples
+            tracks.append(trackItem)
         }
         return tracks
     }
+    
+    
  
     
     func chunkToStream() {
@@ -214,4 +228,11 @@ class TrackItem {
 class Track {
     var chunks: [Chunk] = []
     var samples: [Sample] = []
+    
+    var sequenceParameterSet: Data = Data()
+    var sequenceParameters: [Data] = []
+    
+    var pictureParameterSet: Data = Data()
+    var pictureParams: [Data] = []
+    
 }

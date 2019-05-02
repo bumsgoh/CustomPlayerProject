@@ -99,6 +99,16 @@ extension Array where Element == String {
     }
 }
 
+extension Array where Element == Data {
+    var toUInt8Array: [UInt8] {
+        var array: [UInt8] = []
+        self.forEach {
+            array.append(contentsOf: $0)
+        }
+        return array
+    }
+}
+
 extension Container {
 
     var isParent: Bool {

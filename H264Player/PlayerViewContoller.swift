@@ -12,7 +12,7 @@ import AVFoundation
 
 class PlayerViewContoller: UIViewController {
     
-    private let videoDecoder: VideoFrameDecodable
+    private var videoDecoder: VideoFrameDecodable
     private var videoPlayerLayer: AVSampleBufferDisplayLayer = {
         let layer = AVSampleBufferDisplayLayer()
         layer.videoGravity = AVLayerVideoGravity.resizeAspect
@@ -114,22 +114,41 @@ class PlayerViewContoller: UIViewController {
         let reader = FileReader(url: url)
         let mediaReader = MediaFileReader(fileReader: reader!, type: .mp4)
         mediaReader.decodeFile(type: .mp4)
-        let traks = mediaReader.makeTracks()
-        traks[0].chunks.forEach {
-            print("real\($0.offset)")
+        let tracks = mediaReader.makeTracks()
+        
+        var frames: [[UInt8]] = []
+        for sample in tracks[0].samples {
+            //print(sample.offset)
+            mediaReader.fileReader.seek(offset: UInt64(sample.offset))
+           // print(sample.size)
+            mediaReader.fileReader.read(length: sample.size) { (data) in
+                
+               /* data.forEach {
+                    print($0)
+                }*/
+               // print(data)
+                frames.append(Array(data))
+                //print(Array(data))
+                
+              //  print("_________data")
+            }
         }
+        videoDecoder.track = tracks[0]
         
+        videoDecoder.decodeTrack(frames: frames)
         
-        
+
     }
 }
 
 extension PlayerViewContoller: VideoDecoderDelegate {
     func shouldUpdateVideoLayer(with buffer: CMSampleBuffer) {
+        if videoPlayerLayer.isReadyForMoreMediaData {
         videoPlayerLayer.enqueue(buffer)
         DispatchQueue.main.async {
+            
             self.videoPlayerLayer.setNeedsDisplay()
         }
-        
+        }
     }
 }

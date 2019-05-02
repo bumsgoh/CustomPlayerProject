@@ -11,6 +11,8 @@ import VideoToolbox
 
 class VideoFrameDecoder: VideoFrameDecodable {
     
+    var track: Track = Track()
+    
     private var formatDescription: CMVideoFormatDescription?
     private var decompressionSession: VTDecompressionSession?
     
@@ -35,6 +37,20 @@ class VideoFrameDecoder: VideoFrameDecodable {
         
         while var packet = videoFrameReader.extractFrame() {
             analyzeNALAndDecode(videoPacket: &packet)
+        }
+    }
+    
+    func decodeTrack(frames: [[UInt8]]) {
+        pps = track.pictureParams.toUInt8Array
+        sps = track.sequenceParameters.toUInt8Array
+        
+        buildDecompressionSession()
+        for packet in frames {
+           // buildDecompressionSession()
+            var mutablePacks = packet
+            if true {
+                decodeVideoPacket(videoPacket: mutablePacks)
+            }
         }
     }
     
@@ -65,6 +81,7 @@ class VideoFrameDecoder: VideoFrameDecodable {
     }
 
     private func decodeVideoPacket(videoPacket: VideoPacket) {
+        print("here1")
         let bufferPointer = UnsafeMutablePointer<UInt8>(mutating: videoPacket)
         var blockBuffer: CMBlockBuffer?
         var status = CMBlockBufferCreateWithMemoryBlock(allocator: kCFAllocatorDefault,
@@ -95,9 +112,11 @@ class VideoFrameDecoder: VideoFrameDecodable {
         guard let buffer = sampleBuffer,
             let session = decompressionSession,
             status == kCMBlockBufferNoErr else {
-               // print("no session")
+                print("no session")
                 return
         }
+        
+        print("here2")
         ///공부해야함
         guard let attachments: CFArray =
             CMSampleBufferGetSampleAttachmentsArray(buffer,
@@ -112,11 +131,11 @@ class VideoFrameDecoder: VideoFrameDecodable {
         
         self.videoDecoderDelegate?.shouldUpdateVideoLayer(with: buffer)
     
+        print("here3")
+       // var flag = VTDecodeInfoFlags(rawValue: 0)
+        //var outputBuffer = UnsafeMutablePointer<CVPixelBuffer>.allocate(capacity: 1)
         
-        var flag = VTDecodeInfoFlags(rawValue: 0)
-        var outputBuffer = UnsafeMutablePointer<CVPixelBuffer>.allocate(capacity: 1)
-        
-        status = VTDecompressionSessionDecodeFrame(session,
+       /* status = VTDecompressionSessionDecodeFrame(session,
                                                    sampleBuffer: buffer,
                                                    flags: [._EnableAsynchronousDecompression],
                                                    frameRefcon: &outputBuffer,
@@ -130,36 +149,43 @@ class VideoFrameDecoder: VideoFrameDecodable {
             print("badData")
         default:
             print("\(status)")
-        }
+        }*/
     }
     
     
     private func buildDecompressionSession() -> Bool {
         formatDescription = nil
         
-        guard let spsData = sps, let ppsData = pps else {
+        guard let spsData = sps, let ppsData =  pps else {
             print("param fail")
             return false
         }
-        let spsPointer = UnsafePointer<UInt8>(spsData)
-        let ppsPointer = UnsafePointer<UInt8>(ppsData)
+        
+        print("is \(spsData)")
+        print("is \(ppsData)")
+        let spsPointer = UnsafePointer<UInt8>(Array(spsData))
+        let ppsPointer = UnsafePointer<UInt8>(Array(ppsData))
         
         let parameters = [spsPointer, ppsPointer]
         let parameterSetPointers = UnsafePointer<UnsafePointer<UInt8>>(parameters)
         
-        let sizeOfParameters = [spsData.count, ppsData.count]
-        let sizeOfparameterSet = UnsafePointer<Int>(sizeOfParameters)
+        //let sizeOfParameters = [spsData.count, ppsData.count]
+       // let sizeOfparameterSet = UnsafePointer<Int>(sizeOfParameters)
+      
         
+        let sizeParamArray = [spsData.count, ppsData.count]
+//CMVideoFormatDescriptionRef
+        let parameterSetSizes = UnsafePointer<Int>(sizeParamArray)
         let status = CMVideoFormatDescriptionCreateFromH264ParameterSets(allocator: kCFAllocatorDefault,
                                                                          parameterSetCount: 2,
                                                                          parameterSetPointers: parameterSetPointers,
-                                                                         parameterSetSizes: sizeOfparameterSet,
+                                                                         parameterSetSizes: parameterSetSizes,
                                                                          nalUnitHeaderLength: 4,
                                                                          formatDescriptionOut: &formatDescription)
         guard let formatDescription = self.formatDescription,
             status == noErr
             else {
-                print("desc fail")
+                print("desc fail\(status)")
             return false
         }
         if let session = decompressionSession {

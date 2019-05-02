@@ -874,7 +874,7 @@ class Ctts: Container {
     }*/
 }
 
-class Stsd: HalfContainer {
+class Stsd: Container {
     
     var offset: UInt64 = 0
     var type: ContainerType = .stsd
@@ -886,26 +886,25 @@ class Stsd: HalfContainer {
     var entryCount: Int = 0
     var avc1 = Avc1()
     var mp4a = Mp4a()
-    
-    var children: [Container] = []
+
     
     init() {}
     
     func parse() {
-        children.forEach {
-            switch $0.type {
+        let containerPool = ContainerPool()
+        let extractedData = data[data.startIndex + 12..<data.startIndex + 16].convertToString
+        let typeOfChildren = try? containerPool.pullOutContainer(with: extractedData)
+        
+            switch typeOfChildren! {
             case .mp4a:
-                $0.parse()
-                mp4a = $0 as! Mp4a
+                mp4a.data = data[(data.startIndex + 8)...]
+                mp4a.parse()
             case .avc1:
-                $0.parse()
-                avc1 = $0 as! Avc1
+                avc1.data = data[(data.startIndex + 8)...]
+                avc1.parse()
             default:
                 assertionFailure("no type")
             }
-           
-            
-        }
         print("\(type) is parsing..")
         let dataArray = data.slice(in: [1,3,4])
         self.version = dataArray[0].convertToInt
@@ -925,12 +924,11 @@ class Stsd: HalfContainer {
     }*/
 }
 
-class Avc1: HalfContainer {
+class Avc1: Container {
     var type: ContainerType = .avc1
     var size: Int = 0
     var data: Data = Data()
     var offset: UInt64 = 0
-    var children: [Container] = []
     
     var referenceIndex = 0
     var width = 0
@@ -940,14 +938,12 @@ class Avc1: HalfContainer {
     var avcc = Avcc()
 
     func parse() {
-        print("\(type) is parsing..")
-        children.forEach {
-            $0.parse()
-            self.avcc = $0 as! Avcc
-        }
+        print(data)
+     //   let dataArray = data.slice(in: [4,4,4])
+       // size = dataArray[0].convertToInt
+        avcc.data = self.data[(data.startIndex + 94)...]
+        avcc.parse()
     }
-    
-    
 }
 
 class Avcc: Container {
@@ -961,11 +957,38 @@ class Avcc: Container {
     var compat = 0
     var level = 0
     var naluLength = 0
-    var segmentParams: [Data] = []
+    
+    var sequenceParameterSet: Data = Data()
+    var sequenceParameterEntry = 0
+    var sequenceParameters: [Data] = []
+    
+    var pictureParameterSet: Data = Data()
+    var pictureParameterEntry  = 0
     var pictureParams: [Data] = []
-    
-    
+
     func parse() {
+        print(data)
+        data.forEach {
+            print($0.toHexNumber)
+        }
+        //let dataArray = data.slice(in: [4,1,1,1,1,1,1,2])
+        let startIndex = data.startIndex
+        //size = data.subdata(in: data.startIndex..<data.startIndex + 4).convertToInt
+        sequenceParameterSet = data.subdata(in: startIndex + 6..<startIndex + 7)
+        
+        sequenceParameterEntry = data.subdata(in: startIndex + 6..<startIndex + 8).convertToInt
+        for i in 0..<sequenceParameterEntry {
+            sequenceParameters.append(data.subdata(in: (startIndex + 8 + i)..<(startIndex + 9 + i)))
+        }
+        
+        let pictureParamterOffset = startIndex + sequenceParameterEntry + 8
+        pictureParameterSet = data.subdata(in: pictureParamterOffset..<pictureParamterOffset+1)
+        pictureParameterEntry = data.subdata(in: (pictureParamterOffset + 1)..<(pictureParamterOffset + 3)).convertToInt
+        
+        for i in 0..<pictureParameterEntry {
+            pictureParams.append(data.subdata(in: (pictureParamterOffset + 3 + i)..<((pictureParamterOffset + 4 + i))))
+        }
+  
         print("\(type) is parsing..")
     }
 }

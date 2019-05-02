@@ -10,6 +10,7 @@ import Foundation
 
 protocol VideoFrameDecodable {
     
+    var track: Track { get set }
     var spsSize: Int { get set }
     var ppsSize: Int { get set }
     
@@ -19,5 +20,6 @@ protocol VideoFrameDecodable {
     var videoFrameReader: VideoFrameReadable { get set }
     
     func decodeFile(url: URL)
+    func decodeTrack(frames: [[UInt8]])
     
 }
