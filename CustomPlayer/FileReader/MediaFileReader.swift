@@ -15,7 +15,6 @@ class MediaFileReader {
     let root: RootType
     
     private let headerSize = 8
-     private var fileOffset = 0
     
     init(fileReader: FileStreamReadable, type: FileContainerType) {
         self.fileReader = fileReader
@@ -46,7 +45,9 @@ class MediaFileReader {
     func decodeFile(type: FileContainerType) {
         //TODO filetype 에 따라 다른 디코딩 방식제공해야함
         var containers: [HalfContainer] = []
-        containers = decode(root: self.root)
+        root.size = Int(fileReader.fileHandler.seekToEndOfFile()) + headerSize
+        print(fileReader.currentOffset())
+        containers = decode(root: root)
         while let item = containers.first {
             containers.remove(at: 0)
             let parentContainers = decode(root: item)

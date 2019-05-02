@@ -967,11 +967,6 @@ class Avcc: Container {
     var pictureParams: [Data] = []
 
     func parse() {
-        print(data)
-        data.forEach {
-            print($0.toHexNumber)
-        }
-        //let dataArray = data.slice(in: [4,1,1,1,1,1,1,2])
         let startIndex = data.startIndex
         //size = data.subdata(in: data.startIndex..<data.startIndex + 4).convertToInt
         sequenceParameterSet = data.subdata(in: startIndex + 6..<startIndex + 7)
@@ -1014,21 +1009,17 @@ DecoderSpecificInfo = 12 10 56 e5 00
 [Descriptor:06] size=5+1
 
 */
-class Esds: HalfContainer {
-    var type: ContainerType = .avc1
+class Esds: Container {
+    var type: ContainerType = .esds
     var size: Int = 0
     var data: Data = Data()
     var offset: UInt64 = 0
-    var children: [Container] = []
     
     var esDescriptor = EsDescriptor()
     
     func parse() {
         print("\(type) is parsing..")
-        children.forEach {
-            $0.parse()
-            self.esDescriptor = $0 as! EsDescriptor
-        }
+        
     }
 }
 
@@ -1051,26 +1042,43 @@ class EsDescriptor: Container {
     }
 }
 
-class Mp4a: HalfContainer {
-    var type: ContainerType = .avc1
+class Mp4a: Container {
+    var type: ContainerType = .mp4a
     var size: Int = 0
     var data: Data = Data()
     var offset: UInt64 = 0
-    var children: [Container] = []
     
+    //reserved 6byte
     var dataReferenceIndex = 0
-    var channelCount = 0
+    var version = 0
+    var revisionLevel = 0
+    var vendor = 0
+    var numberOfChannels = 0
     var sampleSize = 0
+    var compressionId = 0
+    //reserved 2 byte
     var sampleRate = 0
     
     var esds = Esds()
-    
+
     func parse() {
         print("\(type) is parsing..")
-        children.forEach {
-            $0.parse()
-            self.esds = $0 as! Esds
+        for i in data {
+            print(i.toHexNumber)
         }
+        //0..4 size 4..8 type 8..14 reserv 32..34 data 34..36 vers 36..38
+        let startIndex = data.startIndex
+        dataReferenceIndex = data.subdata(in: startIndex + 14..<startIndex + 16).convertToInt
+        version = data.subdata(in: startIndex + 16..<startIndex + 18).convertToInt
+        revisionLevel = data.subdata(in: startIndex + 18..<startIndex + 20).convertToInt
+        vendor = data.subdata(in: startIndex + 20..<startIndex + 24).convertToInt
+        numberOfChannels = data.subdata(in: startIndex + 24..<startIndex + 26).convertToInt
+        sampleSize = data.subdata(in: startIndex + 26..<startIndex + 28).convertToInt
+        compressionId = data.subdata(in: startIndex + 28..<startIndex + 30).convertToInt
+        sampleRate = data.subdata(in: startIndex + 30..<startIndex + 34).convertToInt
+        esds.data = self.data[(data.startIndex + 34)...]
+        esds.parse()
+        
     }
     
     

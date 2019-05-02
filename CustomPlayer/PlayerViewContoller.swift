@@ -115,7 +115,7 @@ class PlayerViewContoller: UIViewController {
     }
     
     @objc func readButtonDidTap() {
-        guard let filePath =  Bundle.main.path(forResource: "ma", ofType: "mp4") else { return }
+        guard let filePath =  Bundle.main.path(forResource: "walk", ofType: "mp4") else { return }
         let url = URL(fileURLWithPath: filePath)
         let reader = FileReader(url: url)
         let mediaReader = MediaFileReader(fileReader: reader!, type: .mp4)
@@ -143,7 +143,7 @@ class PlayerViewContoller: UIViewController {
         
        // videoDecoder.decodeTrack(frames: frames)
         
-        audioDecoder.decodeTrack(frames: frames)
+       // audioDecoder.decodeTrack(frames: frames)
         
 
     }

@@ -113,8 +113,7 @@ extension Container {
 
     var isParent: Bool {
         if type == .moov || type == .trak || type == .mdia || type == .minf
-            || type == .dinf || type == .stbl || type == .edts || type == .esds
-            || type == .mp4a || type == .udta {
+            || type == .dinf || type == .stbl || type == .edts || type == .udta {
             return true
         } else {
             return false

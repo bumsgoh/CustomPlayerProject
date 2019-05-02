@@ -61,6 +61,11 @@ class AudioFrameDecoder {
         if status != kCMBlockBufferNoErr {
             return
         }
+        var timing: CMSampleTimingInfo = CMSampleTimingInfo(
+            duration: CMTime(value: 1, timescale: Int32(44100)),
+            presentationTimeStamp: CMTime.zero,
+            decodeTimeStamp: CMTime.invalid
+        )
         
         var sampleBuffer: CMSampleBuffer?
         let sampleSizeArray = [audioPacket.count]
@@ -82,6 +87,23 @@ class AudioFrameDecoder {
             status == kCMBlockBufferNoErr else {
                 assertionFailure("buffer failed")
                 return
+        }
+        
+        status = CMSampleBufferCreate(allocator: kCFAllocatorDefault,
+                                      dataBuffer: nil,
+                                      dataReady: false,
+                                      makeDataReadyCallback: nil,
+                                      refcon: nil,
+                                      formatDescription: formatDescription,
+                                      sampleCount: 10,
+                                      sampleTimingEntryCount: 1,
+                                      sampleTimingArray: &timing,
+                                      sampleSizeEntryCount: 0,
+                                      sampleSizeArray: nil,
+                                      sampleBufferOut: &sampleBuffer)
+        
+        guard status == noErr else {
+            return
         }
         
         videoDecoderDelegate?.shouldUpdateVideoLayer(with: buffer)
