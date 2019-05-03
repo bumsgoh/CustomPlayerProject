@@ -9,6 +9,6 @@
 import Foundation
 import VideoToolbox
 
-protocol VideoDecoderDelegate: class {
-    func shouldUpdateVideoLayer(with buffer: CMSampleBuffer)
+protocol MultiMediaDecoderDelegate: class {
+    func shouldUpdateLayer(with buffer: CMSampleBuffer)
 }

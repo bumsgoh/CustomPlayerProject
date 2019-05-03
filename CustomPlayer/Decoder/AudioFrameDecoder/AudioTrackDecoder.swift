@@ -9,16 +9,22 @@
 import Foundation
 import CoreMedia
 
-class AudioFrameDecoder {
+class AudioTrackDecoder: TrackDecodable {
     
-    weak var videoDecoderDelegate: VideoDecoderDelegate?
+    var track: Track
+    weak var delegate: MultiMediaDecoderDelegate?
+    var mediaReader: MediaFileReader?
+    
+    init(track: Track) {
+        self.track = track
+    }
     
     func createAudioFormatDescription() -> CMAudioFormatDescription? {
         var asbd = AudioStreamBasicDescription()
         
-        asbd.mFormatID = kAudioFormatLinearPCM
+        asbd.mFormatID = kAudioFormatMPEG4AAC
         asbd.mFormatFlags = kAudioFormatFlagsNativeFloatPacked
-        asbd.mSampleRate = 44100
+        asbd.mSampleRate = 44100//Float64(track.sampleRate)
         asbd.mBitsPerChannel = 32
         asbd.mFramesPerPacket = 1
         asbd.mChannelsPerFrame = 2
@@ -26,7 +32,7 @@ class AudioFrameDecoder {
         asbd.mBytesPerPacket = asbd.mBytesPerFrame * asbd.mFramesPerPacket
         
         var formatDescription: CMAudioFormatDescription?
-        CMAudioFormatDescriptionCreate(allocator: nil,
+        let status = CMAudioFormatDescriptionCreate(allocator: nil,
                                        asbd: &asbd,
                                        layoutSize: 0,
                                        layout: nil,
@@ -35,27 +41,28 @@ class AudioFrameDecoder {
                                        extensions: nil,
                                        formatDescriptionOut: &formatDescription)
         
+        print(formatDescription)
         return formatDescription
     }
     
-    func decodeTrack(frames: [[UInt8]]) {
+    func decodeTrack(samples: [[UInt8]]) {
 
-        for packet in frames {
+        for packet in samples {
             let mutablePacks = packet
-            decodeAudioPacket(audioPacket: mutablePacks)
+            decodeAudioPacket(audioSample: mutablePacks)
         }
     }
     
-    func decodeAudioPacket(audioPacket: VideoPacket) {
-        let bufferPointer = UnsafeMutablePointer<UInt8>(mutating: audioPacket)
+    func decodeAudioPacket(audioSample: [UInt8]) {
+        let bufferPointer = UnsafeMutablePointer<UInt8>(mutating: audioSample)
         var blockBuffer: CMBlockBuffer?
         var status = CMBlockBufferCreateWithMemoryBlock(allocator: kCFAllocatorDefault,
                                                         memoryBlock: bufferPointer,
-                                                        blockLength: audioPacket.count,
+                                                        blockLength: audioSample.count,
                                                         blockAllocator: kCFAllocatorNull,
                                                         customBlockSource: nil,
                                                         offsetToData: 0,
-                                                        dataLength: audioPacket.count,
+                                                        dataLength: audioSample.count,
                                                         flags: 0,
                                                         blockBufferOut: &blockBuffer)
         if status != kCMBlockBufferNoErr {
@@ -68,44 +75,48 @@ class AudioFrameDecoder {
         )
         
         var sampleBuffer: CMSampleBuffer?
-        let sampleSizeArray = [audioPacket.count]
+        
         guard let formatDescription = createAudioFormatDescription() else {
             assertionFailure("formatDesc Failed")
             return
         }
-            
-        status = CMSampleBufferCreateReady(allocator: kCFAllocatorDefault,
-                                           dataBuffer: blockBuffer,
-                                           formatDescription: formatDescription,
-                                           sampleCount: 1,
-                                           sampleTimingEntryCount: 0,
-                                           sampleTimingArray: nil,
-                                           sampleSizeEntryCount: 1,
-                                           sampleSizeArray: sampleSizeArray,
-                                           sampleBufferOut: &sampleBuffer)
-        guard let buffer = sampleBuffer,
-            status == kCMBlockBufferNoErr else {
-                assertionFailure("buffer failed")
-                return
-        }
-        
+
+     
+        let sampleSizeArray = [audioSample.count]
         status = CMSampleBufferCreate(allocator: kCFAllocatorDefault,
-                                      dataBuffer: nil,
+                                      dataBuffer: blockBuffer,
                                       dataReady: false,
                                       makeDataReadyCallback: nil,
                                       refcon: nil,
                                       formatDescription: formatDescription,
-                                      sampleCount: 10,
+                                      sampleCount: 1,
                                       sampleTimingEntryCount: 1,
                                       sampleTimingArray: &timing,
                                       sampleSizeEntryCount: 0,
-                                      sampleSizeArray: nil,
+                                      sampleSizeArray: sampleSizeArray,
                                       sampleBufferOut: &sampleBuffer)
         
         guard status == noErr else {
             return
         }
+        guard let buffer = sampleBuffer,
+            status == kCMBlockBufferNoErr else {
+                assertionFailure("buffer failed")
+                return
+        }
+        delegate?.shouldUpdateLayer(with: buffer)
+    }
+    
+    func play() {
+        var frames: [[UInt8]] = []
+        for sample in track.samples {
+            
+            mediaReader?.fileReader.seek(offset: UInt64(sample.offset))
+            mediaReader?.fileReader.read(length: sample.size) { (data) in
+                frames.append(Array(data))
+            }
+        }
         
-        videoDecoderDelegate?.shouldUpdateVideoLayer(with: buffer)
+        decodeTrack(samples: frames)
     }
 }

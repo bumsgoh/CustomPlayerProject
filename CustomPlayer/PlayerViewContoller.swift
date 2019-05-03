@@ -12,8 +12,8 @@ import AVFoundation
 
 class PlayerViewContoller: UIViewController {
     
-    private var videoDecoder: VideoFrameDecodable
-    private var audioDecoder: AudioFrameDecoder
+    private var videoDecoder: TrackDecodable = VideoTrackDecoder(videoFrameReader: VideoFrameReader())
+    private var audioDecoder: TrackDecodable?
     let audioRenderer = AVSampleBufferAudioRenderer()
     private var videoPlayerLayer: AVSampleBufferDisplayLayer = {
         let layer = AVSampleBufferDisplayLayer()
@@ -52,12 +52,12 @@ class PlayerViewContoller: UIViewController {
         return button
     }()
     
-    init(videoDecoder: VideoFrameDecodable) {
-        self.videoDecoder = videoDecoder
-        self.audioDecoder = AudioFrameDecoder()
-        
+    init() {
+        //self.videoDecoder = videoDecoder
+        //self.audioDecoder = audioDecoder
         super.init(nibName: nil, bundle: nil)
-        self.audioDecoder.videoDecoderDelegate = self
+       
+        
     }
     
     required init?(coder aDecoder: NSCoder) {
@@ -66,9 +66,18 @@ class PlayerViewContoller: UIViewController {
     
     override func viewDidLoad() {
         super.viewDidLoad()
-        videoDecoder.layer = self.videoPlayerLayer
+        //videoDecoder.layer = self.videoPlayerLayer
         setUpLayer()
         setUpViews()
+        guard let filePath =  Bundle.main.path(forResource: "ma", ofType: "mp4") else { return }
+        let url = URL(fileURLWithPath: filePath)
+        let reader = FileReader(url: url)
+        let mediaReader = MediaFileReader(fileReader: reader!, type: .mp4)
+        mediaReader.decodeMedia(type: .mp4)
+        let tracks = mediaReader.makeTracks()
+        self.audioDecoder = AudioTrackDecoder(track: tracks[1])
+        audioDecoder?.mediaReader = mediaReader
+        self.audioDecoder?.delegate = self
         // Do any additional setup after loading the view.
     }
 
@@ -110,48 +119,50 @@ class PlayerViewContoller: UIViewController {
         DispatchQueue.global().async {
             guard let filePath =  Bundle.main.path(forResource: "animation", ofType: "h264") else { return }
             let fileURL = URL(fileURLWithPath: filePath)
-            self.videoDecoder.decodeFile(url: fileURL)
+           // self.videoDecoder.decodeFile(url: fileURL)
         }
     }
     
     @objc func readButtonDidTap() {
-        guard let filePath =  Bundle.main.path(forResource: "walk", ofType: "mp4") else { return }
-        let url = URL(fileURLWithPath: filePath)
-        let reader = FileReader(url: url)
-        let mediaReader = MediaFileReader(fileReader: reader!, type: .mp4)
-        mediaReader.decodeFile(type: .mp4)
-        let tracks = mediaReader.makeTracks()
+      
+       
+        audioDecoder?.play()
+//        var frames: [[UInt8]] = []
+//        for sample in tracks[1].samples {
+//            //print(sample.offset)
+//            mediaReader.fileReader.seek(offset: UInt64(sample.offset))
+//           // print(sample.size)
+//            mediaReader.fileReader.read(length: sample.size) { (data) in
+//
+//               /* data.forEach {
+//                    print($0)
+//                }*/
+//               // print(data)
+//                frames.append(Array(data))
+//                //print(Array(data))
+//
+//              //  print("_________data")
+//            }
+//        }
+//        //videoDecoder.track = tracks[0]
+//
+//       // videoDecoder.decodeTrack(frames: frames)
+//
+//       // audioDecoder.decodeTrack(frames: frames)
         
-        var frames: [[UInt8]] = []
-        for sample in tracks[1].samples {
-            //print(sample.offset)
-            mediaReader.fileReader.seek(offset: UInt64(sample.offset))
-           // print(sample.size)
-            mediaReader.fileReader.read(length: sample.size) { (data) in
-                
-               /* data.forEach {
-                    print($0)
-                }*/
-               // print(data)
-                frames.append(Array(data))
-                //print(Array(data))
-                
-              //  print("_________data")
-            }
-        }
-        //videoDecoder.track = tracks[0]
-        
-       // videoDecoder.decodeTrack(frames: frames)
-        
-       // audioDecoder.decodeTrack(frames: frames)
-        
-
+ 
     }
 }
 
-extension PlayerViewContoller: VideoDecoderDelegate {
+extension PlayerViewContoller: MultiMediaDecoderDelegate {
+    func shouldUpdateLayer(with buffer: CMSampleBuffer) {
+     //  AVAudioSession().
+        self.videoPlayerLayer.enqueue(buffer)
+       
+    }
+    
     func shouldUpdateVideoLayer(with buffer: CMSampleBuffer) {
-      self.audioRenderer.enqueue(buffer)
+      
         DispatchQueue.main.async {
            // self.videoPlayerLayer.enqueue(buffer)
            

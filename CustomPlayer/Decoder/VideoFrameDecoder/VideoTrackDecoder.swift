@@ -10,7 +10,13 @@ import Foundation
 import VideoToolbox
 import AVFoundation
 
-class VideoFrameDecoder: VideoFrameDecodable {
+class VideoTrackDecoder: TrackDecodable {
+    var mediaReader: MediaFileReader?
+    
+    func play() {
+        
+    }
+    
     var layer: AVSampleBufferDisplayLayer = AVSampleBufferDisplayLayer()
     
     
@@ -27,7 +33,7 @@ class VideoFrameDecoder: VideoFrameDecodable {
     
     var videoFrameReader: VideoFrameReadable
     
-    weak var videoDecoderDelegate: VideoDecoderDelegate?
+    weak var delegate: MultiMediaDecoderDelegate?
     
     init(videoFrameReader: VideoFrameReadable) {
         self.videoFrameReader = videoFrameReader
@@ -43,21 +49,18 @@ class VideoFrameDecoder: VideoFrameDecodable {
         }
     }
     
-    func decodeTrack(frames: [[UInt8]]) {
+    func decodeTrack(samples frames: [[UInt8]]) {
         pps = track.pictureParams.toUInt8Array
         sps = track.sequenceParameters.toUInt8Array
         
         buildDecompressionSession()
         for packet in frames {
-           // buildDecompressionSession()
-            var mutablePacks = packet
-            if true {
-                decodeVideoPacket(videoPacket: mutablePacks)
-            }
+                decodeVideoPacket(videoPacket: packet)
         }
+        
     }
     
-    private func analyzeNALAndDecode(videoPacket: inout VideoPacket) {
+    private func analyzeNALAndDecode(videoPacket: inout [UInt8]) {
         
         var lengthOfNAL = CFSwapInt32HostToBig((UInt32(videoPacket.count - 4)))
        
@@ -83,8 +86,7 @@ class VideoFrameDecoder: VideoFrameDecodable {
         }
     }
 
-    private func decodeVideoPacket(videoPacket: VideoPacket) {
-        print("here1")
+    private func decodeVideoPacket(videoPacket: [UInt8]) {
         let bufferPointer = UnsafeMutablePointer<UInt8>(mutating: videoPacket)
         var blockBuffer: CMBlockBuffer?
         var status = CMBlockBufferCreateWithMemoryBlock(allocator: kCFAllocatorDefault,
@@ -132,9 +134,10 @@ class VideoFrameDecoder: VideoFrameDecodable {
                              Unmanaged.passUnretained(kCMSampleAttachmentKey_DisplayImmediately).toOpaque(),
                              Unmanaged.passUnretained(kCFBooleanTrue).toOpaque())
         if layer.isReadyForMoreMediaData {
-            self.videoDecoderDelegate?.shouldUpdateVideoLayer(with: buffer)
+            self.delegate?.shouldUpdateLayer(with: buffer)
         }
-        print("here3")
+        
+        
        // var flag = VTDecodeInfoFlags(rawValue: 0)
         //var outputBuffer = UnsafeMutablePointer<CVPixelBuffer>.allocate(capacity: 1)
         

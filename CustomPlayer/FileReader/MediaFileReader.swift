@@ -9,19 +9,15 @@
 import Foundation
 
 class MediaFileReader {
-    private let fileReader: FileStreamReadable
+    let fileReader: FileStreamReadable
     private let typeOfContainer: FileContainerType
     private let containerPool: ContainerPool = ContainerPool()
-    let root: RootType
-    
+    private let root = RootType()
     private let headerSize = 8
     
     init(fileReader: FileStreamReadable, type: FileContainerType) {
         self.fileReader = fileReader
         self.typeOfContainer = type
-        let root = RootType()
-        //root.size = 8316725 + 8
-        self.root = root
     }
     
     private func extractTypeHeader(completion: @escaping ((Int, String))->()) {
@@ -41,8 +37,9 @@ class MediaFileReader {
         return (size, decodedHeaderName)
     }
     
-    func decodeFile(type: FileContainerType) {
+    func decodeMedia(type: FileContainerType) {
         //TODO filetype 에 따라 다른 디코딩 방식제공해야함
+        
         var containers: [HalfContainer] = []
         root.size = Int(fileReader.fileHandler.seekToEndOfFile()) + headerSize
         
@@ -100,10 +97,8 @@ class MediaFileReader {
         return containers
     }
 
-
     
     func makeTracks() -> [Track] {
-        let numberOftracks = root.moov.traks.count
         var tracks: [Track] = []
         
         for (index, trak) in root.moov.traks.enumerated() {
@@ -149,7 +144,6 @@ class MediaFileReader {
             for index in 0..<numberOfsamples {
                  samples[index].size = sampleSize == 0 ?
                     trak.mdia.minf.stbl.stsz.entrySizes[index] : sampleSize
-                //print("size\( samples[index].size)")
             }
             
             var sampleId = 0
@@ -196,6 +190,9 @@ class MediaFileReader {
                 print(avcC.pictureParams)
                 trackItem.pictureParams = avcC.pictureParams
                 trackItem.pictureParameterSet = avcC.pictureParameterSet
+            } else {
+                let mp4a = trak.mdia.minf.stbl.stsd.mp4a
+                
             }
             
             trackItem.chunks = chunks
@@ -204,38 +201,6 @@ class MediaFileReader {
         }
         return tracks
     }
-    
-    
- 
-    
-    func chunkToStream() {
-        //print(root.moov.traks[0].chunks)
-        let chunks = root.moov.traks[0].chunks
-        let samples = root.moov.traks[0].samples
-        print(chunks[0].offset)
-        print(samples[0].offset)
-        print(root.moov.mvhd.creationDate)
-    }
 }
-enum FileContainerType {
-    case mp4
-}
+    
 
-
-class TrackItem {
-    var sampleDuration: Int = 0
-    var startTime: Int = 0
-    var size: Int = 0
-}
-
-class Track {
-    var chunks: [Chunk] = []
-    var samples: [Sample] = []
-    
-    var sequenceParameterSet: Data = Data()
-    var sequenceParameters: [Data] = []
-    
-    var pictureParameterSet: Data = Data()
-    var pictureParams: [Data] = []
-    
-}

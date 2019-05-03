@@ -15,12 +15,10 @@ protocol VideoFrameReadable {
     
     func open(url: URL)
     
-    func extractFrame() -> VideoPacket?
+    func extractFrame() -> [UInt8]?
     
     func readStream() -> Int
 }
-
-typealias VideoPacket = [UInt8]
 
 enum VideoCodec {
     case h264

@@ -18,7 +18,7 @@ class VideoFrameReader: VideoFrameReadable {
         fileStream?.open()
     }
     
-    func extractFrame() -> VideoPacket? {
+    func extractFrame() -> [UInt8]? {
         var startIndex = 4
         
         if streamBuffer.isEmpty && readStream() == 0 {

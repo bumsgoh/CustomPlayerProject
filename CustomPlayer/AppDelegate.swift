@@ -17,9 +17,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
         // Override point for customization after application launch.
         window = UIWindow(frame: UIScreen.main.bounds)
-        let decoder = VideoFrameDecoder(videoFrameReader: VideoFrameReader())
-        let videoPlayerController = PlayerViewContoller(videoDecoder: decoder)
-        decoder.videoDecoderDelegate = videoPlayerController
+        let decoder = VideoTrackDecoder(videoFrameReader: VideoFrameReader())
+        let videoPlayerController = PlayerViewContoller()
+        decoder.delegate = videoPlayerController
         
         
         window?.backgroundColor = .white
