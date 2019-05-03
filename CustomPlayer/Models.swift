@@ -49,17 +49,7 @@ enum ContainerType: String, CaseIterable {
     case meta
 }
 
-extension ContainerType {
-    var isParent: Bool {
-        if self == .moov || self == .trak || self == .mdia || self == .minf
-            || self == .dinf || self == .stbl || self == .edts || self == .stsd || self == .esds
-        || self == .mp4a || self == .avc1 || self == .udta || self == .meta{
-            return true
-        } else {
-            return false
-        }
-    }
-}
+
 
 class RootType: HalfContainer {
     
@@ -77,7 +67,6 @@ class RootType: HalfContainer {
     var children: [Container] = []
 
     func parse() {
-        print("\(type) is parsing..")
         children.forEach {
             switch $0.type {
             case .ftyp:
@@ -97,7 +86,6 @@ class RootType: HalfContainer {
             }
         }
     }
-
 }
 
 class Ftyp: Container {
@@ -111,20 +99,12 @@ class Ftyp: Container {
     var compatibleBrand: [String] = []
     
     func parse() {
-        print("\(type) is parsing..")
         let dataArray = data.slice(in: [4,4,4,4])
         majorBrand = dataArray[0].convertToString
         minorVersion = dataArray[1].convertToString
         compatibleBrand = [dataArray[2].convertToString]
                            //dataArray[3].convertToString]
-        
     }
-    
-   /* init(majorBrand: String, minorVersion: String, compatibleBrand: [String] ) {
-        self.majorBrand = majorBrand
-        self.minorVersion = minorVersion
-        self.compatibleBrand = compatibleBrand
-    }*/
 }
 
 class Free: Container {
@@ -133,27 +113,17 @@ class Free: Container {
     var size: Int = 0
     var data: Data = Data()
     
-    func parse() {
-        print("\(type) is parsing..")
-        //TODO: freetype parse
-    }
-    
-    /*init(data: Data) {
-        self.data = data
-    }*/
+    func parse() {}
 }
+
 class Mdat: Container {
     
     var type: ContainerType = .mdat
     var size: Int = 0
     var data: Data = Data()
-    func parse() {
-        print("\(type) is parsing..")
-    }
-    /*init(data: Data) {
-        self.data = data
-    }*/
+    func parse() {}
 }
+
 class Moov: HalfContainer {
     var offset: UInt64 = 0
     var type: ContainerType = .moov
@@ -168,7 +138,6 @@ class Moov: HalfContainer {
     var children: [Container] = []
     
     func parse() {
-        print("\(type) is parsing..")
         children.forEach {
             switch $0.type {
             case .mvhd:
@@ -187,10 +156,6 @@ class Moov: HalfContainer {
                 assertionFailure("failed to make moov")
             }
         }
-    /*init(mvhd: Mvhd, iods: Iods) {
-        self.mvhd = mvhd
-        self.iods = iods
-    }*/
     }
 }
 
@@ -210,49 +175,17 @@ class Mvhd: Container {
     var rate: Int = 0
     var volume: Int = 0
     var others: Int = 0
-    
-    init() {}
-    
+
     func parse() {
-        print("\(type) is parsing..")
         let dataArray = data.slice(in: [1,3,4,4,4,4,4,2])
-       
-       // print(data.count)
-        self.version = dataArray[0].convertToInt
-        self.flag = dataArray[1].convertToInt
-       // print("is//\(dataArray[2].convertToInt)")
-        self.creationDate = Date(timeIntervalSince1970: TimeInterval(dataArray[3].convertToInt))
-       // self.creationDate = dataArray[2]
-       // self.modificationTime = dataArray[3]
-        self.timeScale = dataArray[4].convertToInt
-        self.duration = dataArray[5].convertToInt
-        self.nextTrackId = dataArray[6].convertToInt
-        self.rate = dataArray[7].convertToInt
-        //self.volume = dataArray[8]
-//        self.others = dataArray
-    
+        version = dataArray[0].convertToInt
+        flag = dataArray[1].convertToInt
+        creationDate = Date(timeIntervalSince1970: TimeInterval(dataArray[3].convertToInt))
+        timeScale = dataArray[4].convertToInt
+        duration = dataArray[5].convertToInt
+        nextTrackId = dataArray[6].convertToInt
+        rate = dataArray[7].convertToInt
     }
-    /*init(version: Int,
-         flag: Int,
-         creationDate: Date,
-         modificationTime: Date,
-         timeScale: Int,
-         duration: Int,
-         nextTrackId: Int,
-         rate: Int,
-         volume: Int,
-         others: Int) {
-        self.version = version
-        self.flag = flag
-        self.creationDate = creationDate
-        self.modificationTime = modificationTime
-        self.timeScale = timeScale
-        self.duration = duration
-        self.nextTrackId = nextTrackId
-        self.rate = rate
-        self.volume = volume
-        self.others = others
-    }*/
 }
 
 class Iods: Container {
@@ -261,20 +194,12 @@ class Iods: Container {
     var size: Int = 0
     var data: Data = Data()
     
-    init() {}
-    
-    func parse() {
-        print("\(type) is parsing..")
-    }
-    /*init(data: Data) {
-        self.data = data
-    }*/
+    func parse() {}
 }
 
 class Trak: HalfContainer {
+    
     var offset: UInt64 = 0
-    
-    
     var type: ContainerType = .trak
     var size: Int = 0
     var data: Data = Data()
@@ -286,11 +211,8 @@ class Trak: HalfContainer {
     var samples: [Sample] = []
     
     var children: [Container] = []
-    
-    init() {}
-    
+
     func parse() {
-       print("\(type) is parsing..")
         children.forEach {
             switch $0.type {
             case .tkhd:
@@ -306,17 +228,9 @@ class Trak: HalfContainer {
                 assertionFailure("failed to make trak")
             }
         }
-   /* init(tkhd: Tkhd,
-         mdia: Mdia,
-         chunks: [Chunk],
-         samples: [Sample]) {
-        self.tkhd = tkhd
-        self.mdia = mdia
-        self.chunks = chunks
-        self.samples = samples
-    }*/
     }
 }
+
 class Tkhd: Container {
     
     var type: ContainerType = .tkhd
@@ -339,60 +253,28 @@ class Tkhd: Container {
     init() {}
     
     func parse() {
-        print("\(type) is parsing..")
         let dataArray = data.slice(in: [1,3,4,4,4,4,4,8,2,2,2,2,36,4,4])
-        self.creationDate = Date(timeIntervalSince1970: TimeInterval(dataArray[2].convertToInt))
-        //self.modificationTime = dataArray[3].convertToInt
-        self.trackId = dataArray[4].convertToInt
-        
-        self.version = dataArray[0].convertToInt
-        self.flag = dataArray[1].convertToInt
-        self.creationDate = Date(timeIntervalSince1970: TimeInterval(dataArray[2].convertToInt))
-        self.modificationTime = Date(timeIntervalSince1970: TimeInterval(dataArray[3].convertToInt))
-        self.trackId = dataArray[4].convertToInt
+        version = dataArray[0].convertToInt
+        flag = dataArray[1].convertToInt
+        creationDate = Date(timeIntervalSince1970: TimeInterval(dataArray[2].convertToInt))
+        modificationTime = Date(timeIntervalSince1970: TimeInterval(dataArray[3].convertToInt))
+        trackId = dataArray[4].convertToInt
             //reserve 4
-        self.duration = dataArray[6].convertToInt
+        duration = dataArray[6].convertToInt
             //reserve 8
-        self.layer = dataArray[8].convertToInt
+        layer = dataArray[8].convertToInt
         
-        self.alternateGroup = dataArray[9].convertToInt
-        self.volume = dataArray[10].convertToInt
-        self.matrix = []
-        self.width = dataArray[12].convertToInt
-        self.height = dataArray[13].convertToInt
-        
+        alternateGroup = dataArray[9].convertToInt
+        volume = dataArray[10].convertToInt
+        matrix = []
+        width = dataArray[12].convertToInt
+        height = dataArray[13].convertToInt
     }
-   /* init(version: Int,
-         flag: Int,
-         creationDate: Date,
-         modificationTime: Date,
-         timeScale: Int,
-         duration: Int,
-         trackId: Int,
-         layer: Int,p
-         alternateGroup: Int,
-         volume: Int,
-         matrix: [Int],
-         width: Int,
-         height: Int) {
-        self.version = version
-        self.flag = flag
-        self.creationDate = creationDate
-        self.modificationTime = modificationTime
-        self.layer = layer
-        self.alternateGroup = alternateGroup
-        self.duration = duration
-        self.trackId = trackId
-        self.volume = volume
-        self.matrix = matrix
-        self.width = width
-        self.height = height
-    }*/
 }
+
 class Edts: HalfContainer {
+    
     var offset: UInt64 = 0
-    
-    
     var type: ContainerType = .edts
     var size: Int = 0
     var data: Data = Data()
@@ -403,7 +285,6 @@ class Edts: HalfContainer {
     
     var children: [Container] = []
     func parse() {
-        print("\(type) is parsing..")
         children.forEach {
             if $0.type == .elst {
                 $0.parse()
@@ -411,9 +292,6 @@ class Edts: HalfContainer {
             }
         }
     }
-    /*init(elst: Elst) {
-        self.elst = elst
-    }*/
 }
     
 class Elst: Container {
@@ -429,20 +307,17 @@ class Elst: Container {
     var mediaTime: [Int] = []
     var mediaRateInteger: [Int] = []
     var mediaRateFraction: [Int] = []
-    
-    init() {}
-    
+
     func parse() {
-        print("\(type) is parsing..")
         let dataArray = data.slice(in: [1,3,4,4])
         self.version = dataArray[0].convertToInt
         self.flags = dataArray[1].convertToInt
         self.entryCount = dataArray[2].convertToInt
         for i in 0..<entryCount {
-            let seg = data.subdata(in: (8+12*i)..<(12+12*i)).convertToInt
-            let mt = data.subdata(in: (12+12*i)..<(16+12*i)).convertToInt
-            let mri = data.subdata(in: (16+12*i)..<(18+12*i)).convertToInt
-            let mrf = data.subdata(in: (18+12*i)..<(20+12*i)).convertToInt
+            let seg = data.subdata(in: (8 + 12 * i)..<(12 + 12 * i)).convertToInt
+            let mt = data.subdata(in: (12 + 12 * i)..<(16 + 12 * i)).convertToInt
+            let mri = data.subdata(in: (16 + 12 * i)..<(18 + 12 * i)).convertToInt
+            let mrf = data.subdata(in: (18 + 12 * i)..<(20 + 12 * i)).convertToInt
             segmentDuration.append(seg)
             mediaTime.append(mt)
             mediaRateInteger.append(mri)
@@ -452,9 +327,8 @@ class Elst: Container {
 }
 
 class Mdia: HalfContainer {
+    
     var offset: UInt64 = 0
-    
-    
     var type: ContainerType = .mdia
     var size: Int = 0
     var data: Data = Data()
@@ -465,11 +339,7 @@ class Mdia: HalfContainer {
     
     var children: [Container] = []
     
-    init() {}
-    
-    
     func parse() {
-        print("\(type) is parsing..")
         children.forEach {
             switch $0.type {
             case .mdhd:
@@ -485,13 +355,9 @@ class Mdia: HalfContainer {
                 assertionFailure("failed to make mdia")
             }
         }
-    /*init(mdhd: Mdhd, hdlr: Hdlr, minf: Minf) {
-        self.mdhd = mdhd
-        self.hdlr = hdlr
-        self.minf = minf
-    }*/
     }
 }
+
 class Mdhd: Container {
     
     var type: ContainerType = .mdhd
@@ -506,36 +372,16 @@ class Mdhd: Container {
     var duration: Int = 0
     var language: Int = 0
     
-    init() {}
-    
     func parse() {
-        print("\(type) is parsing..")
         let dataArray = data.slice(in: [1,3,4,4,4,4,2])
-        self.version = dataArray[0].convertToInt
-        self.flag = dataArray[1].convertToInt
-        self.creationDate = Date(timeIntervalSince1970: TimeInterval(dataArray[2].convertToInt))
-        self.modificationTime = Date(timeIntervalSince1970: TimeInterval(dataArray[3].convertToInt))
-        self.timeScale = dataArray[4].convertToInt
-        self.duration = dataArray[5].convertToInt
-        self.language = dataArray[6].convertToInt
+        version = dataArray[0].convertToInt
+        flag = dataArray[1].convertToInt
+        creationDate = Date(timeIntervalSince1970: TimeInterval(dataArray[2].convertToInt))
+        modificationTime = Date(timeIntervalSince1970: TimeInterval(dataArray[3].convertToInt))
+        timeScale = dataArray[4].convertToInt
+        duration = dataArray[5].convertToInt
+        language = dataArray[6].convertToInt
     }
-    
-    /*init(version: Int,
-         flag: Int,
-         creationDate: Date,
-         modificationTime: Date,
-         timeScale: Int,
-         duration: Int,
-         language: Int
-         ) {
-        self.version = version
-        self.flag = flag
-        self.creationDate = creationDate
-        self.modificationTime = modificationTime
-        self.timeScale = timeScale
-        self.duration = duration
-        self.language = language
-    }*/
 }
     
 class Hdlr: Container {
@@ -550,35 +396,19 @@ class Hdlr: Container {
     var handlerType: String = ""
     var trackName: String = ""
     
-    init() {}
-    
     func parse() {
-        print("\(type) is parsing..")
         let dataArray = data.slice(in: [1,3,4,4])
-        self.version = dataArray[0].convertToInt
-        self.flags = dataArray[1].convertToInt
-        self.preDefined = dataArray[2].convertToInt
-        self.handlerType = dataArray[3].convertToString
-        self.trackName = data.subdata(in: 24..<data.count).convertToString
+        version = dataArray[0].convertToInt
+        flags = dataArray[1].convertToInt
+        preDefined = dataArray[2].convertToInt
+        handlerType = dataArray[3].convertToString
+        trackName = data.subdata(in: 24..<data.count).convertToString
     }
-    /*init(version: Int,
-         flags: Int,
-         preDefined: Int,
-         handlerType: String,
-         trackName: String) {
-        self.version = version
-        self.flags = flags
-        self.preDefined = preDefined
-        self.handlerType = handlerType
-        self.trackName = trackName
-    }*/
-    
 }
     
 class Minf: HalfContainer {
+    
     var offset: UInt64 = 0
-    
-    
     var type: ContainerType = .minf
     var size: Int = 0
     var data: Data = Data()
@@ -591,11 +421,7 @@ class Minf: HalfContainer {
     
     var children: [Container] = []
     
-    init() {}
-    
-    
     func parse() {
-        print("\(type) is parsing..")
         children.forEach {
             switch $0.type {
             case .vmhd:
@@ -617,15 +443,9 @@ class Minf: HalfContainer {
                 assertionFailure("failed to make mdia")
             }
         }
-    /*init(vmhd: Vmhd, smhd: Smhd, stbl: Stbl, dinf: Dinf, hdlr: Hdlr) {
-        self.vmhd = vmhd
-         self.smhd = smhd
-         self.stbl = stbl
-         self.dinf = dinf
-         self.hdlr = hdlr
-    }*/
     }
 }
+
 class Vmhd: Container {
     
     var type: ContainerType = .vmhd
@@ -637,26 +457,17 @@ class Vmhd: Container {
     var graphicsmode: Int = 0
     var opcolor: [Int] = [] //[3]
     
-    init() {}
-    
     func parse() {
-        print("\(type) is parsing..")
         let dataArray = data.slice(in: [1,3,2,2])
-        self.version = dataArray[0].convertToInt
-        self.flags = dataArray[1].convertToInt
-        self.graphicsmode = dataArray[2].convertToInt
+        version = dataArray[0].convertToInt
+        flags = dataArray[1].convertToInt
+        graphicsmode = dataArray[2].convertToInt
         for i in 0..<3 {
             self.opcolor.append(data.subdata(in: (6 + 2 * i)..<(8 + 2 * i)).convertToInt)
         }
     }
-    
-   /* init(version: Int, flags: Int, graphicsmode: Int, opcolor: Int) {
-        self.version = version
-        self.flags = flags
-        self.graphicsmode = graphicsmode
-        self.opcolor = opcolor
-    }*/
 }
+
 class Smhd: Container {
     
     var type: ContainerType = .smhd
@@ -667,27 +478,17 @@ class Smhd: Container {
     var flags: Int = 0
     var balance: Int = 0
     
-    init() {}
-    
     func parse() {
-        print("\(type) is parsing..")
         let dataArray = data.slice(in: [1,3,2])
         self.version = dataArray[0].convertToInt
         self.flags = dataArray[1].convertToInt
         self.balance = dataArray[2].convertToInt
     }
-    
-   /* init(version: Int, flags: Int, balance: Int) {
-        self.version = version
-        self.flags = flags
-        self.balance = balance
-    }*/
 }
 
 class Dinf: HalfContainer {
+    
     var offset: UInt64 = 0
-    
-    
     var type: ContainerType = .dinf
     var size: Int = 0
     var data: Data = Data()
@@ -696,10 +497,7 @@ class Dinf: HalfContainer {
     
     var children: [Container] = []
     
-    init() {}
-    
     func parse() {
-        print("\(type) is parsing..")
         children.forEach {
             if $0.type == .dref {
                 $0.parse()
@@ -707,10 +505,6 @@ class Dinf: HalfContainer {
             }
         }
     }
-    
-   /* init(dref: Dref) {
-        self.dref = dref
-    }*/
 }
 
 class Dref: Container {
@@ -727,24 +521,16 @@ class Dref: Container {
     init() {}
     
     func parse() {
-        print("\(type) is parsing..")
         let dataArray = data.slice(in: [1,3,2])
-        self.version = dataArray[0].convertToInt
-        self.flags = dataArray[1].convertToInt
-        self.entryCount = dataArray[2].convertToInt
+        version = dataArray[0].convertToInt
+        flags = dataArray[1].convertToInt
+        entryCount = dataArray[2].convertToInt
     }
-    /*init(version: Int, flags: Int, entryCount: Int) {
-        self.version = version
-        self.flags = flags
-        self.entryCount = entryCount
-        self.others = 0
-    }*/
 }
     
 class Stbl: HalfContainer {
+    
     var offset: UInt64 = 0
-    
-    
     var type: ContainerType = .stbl
     var size: Int = 0
     var data: Data = Data()
@@ -763,11 +549,7 @@ class Stbl: HalfContainer {
     
     var children: [Container] = []
     
-    init() {}
-    
-    
     func parse() {
-        print("\(type) is parsing..")
         children.forEach {
             switch $0.type {
             case .stsd:
@@ -808,26 +590,15 @@ class Stbl: HalfContainer {
             }
         }
     }
-    
-    /*init(stsd: Stsd, stts: Stts, stsc: Stsc, stsz: Stsz, stco: Stco) {
-        self.stsd = stsd
-        self.stts = stts
-        self.stsc = stsc
-        self.stsz = stsz
-        self.stco = stco
-    }*/
 }
+
 class Co64: Container {
     
     var type: ContainerType = .co64
     var size: Int = 0
     var data: Data = Data()
     
-    init() {}
-    
-    func parse() {
-        print("\(type) is parsing..")
-    }
+    func parse() {}
 }
 
 class Ctts: Container {
@@ -842,36 +613,19 @@ class Ctts: Container {
     var sampleCounts: [Int] = []
     var sampleOffsets: [Int] = []
     
-    init() {}
-    
     func parse(){
-       print("\(type) is parsing..")
         let dataArray = data.slice(in: [1,3,4])
-        self.version = dataArray[0].convertToInt
-        self.flags = dataArray[1].convertToInt
-        self.entryCount = dataArray[2].convertToInt
+        version = dataArray[0].convertToInt
+        flags = dataArray[1].convertToInt
+        entryCount = dataArray[2].convertToInt
 
         for i in 0..<entryCount {
             let sampleCount = data.subdata(in: (8 + 8 * i)..<(12 + 8 * i)).convertToInt
             let sampleOffset = data.subdata(in: (12 + 8 * i)..<(16 + 8 * i)).convertToInt
-            self.sampleCounts.append(sampleCount)
-            self.sampleOffsets.append(sampleOffset)
-
+            sampleCounts.append(sampleCount)
+            sampleOffsets.append(sampleOffset)
         }
     }
-    
-    /*init(version: Int,
-         flags: Int,
-         entryCount: Int,
-         sampleCounts: [Int],
-         sampleOffset: [Int]) {
-        
-        self.version = version
-        self.flags = flags
-        self.entryCount = entryCount
-        self.sampleCounts = sampleCounts
-        self.sampleOffset = sampleOffset
-    }*/
 }
 
 class Stsd: Container {
@@ -887,9 +641,6 @@ class Stsd: Container {
     var avc1 = Avc1()
     var mp4a = Mp4a()
 
-    
-    init() {}
-    
     func parse() {
         let containerPool = ContainerPool()
         let extractedData = data[data.startIndex + 12..<data.startIndex + 16].convertToString
@@ -905,23 +656,11 @@ class Stsd: Container {
             default:
                 assertionFailure("no type")
             }
-        print("\(type) is parsing..")
         let dataArray = data.slice(in: [1,3,4])
-        self.version = dataArray[0].convertToInt
-        self.flags = dataArray[1].convertToInt
-        self.entryCount = dataArray[2].convertToInt
+        version = dataArray[0].convertToInt
+        flags = dataArray[1].convertToInt
+        entryCount = dataArray[2].convertToInt
     }
-    
-   /* init(version: Int,
-         flags: Int,
-         entryCount: Int,
-         other: Int) {
-        
-        self.version = version
-        self.flags = flags
-        self.entryCount = entryCount
-        self.other = other
-    }*/
 }
 
 class Avc1: Container {
@@ -938,9 +677,6 @@ class Avc1: Container {
     var avcc = Avcc()
 
     func parse() {
-        print(data)
-     //   let dataArray = data.slice(in: [4,4,4])
-       // size = dataArray[0].convertToInt
         avcc.data = self.data[(data.startIndex + 94)...]
         avcc.parse()
     }
@@ -968,7 +704,6 @@ class Avcc: Container {
 
     func parse() {
         let startIndex = data.startIndex
-        //size = data.subdata(in: data.startIndex..<data.startIndex + 4).convertToInt
         sequenceParameterSet = data.subdata(in: startIndex + 6..<startIndex + 7)
         
         sequenceParameterEntry = data.subdata(in: startIndex + 6..<startIndex + 8).convertToInt
@@ -983,32 +718,9 @@ class Avcc: Container {
         for i in 0..<pictureParameterEntry {
             pictureParams.append(data.subdata(in: (pictureParamterOffset + 3 + i)..<((pictureParamterOffset + 4 + i))))
         }
-  
-        print("\(type) is parsing..")
     }
 }
-/*
-[mp4a] size=8+82
-data_reference_index = 1
-channel_count = 2
-sample_size = 16
-sample_rate = 44100
 
-[esds] size=12+42
-[ESDescriptor] size=5+37
-es_id = 2
-stream_priority = 0
-[DecoderConfig] size=5+23
-stream_type = 5
-object_type = 64
-up_stream = 0
-buffer_size = 0
-max_bitrate = 128000
-avg_bitrate = 2099
-DecoderSpecificInfo = 12 10 56 e5 00
-[Descriptor:06] size=5+1
-
-*/
 class Esds: Container {
     var type: ContainerType = .esds
     var size: Int = 0
@@ -1018,8 +730,6 @@ class Esds: Container {
     var esDescriptor = EsDescriptor()
     
     func parse() {
-        print("\(type) is parsing..")
-        
     }
 }
 
@@ -1035,11 +745,7 @@ class EsDescriptor: Container {
     var sampleCounts: [Int] = []
     var sampleDeltas: [Int] = []
     
-    init() {}
-    
-    func parse() {
-        print("\(type) is parsing..")
-    }
+    func parse() {}
 }
 
 class Mp4a: Container {
@@ -1062,11 +768,6 @@ class Mp4a: Container {
     var esds = Esds()
 
     func parse() {
-        print("\(type) is parsing..")
-        for i in data {
-            print(i.toHexNumber)
-        }
-        //0..4 size 4..8 type 8..14 reserv 32..34 data 34..36 vers 36..38
         let startIndex = data.startIndex
         dataReferenceIndex = data.subdata(in: startIndex + 14..<startIndex + 16).convertToInt
         version = data.subdata(in: startIndex + 16..<startIndex + 18).convertToInt
@@ -1078,11 +779,9 @@ class Mp4a: Container {
         sampleRate = data.subdata(in: startIndex + 30..<startIndex + 34).convertToInt
         esds.data = self.data[(data.startIndex + 34)...]
         esds.parse()
-        
     }
-    
-    
 }
+
 class Stts: Container {
     
     var type: ContainerType = .stts
@@ -1095,34 +794,18 @@ class Stts: Container {
     var sampleCounts: [Int] = []
     var sampleDeltas: [Int] = []
     
-    init() {}
-    
     func parse() {
-        print("\(type) is parsing..")
         let dataArray = data.slice(in: [1,3,4])
-        self.version = dataArray[0].convertToInt
-        self.flags = dataArray[1].convertToInt
-        self.entryCount = dataArray[2].convertToInt
+        version = dataArray[0].convertToInt
+        flags = dataArray[1].convertToInt
+        entryCount = dataArray[2].convertToInt
         for i in 0..<entryCount {
             let sampleCount = data.subdata(in: (8 + 8 * i)..<(12 + 8 * i)).convertToInt
             let sampleDelta = data.subdata(in: (12 + 8 * i)..<(16 + 8 * i)).convertToInt
-            self.sampleCounts.append(sampleCount)
-            self.sampleDeltas.append(sampleDelta)
+            sampleCounts.append(sampleCount)
+            sampleDeltas.append(sampleDelta)
         }
     }
-    
-   /* init(version: Int,
-         flags: Int,
-         entryCount: Int,
-         sampleCounts: [Int],
-         sampleDelta: [Int]) {
-        
-        self.version = version
-        self.flags = flags
-        self.entryCount = entryCount
-        self.sampleCounts = sampleCounts
-        self.sampleDelta = sampleDelta
-    }*/
 }
     
 class Stss: Container {
@@ -1136,30 +819,16 @@ class Stss: Container {
     var entryCount: Int = 0
     var sampleNumbers: [Int] = []
     
-    init() {}
-    
     func parse() {
-        print("\(type) is parsing..")
         let dataArray = data.slice(in: [1,3,4])
-        self.version = dataArray[0].convertToInt
-        self.flags = dataArray[1].convertToInt
-        self.entryCount = dataArray[2].convertToInt
+        version = dataArray[0].convertToInt
+        flags = dataArray[1].convertToInt
+        entryCount = dataArray[2].convertToInt
         for i in 0..<entryCount {
             let sample = data.subdata(in: (8 + 4 * i)..<(12 + 4 * i)).convertToInt
-            self.sampleNumbers.append(sample)
+            sampleNumbers.append(sample)
         }
     }
-    
-    /*init(version: Int,
-         flags: Int,
-         entryCount: Int,
-         sampleNumber: [Int]) {
-        
-        self.version = version
-        self.flags = flags
-        self.entryCount = entryCount
-        self.sampleNumber = sampleNumber
-    }*/
 }
     
 class Stsc: Container {
@@ -1175,14 +844,11 @@ class Stsc: Container {
     var samplesPerChunks: [Int] = []
     var sampleDescriptionIndexes: [Int] = []
     
-    init() {}
-    
     func parse() {
-        print("\(type) is parsing..")
         let dataArray = data.slice(in: [1,3,4])
-        self.version = dataArray[0].convertToInt
-        self.flags = dataArray[1].convertToInt
-        self.entryCount = dataArray[2].convertToInt
+        version = dataArray[0].convertToInt
+        flags = dataArray[1].convertToInt
+        entryCount = dataArray[2].convertToInt
         for i in 0..<entryCount {
             let firstChunk = data.subdata(in: (8 + 12 * i)..<(12 + 12 * i)).convertToInt
             let samplesPerChunk = data.subdata(in: (12 + 12 * i)..<(16 + 12 * i)).convertToInt
@@ -1192,21 +858,6 @@ class Stsc: Container {
             sampleDescriptionIndexes.append(sampleDescriptionIndex)
         }
     }
-    
-   /* init(version: Int,
-         flags: Int,
-         entryCount: Int,
-         firstChunk: [Int],
-         samplesPerChunk: [Int],
-         sampleDescriptionIndex: [Int]) {
-        
-        self.version = version
-        self.flags = flags
-        self.entryCount = entryCount
-        self.firstChunk = firstChunk
-        self.samplesPerChunk = samplesPerChunk
-        self.sampleDescriptionIndex = sampleDescriptionIndex
-    }*/
 }
 
 class Stsz: Container {
@@ -1221,35 +872,19 @@ class Stsz: Container {
     var samplesSize: Int = 0
     var sampleCount: Int = 0
     
-    init() {}
-    
     func parse() {
-        print("\(type) is parsing..")
         let dataArray = data.slice(in: [1,3,4,4])
-        self.version = dataArray[0].convertToInt
-        self.flags = dataArray[1].convertToInt
-        self.samplesSize = dataArray[2].convertToInt
-        self.sampleCount = dataArray[3].convertToInt
+        version = dataArray[0].convertToInt
+        flags = dataArray[1].convertToInt
+        samplesSize = dataArray[2].convertToInt
+        sampleCount = dataArray[3].convertToInt
         if samplesSize == 0 {
             for i in 0..<sampleCount {
-                
-                    let entry = data.subdata(in: (12 + 4 * i)..<(16 + 4 * i)).convertToInt
-                    self.entrySizes.append(entry)
+                let entry = data.subdata(in: (12 + 4 * i)..<(16 + 4 * i)).convertToInt
+                entrySizes.append(entry)
             }
         }
     }
-    /*init(version: Int,
-         flags: Int,
-         entryCount: [Int],
-         sampleCount: Int,
-         samplesSize: Int) {
-        
-        self.version = version
-        self.flags = flags
-        self.entrySize = entryCount
-        self.sampleCount = sampleCount
-        self.samplesSize = samplesSize
-    }*/
 }
 
 class Sdtp: Container {
@@ -1264,35 +899,19 @@ class Sdtp: Container {
     var samplesSize: Int = 0
     var sampleCount: Int = 0
     
-    init() {}
-    
     func parse() {
-        print("\(type) is parsing..")
         let dataArray = data.slice(in: [1,3,4,4])
-        self.version = dataArray[0].convertToInt
-        self.flags = dataArray[1].convertToInt
-        self.samplesSize = dataArray[2].convertToInt
-        self.sampleCount = dataArray[3].convertToInt
+        version = dataArray[0].convertToInt
+        flags = dataArray[1].convertToInt
+        samplesSize = dataArray[2].convertToInt
+        sampleCount = dataArray[3].convertToInt
         if samplesSize == 0 {
             for i in 0..<sampleCount {
-                
                 let entry = data.subdata(in: (12 + 4 * i)..<(16 + 4 * i)).convertToInt
-                self.entrySizes.append(entry)
+                entrySizes.append(entry)
             }
         }
     }
-    /*init(version: Int,
-     flags: Int,
-     entryCount: [Int],
-     sampleCount: Int,
-     samplesSize: Int) {
-     
-     self.version = version
-     self.flags = flags
-     self.entrySize = entryCount
-     self.sampleCount = sampleCount
-     self.samplesSize = samplesSize
-     }*/
 }
 
 class Sgpd: Container {
@@ -1307,35 +926,19 @@ class Sgpd: Container {
     var samplesSize: Int = 0
     var sampleCount: Int = 0
     
-    init() {}
-    
     func parse() {
-        print("\(type) is parsing..")
         let dataArray = data.slice(in: [1,3,4,4])
-        self.version = dataArray[0].convertToInt
-        self.flags = dataArray[1].convertToInt
-        self.samplesSize = dataArray[2].convertToInt
-        self.sampleCount = dataArray[3].convertToInt
+        version = dataArray[0].convertToInt
+        flags = dataArray[1].convertToInt
+        samplesSize = dataArray[2].convertToInt
+        sampleCount = dataArray[3].convertToInt
         if samplesSize == 0 {
             for i in 0..<sampleCount {
-                
                 let entry = data.subdata(in: (12 + 4 * i)..<(16 + 4 * i)).convertToInt
-                self.entrySizes.append(entry)
+                entrySizes.append(entry)
             }
         }
     }
-    /*init(version: Int,
-     flags: Int,
-     entryCount: [Int],
-     sampleCount: Int,
-     samplesSize: Int) {
-     
-     self.version = version
-     self.flags = flags
-     self.entrySize = entryCount
-     self.sampleCount = sampleCount
-     self.samplesSize = samplesSize
-     }*/
 }
 
 class Sbgp: Container {
@@ -1350,35 +953,19 @@ class Sbgp: Container {
     var samplesSize: Int = 0
     var sampleCount: Int = 0
     
-    init() {}
-    
     func parse() {
-        print("\(type) is parsing..")
         let dataArray = data.slice(in: [1,3,4,4])
-        self.version = dataArray[0].convertToInt
-        self.flags = dataArray[1].convertToInt
-        self.samplesSize = dataArray[2].convertToInt
-        self.sampleCount = dataArray[3].convertToInt
+        version = dataArray[0].convertToInt
+        flags = dataArray[1].convertToInt
+        samplesSize = dataArray[2].convertToInt
+        sampleCount = dataArray[3].convertToInt
         if samplesSize == 0 {
             for i in 0..<sampleCount {
-                
                 let entry = data.subdata(in: (12 + 4 * i)..<(16 + 4 * i)).convertToInt
-                self.entrySizes.append(entry)
+                entrySizes.append(entry)
             }
         }
     }
-    /*init(version: Int,
-     flags: Int,
-     entryCount: [Int],
-     sampleCount: Int,
-     samplesSize: Int) {
-     
-     self.version = version
-     self.flags = flags
-     self.entrySize = entryCount
-     self.sampleCount = sampleCount
-     self.samplesSize = samplesSize
-     }*/
 }
     
 class Stco: Container {
@@ -1392,35 +979,21 @@ class Stco: Container {
     var entryCount: Int = 0
     var chunkOffsets: [Int] = []
     
-    init() {}
-    
     func parse() {
-        print("\(type) is parsing..")
         let dataArray = data.slice(in: [1,3,4])
-        self.version = dataArray[0].convertToInt
-        self.flags = dataArray[1].convertToInt
-        self.entryCount = dataArray[2].convertToInt
+        version = dataArray[0].convertToInt
+        flags = dataArray[1].convertToInt
+        entryCount = dataArray[2].convertToInt
         for i in 0..<entryCount {
             let chunkOffset = data.subdata(in: (8 + 4 * i)..<(12 + 4 * i)).convertToInt
-            self.chunkOffsets.append(chunkOffset)
+            chunkOffsets.append(chunkOffset)
         }
     }
-    /*init(version: Int,
-         flags: Int,
-         entryCount: Int,
-         chunkOffset: [Int]) {
-        
-        self.version = version
-        self.flags = flags
-        self.entryCount = entryCount
-        self.chunkOffset = chunkOffset
-    }*/
 }
 
 class Udta: HalfContainer {
+    
     var offset: UInt64 = 0
-    
-    
     var type: ContainerType = .udta
     var size: Int = 0
     var data: Data = Data()
@@ -1429,29 +1002,20 @@ class Udta: HalfContainer {
     
     var children: [Container] = []
     
-    init() {}
-    
     func parse() {
-        print("\(type) is parsing..")
         children.forEach {
             if $0.type == .meta {
-                    $0.parse()
-                    self.meta = $0 as! Meta
+                $0.parse()
+                meta = $0 as! Meta
             }
         }
-        print(type)
     }
-    
-    /*init(meta: Meta) {
-        self.meta = meta
-    }*/
 }
 
 
 class Meta: HalfContainer {
+    
     var offset: UInt64 = 0
-    
-    
     var type: ContainerType = .meta
     var size: Int = 0
     var data: Data = Data()
@@ -1462,10 +1026,7 @@ class Meta: HalfContainer {
     
     var children: [Container] = []
     
-    init() {}
-    
     func parse() {
-        print("\(type) is parsing..")
         children.forEach {
             if $0.type == .hdlr {
                 $0.parse()
@@ -1473,11 +1034,6 @@ class Meta: HalfContainer {
             }
         }
     }
-    /*init(version: Int, flag: Int, handler: Hdlr) {
-        self.version = version
-        self.flag = flag
-        self.handler = handler
-    }*/
 }
 
 struct Chunk {
@@ -1488,16 +1044,6 @@ struct Chunk {
     var offset: Int = 0
     
     init() {}
-    
-    /*init(sampleDescriptionIndex: Int,
-         firstSample: Int,
-         sampleCount: Int,
-         offset: Int) {
-        self.sampleDescriptionIndex = sampleDescriptionIndex
-        self.firstSample = firstSample
-        self.sampleCount = sampleCount
-        self.offset = offset
-    }*/
 }
 
 struct Sample {
@@ -1508,17 +1054,4 @@ struct Sample {
     var compositionTimeOffset: Int = 0
     
     init() {}
-    
-    /*init(size: Int,
-         offset: Int,
-         startTime: Int,
-         duration: Int,
-         cto: Int) {
-        self.size = size
-        self.offset = offset
-        self.startTime = startTime
-        self.duration = duration
-        self.cto = cto
-    }*/
-    
 }

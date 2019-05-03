@@ -9,9 +9,9 @@
 import Foundation
 
 class MediaFileReader {
-    let fileReader: FileStreamReadable
-    let typeOfContainer: FileContainerType
-    let containerPool: ContainerPool = ContainerPool()
+    private let fileReader: FileStreamReadable
+    private let typeOfContainer: FileContainerType
+    private let containerPool: ContainerPool = ContainerPool()
     let root: RootType
     
     private let headerSize = 8
@@ -20,15 +20,14 @@ class MediaFileReader {
         self.fileReader = fileReader
         self.typeOfContainer = type
         let root = RootType()
-        root.size = 8316725 + 8
+        //root.size = 8316725 + 8
         self.root = root
     }
     
-    private func readHeader(completion: @escaping ((Int, String))->()) {
+    private func extractTypeHeader(completion: @escaping ((Int, String))->()) {
         fileReader.read(length: 8) {(data) in
             let result = self.converToHeaderInfo(data: data)
             completion(result)
-
         }
     }
     
@@ -46,16 +45,15 @@ class MediaFileReader {
         //TODO filetype 에 따라 다른 디코딩 방식제공해야함
         var containers: [HalfContainer] = []
         root.size = Int(fileReader.fileHandler.seekToEndOfFile()) + headerSize
-        print(fileReader.currentOffset())
+        
         containers = decode(root: root)
+        
         while let item = containers.first {
             containers.remove(at: 0)
             let parentContainers = decode(root: item)
             containers.append(contentsOf: parentContainers)
         }
         root.parse()
-        print(root.moov.traks[0].mdia.minf.stbl.stsd.avc1.avcc.pictureParameterSet)
-        print("________________________")
     }
     
     private func decode(root: HalfContainer) -> [HalfContainer] {
@@ -65,36 +63,40 @@ class MediaFileReader {
         var isfinished: Bool = false
         fileReader.seek(offset: currentOffset)
         var sizeOfChildren = 0
+        
        repeat {
-            readHeader() { [weak self] (headerData) in
+            extractTypeHeader() { [weak self] (headerData) in
                 guard let self = self else { return }
+                
                 let size = headerData.0
                 let headerName = headerData.1
+                
                 sizeOfChildren += size
-                if (sizeOfChildren) == (currentRootContainer.size - 8)  { isfinished = true }
+                if (sizeOfChildren) == (currentRootContainer.size - 8)  {
+                    isfinished = true
+                }
                 currentOffset = self.fileReader.currentOffset()
                     self.fileReader.read(length: size - self.headerSize) { (data) in
                         do {
-                                let typeOfContainer = try self.containerPool.pullOutContainer(with: headerName)
-                                var box = self.containerPool.pullOutFileTypeContainer(with: typeOfContainer)
-                                box.size = size
+                            let typeOfContainer = try self.containerPool.pullOutContainer(with: headerName)
+                            var box = self.containerPool.pullOutFileTypeContainer(with: typeOfContainer)
+                            box.size = size
                             
-                                if box.isParent {
-                                    guard var castedBox = box as? HalfContainer else { return }
-                                    castedBox.offset = currentOffset//self.fileReader.currentOffset() - UInt64(size + self.headerSize)
-                                    containers.append(castedBox)
-                                } else {
-                                    box.data = data[0..<(size - self.headerSize)]
-                                }
-                                currentRootContainer.children.append(box)
-                            
+                            if box.isParent {
+                                guard var castedBox = box as? HalfContainer else { return }
+                                castedBox.offset = currentOffset
+                                containers.append(castedBox)
+                            } else {
+                                box.data = data[0..<(size - self.headerSize)]
+                            }
+                            currentRootContainer.children.append(box)
                         } catch {
                             assertionFailure("initialization box failed")
                             return
                         }
+                    }
                 }
-            }
-        }  while !isfinished
+            }  while !isfinished
         return containers
     }
 

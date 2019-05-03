@@ -16,8 +16,6 @@ protocol FileStreamReadable {
 
     func seek(offset: UInt64)
     
-    func hasAvailableData() -> Bool
-    
     func currentOffset() -> UInt64
     
     func close()

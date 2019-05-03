@@ -48,7 +48,6 @@ class FileReader: FileStreamReadable {
             let data = self.fileHandler.readData(ofLength: length)
             completion(data)
         }
-       
     }
     
     func seek(offset: UInt64) {
@@ -57,14 +56,6 @@ class FileReader: FileStreamReadable {
     
     func close() {
         fileHandler.closeFile()
-    }
-    
-    func hasAvailableData() -> Bool {
-        if fileHandler.hasMoreData() {
-            return true
-        } else {
-            return false
-        }
     }
     
     func currentOffset() -> UInt64 {

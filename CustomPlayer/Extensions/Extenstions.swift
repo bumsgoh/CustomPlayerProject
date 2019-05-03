@@ -121,6 +121,7 @@ extension Container {
     }
 }
 
+
 extension FileHandle {
     func hasMoreData() -> Bool {
         let position = offsetInFile
