@@ -13,13 +13,8 @@ import AVFoundation
 class VideoTrackDecoder: TrackDecodable {
     var mediaReader: MediaFileReader?
     var samples: [CMSampleBuffer] = []
-    func play() {
-        
-    }
-    
-    var layer: AVSampleBufferDisplayLayer = AVSampleBufferDisplayLayer()
-    
-    
+    var currentTime: CMTime?
+    var time: CMTime = CMTime(value: 1, timescale: 24)
     var track: Track = Track()
     var count = 0
     private var formatDescription: CMVideoFormatDescription?
@@ -64,17 +59,19 @@ class VideoTrackDecoder: TrackDecodable {
         pps = track.pictureParams.toUInt8Array
         sps = track.sequenceParameters.toUInt8Array
         var count = 0
+        let duration = pts[1] * pts.count
+        
         buildDecompressionSession()
         for packet in frames {
             semaphore.wait()
-                decodeVideoPacket(videoPacket: packet, pts: pts[count])
+                decodeVideoPacket(videoPacket: packet, pts: pts[count], duration: duration)
             count += 1
         }
         
     }
     
 
-    private func decodeVideoPacket(videoPacket: [UInt8], pts: Int) {
+    private func decodeVideoPacket(videoPacket: [UInt8], pts: Int, duration: Int) {
         let bufferPointer = UnsafeMutablePointer<UInt8>(mutating: videoPacket)
         var blockBuffer: CMBlockBuffer?
         var status = CMBlockBufferCreateWithMemoryBlock(allocator: kCFAllocatorDefault,
@@ -94,7 +91,8 @@ class VideoTrackDecoder: TrackDecodable {
         let sampleSizeArray = [videoPacket.count]
 //CMSampleBufferCreate(allocator: <#T##CFAllocator?#>, dataBuffer: <#T##CMBlockBuffer?#>, dataReady: <#T##Bool#>, makeDataReadyCallback: <#T##CMSampleBufferMakeDataReadyCallback?##CMSampleBufferMakeDataReadyCallback?##(CMSampleBuffer, UnsafeMutableRawPointer?) -> OSStatus#>, refcon: <#T##UnsafeMutableRawPointer?#>, formatDescription: <#T##CMFormatDescription?#>, sampleCount: <#T##CMItemCount#>, sampleTimingEntryCount: <#T##CMItemCount#>, sampleTimingArray: <#T##UnsafePointer<CMSampleTimingInfo>?#>, sampleSizeEntryCount: <#T##CMItemCount#>, sampleSizeArray: <#T##UnsafePointer<Int>?#>, sampleBufferOut: <#T##UnsafeMutablePointer<CMSampleBuffer?>#>)
         
-        let timingInfo = [CMSampleTimingInfo(duration: CMTime(value: 1001, timescale: 2162160), presentationTimeStamp: CMTime(value: CMTimeValue(pts), timescale: 2162160), decodeTimeStamp: CMTime.invalid)]
+        let timingInfo = [CMSampleTimingInfo(duration: CMTime(value: 0, timescale: 0), presentationTimeStamp: CMTime(value: Int64(pts), timescale: 24000), decodeTimeStamp: CMTime(value: 0, timescale: 0))]
+        //self.time.value += Int64(pts)
         //count += 2
        // print("is timeinfo \(timingInfo.presentationTimeStamp)")
         status = CMSampleBufferCreateReady(allocator: kCFAllocatorDefault,
@@ -134,12 +132,13 @@ class VideoTrackDecoder: TrackDecodable {
         
         status = VTDecompressionSessionDecodeFrame(session,
                                                    sampleBuffer: buffer,
-                                                   flags: [._EnableAsynchronousDecompression],
+                                                   flags: [._EnableAsynchronousDecompression,
+                                                           ._EnableTemporalProcessing],
                                                    frameRefcon: nil,
                                                    infoFlagsOut: &flag)
         switch status {
         case noErr:
-            print("")
+            let va = 1
         case kVTInvalidSessionErr:
             print("invalid")
         case kVTVideoDecoderBadDataErr:
@@ -229,9 +228,9 @@ class VideoTrackDecoder: TrackDecodable {
             return
         }
         var timingInfo:CMSampleTimingInfo = CMSampleTimingInfo(
-            duration: CMTime(value: 1001, timescale: 2162160),
+            duration: duration,
             presentationTimeStamp: presentationTimeStamp,
-            decodeTimeStamp: CMTime.invalid
+            decodeTimeStamp: CMTime(value: 0, timescale: 0)
             
         )//kCMTimeInvalid
       //  print(duration)

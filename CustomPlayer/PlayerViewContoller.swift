@@ -78,7 +78,7 @@ class PlayerViewContoller: UIViewController {
         }
         else {
             CMTimebaseSetRate(controlTimebase!, rate: 1.0);
-            CMTimebaseSetTime(controlTimebase!, time: CMTimeMakeWithSeconds(CACurrentMediaTime(), preferredTimescale: 24));
+            CMTimebaseSetTime(controlTimebase!, time: CMTime(value: 1, timescale: 5))
         }
         
         self.videoPlayerLayer.controlTimebase = controlTimebase
@@ -128,7 +128,7 @@ class PlayerViewContoller: UIViewController {
     @objc func playButtonDidTap() {
         playButton.isHidden = true
         
-            guard let filePath =  Bundle.main.path(forResource: "ma", ofType: "mp4") else { return }
+            guard let filePath =  Bundle.main.path(forResource: "you", ofType: "mp4") else { return }
             //let fileURL = URL(fileURLWithPath: filePath)
             let url = URL(fileURLWithPath: filePath)
             let reader = FileReader(url: url)
@@ -140,7 +140,7 @@ class PlayerViewContoller: UIViewController {
 //        tracks[0].samples.forEach {
 //            print($0.startTime , $0.duration)
 //        }
-        
+        //ffprobe -show_entries packet=codec_type,pts dump.mp4 | grep "video" -B 1 -A 2
             var frames: [[UInt8]] = []
                     for sample in tracks[0].samples {
                         mediaReader.fileReader.seek(offset: UInt64(sample.offset))
@@ -152,7 +152,7 @@ class PlayerViewContoller: UIViewController {
                     }
                     //videoDecoder.track = tracks[0]
         let timingPts = tracks[0].samples.map {
-            $0.compositionTimeOffset
+            $0.startTime
         }
         
        
@@ -179,7 +179,7 @@ class PlayerViewContoller: UIViewController {
     @objc func readButtonDidTap() {
       
        
-        audioDecoder?.play()
+       // audioDecoder?.play()
 //        var frames: [[UInt8]] = []
 //        for sample in tracks[1].samples {
 //            //print(sample.offset)
@@ -212,14 +212,15 @@ extension PlayerViewContoller: MultiMediaDecoderDelegate {
      //  AVAudioSession().
         //localBuffer.append(buffer)
         //semaphore.wait()
-        semaphore.wait()
-        if self.videoPlayerLayer.isReadyForMoreMediaData {
+       // semaphore.wait()
+       // if self.videoPlayerLayer.isReadyForMoreMediaData {
             self.videoPlayerLayer.enqueue(buffer)
             self.videoPlayerLayer.setNeedsDisplay()
-            print(CMSampleBufferGetOutputPresentationTimeStamp(buffer))
-            print(CMSampleBufferGetOutputDuration(buffer))
-        }
-        semaphore.signal()
+            
+           // print(CMSampleBufferGetOutputPresentationTimeStamp(buffer))
+            //print(CMSampleBufferGetOutputDuration(buffer))
+       // }
+       // semaphore.signal()
     }
     
     

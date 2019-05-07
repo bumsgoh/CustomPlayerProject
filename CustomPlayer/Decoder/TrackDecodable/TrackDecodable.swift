@@ -14,6 +14,6 @@ protocol TrackDecodable: class {
     var track: Track { get set }
     var delegate: MultiMediaDecoderDelegate? { get set }
     func decodeTrack(samples frames: [[UInt8]], pts: [Int])
-    func play()
+
     
 }
