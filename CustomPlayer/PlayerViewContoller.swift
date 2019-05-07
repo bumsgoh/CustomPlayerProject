@@ -12,26 +12,18 @@ import AVFoundation
 
 class PlayerViewContoller: UIViewController {
     
+    let serialQueue = DispatchQueue(label: "serial queue")
+    var localBuffer: [CMSampleBuffer] = []
+    var count = 0
+    let semaphore: DispatchSemaphore = DispatchSemaphore(value: 1)
     private var videoDecoder: TrackDecodable = VideoTrackDecoder(videoFrameReader: VideoFrameReader())
     private var audioDecoder: TrackDecodable?
     let audioRenderer = AVSampleBufferAudioRenderer()
-    private var videoPlayerLayer: AVSampleBufferDisplayLayer = {
+    let synchronizer: AVSynchronizedLayer = AVSynchronizedLayer()
+    private let videoPlayerLayer: AVSampleBufferDisplayLayer = {
         let layer = AVSampleBufferDisplayLayer()
         layer.videoGravity = AVLayerVideoGravity.resizeAspect
-        let timebasePointer =
-            UnsafeMutablePointer<CMTimebase?>.allocate(capacity: 1)
-        let status =
-            CMTimebaseCreateWithMasterClock(allocator: kCFAllocatorDefault,
-                                            masterClock: CMClockGetHostTimeClock(),
-                                            timebaseOut: timebasePointer)
-        layer.controlTimebase = timebasePointer.pointee
-        guard let controlTimebase = layer.controlTimebase,
-            status == noErr else {
-            print("no timebase control")
-            return layer
-        }
-        CMTimebaseSetTime(controlTimebase, time: CMTime.zero)
-        CMTimebaseSetRate(controlTimebase, rate: 1.0)
+       
         
         layer.backgroundColor = #colorLiteral(red: 0, green: 0, blue: 0, alpha: 1).cgColor
         return layer
@@ -67,17 +59,36 @@ class PlayerViewContoller: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         //videoDecoder.layer = self.videoPlayerLayer
+        
         setUpLayer()
         setUpViews()
-        guard let filePath =  Bundle.main.path(forResource: "ma", ofType: "mp4") else { return }
-        let url = URL(fileURLWithPath: filePath)
-        let reader = FileReader(url: url)
-        let mediaReader = MediaFileReader(fileReader: reader!, type: .mp4)
-        mediaReader.decodeMedia(type: .mp4)
-        let tracks = mediaReader.makeTracks()
-        self.audioDecoder = AudioTrackDecoder(track: tracks[1])
-        audioDecoder?.mediaReader = mediaReader
-        self.audioDecoder?.delegate = self
+       
+        var controlTimebase: CMTimebase? = nil
+        var clock: CMClock? = nil
+       // var useHostClock: Bool = true
+        
+       
+            clock = CMClockGetHostTimeClock()
+       
+        let status = CMTimebaseCreateWithMasterClock(allocator: kCFAllocatorDefault, masterClock: clock!, timebaseOut: &controlTimebase)
+        
+        
+        if status != 0 {
+            assertionFailure("fail to clock")
+        }
+        else {
+            CMTimebaseSetRate(controlTimebase!, rate: 1.0);
+            CMTimebaseSetTime(controlTimebase!, time: CMTimeMakeWithSeconds(CACurrentMediaTime(), preferredTimescale: 24));
+        }
+        
+        self.videoPlayerLayer.controlTimebase = controlTimebase
+        
+
+       
+        
+        videoDecoder.delegate = self
+        
+      
         // Do any additional setup after loading the view.
     }
 
@@ -116,11 +127,53 @@ class PlayerViewContoller: UIViewController {
     
     @objc func playButtonDidTap() {
         playButton.isHidden = true
-        DispatchQueue.global().async {
-            guard let filePath =  Bundle.main.path(forResource: "animation", ofType: "h264") else { return }
-            let fileURL = URL(fileURLWithPath: filePath)
-           // self.videoDecoder.decodeFile(url: fileURL)
+        
+            guard let filePath =  Bundle.main.path(forResource: "ma", ofType: "mp4") else { return }
+            //let fileURL = URL(fileURLWithPath: filePath)
+            let url = URL(fileURLWithPath: filePath)
+            let reader = FileReader(url: url)
+            let mediaReader = MediaFileReader(fileReader: reader!, type: .mp4)
+            mediaReader.decodeMedia(type: .mp4)
+            let tracks = mediaReader.makeTracks()
+            
+            videoDecoder.track = tracks[0]
+//        tracks[0].samples.forEach {
+//            print($0.startTime , $0.duration)
+//        }
+        
+            var frames: [[UInt8]] = []
+                    for sample in tracks[0].samples {
+                        mediaReader.fileReader.seek(offset: UInt64(sample.offset))
+                        mediaReader.fileReader.read(length: sample.size) { (data) in
+            
+                            frames.append(Array(data))
+        
+                        }
+                    }
+                    //videoDecoder.track = tracks[0]
+        let timingPts = tracks[0].samples.map {
+            $0.compositionTimeOffset
         }
+        
+       
+       videoDecoder.decodeTrack(samples: frames, pts: timingPts)
+  
+  /*      videoPlayerLayer.requestMediaDataWhenReady(on: serialQueue, using: { [weak self] in
+            guard let self = self else { return }
+            while self.videoPlayerLayer.isReadyForMoreMediaData {
+                if let sample = self.copyNextSample() {
+       
+                
+                    self.videoPlayerLayer.enqueue(sample)
+               
+                } else {
+                    self.videoPlayerLayer.stopRequestingMediaData()
+                }
+                
+                
+            }
+        })
+    */
     }
     
     @objc func readButtonDidTap() {
@@ -157,17 +210,28 @@ class PlayerViewContoller: UIViewController {
 extension PlayerViewContoller: MultiMediaDecoderDelegate {
     func shouldUpdateLayer(with buffer: CMSampleBuffer) {
      //  AVAudioSession().
-        self.videoPlayerLayer.enqueue(buffer)
-       
+        //localBuffer.append(buffer)
+        //semaphore.wait()
+        semaphore.wait()
+        if self.videoPlayerLayer.isReadyForMoreMediaData {
+            self.videoPlayerLayer.enqueue(buffer)
+            self.videoPlayerLayer.setNeedsDisplay()
+            print(CMSampleBufferGetOutputPresentationTimeStamp(buffer))
+            print(CMSampleBufferGetOutputDuration(buffer))
+        }
+        semaphore.signal()
     }
     
-    func shouldUpdateVideoLayer(with buffer: CMSampleBuffer) {
-      
-        DispatchQueue.main.async {
-           // self.videoPlayerLayer.enqueue(buffer)
-           
-           // self.videoPlayerLayer.setNeedsDisplay()
+    
+    func copyNextSample() -> CMSampleBuffer? {
+        if localBuffer.isEmpty {
+            return nil
         }
-        }
+        let sample = localBuffer.first!
+       // semaphore.wait()
+        localBuffer.remove(at: 0)
+        
+        return sample
+    }
     
 }

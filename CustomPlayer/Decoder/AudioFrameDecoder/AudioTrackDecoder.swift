@@ -10,6 +10,14 @@ import Foundation
 import CoreMedia
 
 class AudioTrackDecoder: TrackDecodable {
+    func decodeTrack(samples frames: [[UInt8]], pts: [Int]) {
+        
+    }
+    
+    func decodeTrack(samples frames: [[UInt8]], pts: Int) {
+        
+    }
+    
     
     var track: Track
     weak var delegate: MultiMediaDecoderDelegate?

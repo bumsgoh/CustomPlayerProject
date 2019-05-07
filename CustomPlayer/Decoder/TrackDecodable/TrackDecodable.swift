@@ -13,7 +13,7 @@ protocol TrackDecodable: class {
     var mediaReader: MediaFileReader? { get set }
     var track: Track { get set }
     var delegate: MultiMediaDecoderDelegate? { get set }
-    func decodeTrack(samples: [[UInt8]])
+    func decodeTrack(samples frames: [[UInt8]], pts: [Int])
     func play()
     
 }

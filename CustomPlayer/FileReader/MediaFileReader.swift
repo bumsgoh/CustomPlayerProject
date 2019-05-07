@@ -163,6 +163,7 @@ class MediaFileReader {
             var sampleTime = 0
             for index in 0..<trak.mdia.minf.stbl.stts.entryCount {
                 let sampleDuration = trak.mdia.minf.stbl.stts.sampleDeltas[index]
+                
                 for _ in 0..<trak.mdia.minf.stbl.stts.sampleCounts[index] {
                     samples[sampleId].startTime = sampleTime
                     samples[sampleId].duration = sampleDuration
