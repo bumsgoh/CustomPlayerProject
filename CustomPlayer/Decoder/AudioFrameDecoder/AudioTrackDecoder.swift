@@ -8,6 +8,7 @@
 
 import Foundation
 import CoreMedia
+import AudioToolbox
 
 class AudioTrackDecoder: TrackDecodable {
     func decodeTrack(samples frames: [[UInt8]], pts: [Int]) {
@@ -28,16 +29,16 @@ class AudioTrackDecoder: TrackDecodable {
     }
     
     func createAudioFormatDescription() -> CMAudioFormatDescription? {
-        var asbd = AudioStreamBasicDescription()
-        
-        asbd.mFormatID = kAudioFormatMPEG4AAC
-        asbd.mFormatFlags = kAudioFormatFlagsNativeFloatPacked
-        asbd.mSampleRate = 44100//Float64(track.sampleRate)
-        asbd.mBitsPerChannel = 32
-        asbd.mFramesPerPacket = 1
-        asbd.mChannelsPerFrame = 2
-        asbd.mBytesPerFrame = asbd.mBitsPerChannel / 8 * asbd.mChannelsPerFrame
-        asbd.mBytesPerPacket = asbd.mBytesPerFrame * asbd.mFramesPerPacket
+        var asbd = AudioStreamBasicDescription(
+            mSampleRate: 44100,
+            mFormatID: kAudioFormatMPEG4AAC,
+            mFormatFlags: 0,
+            mBytesPerPacket: 0,
+            mFramesPerPacket: 1024,
+            mBytesPerFrame: 0,
+            mChannelsPerFrame: 2,
+            mBitsPerChannel: 0,
+            mReserved: 0)
         
         var formatDescription: CMAudioFormatDescription?
         let status = CMAudioFormatDescriptionCreate(allocator: nil,
@@ -50,6 +51,7 @@ class AudioTrackDecoder: TrackDecodable {
                                        formatDescriptionOut: &formatDescription)
         
         print(formatDescription)
+        
         return formatDescription
     }
     

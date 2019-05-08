@@ -129,7 +129,6 @@ class PlayerViewContoller: UIViewController {
         playButton.isHidden = true
         
             guard let filePath =  Bundle.main.path(forResource: "you", ofType: "mp4") else { return }
-            //let fileURL = URL(fileURLWithPath: filePath)
             let url = URL(fileURLWithPath: filePath)
             let reader = FileReader(url: url)
             let mediaReader = MediaFileReader(fileReader: reader!, type: .mp4)
@@ -137,10 +136,7 @@ class PlayerViewContoller: UIViewController {
             let tracks = mediaReader.makeTracks()
             
             videoDecoder.track = tracks[0]
-//        tracks[0].samples.forEach {
-//            print($0.startTime , $0.duration)
-//        }
-        //ffprobe -show_entries packet=codec_type,pts dump.mp4 | grep "video" -B 1 -A 2
+
             var frames: [[UInt8]] = []
                     for sample in tracks[0].samples {
                         mediaReader.fileReader.seek(offset: UInt64(sample.offset))
@@ -178,30 +174,30 @@ class PlayerViewContoller: UIViewController {
     
     @objc func readButtonDidTap() {
       
-       
+        guard let filePath =  Bundle.main.path(forResource: "you", ofType: "mp4") else { return }
+        let url = URL(fileURLWithPath: filePath)
+        let reader = FileReader(url: url)
+        let mediaReader = MediaFileReader(fileReader: reader!, type: .mp4)
+        mediaReader.decodeMedia(type: .mp4)
+        let tracks = mediaReader.makeTracks()
        // audioDecoder?.play()
-//        var frames: [[UInt8]] = []
-//        for sample in tracks[1].samples {
-//            //print(sample.offset)
-//            mediaReader.fileReader.seek(offset: UInt64(sample.offset))
-//           // print(sample.size)
-//            mediaReader.fileReader.read(length: sample.size) { (data) in
-//
-//               /* data.forEach {
-//                    print($0)
-//                }*/
-//               // print(data)
-//                frames.append(Array(data))
-//                //print(Array(data))
-//
-//              //  print("_________data")
-//            }
-//        }
-//        //videoDecoder.track = tracks[0]
-//
-//       // videoDecoder.decodeTrack(frames: frames)
-//
-//       // audioDecoder.decodeTrack(frames: frames)
+        var frames: [[UInt8]] = []
+        for sample in tracks[1].samples {
+            //print(sample.offset)
+            mediaReader.fileReader.seek(offset: UInt64(sample.offset))
+           // print(sample.size)
+            mediaReader.fileReader.read(length: sample.size) { (data) in
+
+                frames.append(Array(data))
+
+            }
+        }
+        
+        let timingPts = tracks[0].samples.map {
+            $0.startTime
+        }
+
+        audioDecoder?.decodeTrack(samples: frames, pts: timingPts)
         
  
     }

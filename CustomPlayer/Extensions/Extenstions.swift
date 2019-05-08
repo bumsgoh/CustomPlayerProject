@@ -34,11 +34,34 @@ extension Data {
     }
     
     var convertToString: String {
-       
+        
         guard let convertedString = String(data: self, encoding: .utf8) else {
             return ""
         }
         return convertedString
+    }
+    
+    var addADTS: Data {
+        
+        let packetLength = self.count + 7
+        let profile: UInt8 = 2
+        let freqencyIndex: UInt8 = 4
+        let channelConfiguration: UInt8 = 2
+        var adtsHeader = [UInt8].init(repeating: 0, count: 7)
+        
+        adtsHeader[0] = 0xFF
+        adtsHeader[1] = 0xF9
+        adtsHeader[2] = (profile - 1) << 6 | (freqencyIndex << 2) | (channelConfiguration >> 2)
+        adtsHeader[3] = (channelConfiguration & 3) << 6 | UInt8(packetLength >> 11)
+        adtsHeader[4] = UInt8((packetLength & 0x7FF) >> 3)
+        adtsHeader[5] = ((UInt8(packetLength & 7)) << 5) + 0x1F
+        adtsHeader[6] = 0xFC
+        
+        var mutablePacket = adtsHeader.tohexNumbers.mergeToString.convertHexStringToData
+        mutablePacket.append(self)
+        
+        return mutablePacket
+        
     }
 }
 
@@ -110,7 +133,7 @@ extension Array where Element == Data {
 }
 
 extension Container {
-
+    
     var isParent: Bool {
         if type == .moov || type == .trak || type == .mdia || type == .minf
             || type == .dinf || type == .stbl || type == .edts || type == .udta {
