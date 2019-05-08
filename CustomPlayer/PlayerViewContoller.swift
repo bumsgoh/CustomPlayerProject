@@ -16,8 +16,7 @@ class PlayerViewContoller: UIViewController {
     var localBuffer: [CMSampleBuffer] = []
     var count = 0
     let semaphore: DispatchSemaphore = DispatchSemaphore(value: 1)
-    private var videoDecoder: TrackDecodable = VideoTrackDecoder(videoFrameReader: VideoFrameReader())
-    private var audioDecoder: TrackDecodable?
+   
     let audioRenderer = AVSampleBufferAudioRenderer()
     let synchronizer: AVSynchronizedLayer = AVSynchronizedLayer()
     private let videoPlayerLayer: AVSampleBufferDisplayLayer = {
@@ -86,7 +85,7 @@ class PlayerViewContoller: UIViewController {
 
        
         
-        videoDecoder.delegate = self
+        //VideoTrackDecoder.delegate = self
         
       
         // Do any additional setup after loading the view.
@@ -131,11 +130,11 @@ class PlayerViewContoller: UIViewController {
             guard let filePath =  Bundle.main.path(forResource: "you", ofType: "mp4") else { return }
             let url = URL(fileURLWithPath: filePath)
             let reader = FileReader(url: url)
-            let mediaReader = MediaFileReader(fileReader: reader!, type: .mp4)
-            mediaReader.decodeMedia(type: .mp4)
+            let mediaReader = Mpeg4FileReader(fileReader: reader!)
+            mediaReader.decodeMediaData()
             let tracks = mediaReader.makeTracks()
             
-            videoDecoder.track = tracks[0]
+          //  videoDecoder.track = tracks[0]
 
             var frames: [[UInt8]] = []
                     for sample in tracks[0].samples {
@@ -152,7 +151,7 @@ class PlayerViewContoller: UIViewController {
         }
         
        
-       videoDecoder.decodeTrack(samples: frames, pts: timingPts)
+      // videoDecoder.decodeTrack(samples: frames, pts: timingPts)
   
   /*      videoPlayerLayer.requestMediaDataWhenReady(on: serialQueue, using: { [weak self] in
             guard let self = self else { return }
@@ -177,8 +176,8 @@ class PlayerViewContoller: UIViewController {
         guard let filePath =  Bundle.main.path(forResource: "you", ofType: "mp4") else { return }
         let url = URL(fileURLWithPath: filePath)
         let reader = FileReader(url: url)
-        let mediaReader = MediaFileReader(fileReader: reader!, type: .mp4)
-        mediaReader.decodeMedia(type: .mp4)
+        let mediaReader = Mpeg4FileReader(fileReader: reader!)
+        mediaReader.decodeMediaData()
         let tracks = mediaReader.makeTracks()
        // audioDecoder?.play()
         var frames: [[UInt8]] = []
@@ -197,7 +196,7 @@ class PlayerViewContoller: UIViewController {
             $0.startTime
         }
 
-        audioDecoder?.decodeTrack(samples: frames, pts: timingPts)
+        //audioDecoder?.decodeTrack(samples: frames, pts: timingPts)
         
  
     }

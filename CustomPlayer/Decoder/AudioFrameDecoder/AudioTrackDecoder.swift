@@ -19,14 +19,8 @@ class AudioTrackDecoder: TrackDecodable {
         
     }
     
-    
-    var track: Track
     weak var delegate: MultiMediaDecoderDelegate?
-    var mediaReader: MediaFileReader?
-    
-    init(track: Track) {
-        self.track = track
-    }
+    var mediaReader: Mpeg4FileReader?
     
     func createAudioFormatDescription() -> CMAudioFormatDescription? {
         var asbd = AudioStreamBasicDescription(
@@ -118,15 +112,5 @@ class AudioTrackDecoder: TrackDecodable {
     }
     
     func play() {
-        var frames: [[UInt8]] = []
-        for sample in track.samples {
-            
-            mediaReader?.fileReader.seek(offset: UInt64(sample.offset))
-            mediaReader?.fileReader.read(length: sample.size) { (data) in
-                frames.append(Array(data))
-            }
-        }
-        
-        decodeTrack(samples: frames)
     }
 }

@@ -8,16 +8,18 @@
 
 import Foundation
 
-class MediaFileReader {
-    let fileReader: FileStreamReadable
-    private let typeOfContainer: FileContainerType
-    private let containerPool: ContainerPool = ContainerPool()
-    private let root = RootType()
-    private let headerSize = 8
+class Mpeg4FileReader: MediaFileReadable {
     
-    init(fileReader: FileStreamReadable, type: FileContainerType) {
+    private(set) var status: MediaStatus = .paused
+    private(set) var fileReader: FileStreamReadable
+    private(set) var root = RootType()
+    
+    private let containerPool: ContainerPool = ContainerPool()
+    private let headerSize = 8
+    private let lockQueue: DispatchQueue = DispatchQueue(label: "mediaFileReadQueue")
+    
+    init(fileReader: FileStreamReadable) {
         self.fileReader = fileReader
-        self.typeOfContainer = type
     }
     
     private func extractTypeHeader(completion: @escaping ((Int, String))->()) {
@@ -37,20 +39,28 @@ class MediaFileReader {
         return (size, decodedHeaderName)
     }
     
-    func decodeMedia(type: FileContainerType) {
-        //TODO filetype 에 따라 다른 디코딩 방식제공해야함
-        
+    func decodeMediaData() {
+        status = .paused
         var containers: [HalfContainer] = []
         root.size = Int(fileReader.fileHandler.seekToEndOfFile()) + headerSize
         
-        containers = decode(root: root)
-        
-        while let item = containers.first {
-            containers.remove(at: 0)
-            let parentContainers = decode(root: item)
-            containers.append(contentsOf: parentContainers)
+        lockQueue.sync { [weak self] in
+            guard let self = self else { return }
+            self.status = .making
+            containers = decode(root: root)
+            
+            while let item = containers.first {
+                containers.remove(at: 0)
+                let parentContainers = decode(root: item)
+                containers.append(contentsOf: parentContainers)
+            }
         }
-        root.parse()
+        
+       lockQueue.sync { [weak self] in
+        guard let self = self else { return }
+            self.root.parse()
+        self.status = .prepared
+        }
     }
     
     private func decode(root: HalfContainer) -> [HalfContainer] {
@@ -101,8 +111,8 @@ class MediaFileReader {
     func makeTracks() -> [Track] {
         var tracks: [Track] = []
         
-        for (index, trak) in root.moov.traks.enumerated() {
-            let trackItem = Track()
+        for trak in root.moov.traks {
+            let trackItem = Track(type: .unknown)
             
             let numberOfChunks = trak.mdia.minf.stbl.stco.entryCount
             var chunks: [Chunk] = [Chunk](repeating: Chunk(), count: numberOfChunks)
@@ -184,16 +194,22 @@ class MediaFileReader {
                 }
             }
             
+            
+            trackItem.duration = trak.mdia.mdhd.duration
+            trackItem.timescale = trak.mdia.mdhd.timeScale
+            
             if trak.mdia.hdlr.handlerType == "vide" {
                 let avcC = trak.mdia.minf.stbl.stsd.avc1.avcc
+                trackItem.mediaType = .video
                 trackItem.sequenceParameters = avcC.sequenceParameters
                 trackItem.sequenceParameterSet = avcC.sequenceParameterSet
-                print(avcC.pictureParams)
                 trackItem.pictureParams = avcC.pictureParams
                 trackItem.pictureParameterSet = avcC.pictureParameterSet
             } else {
                 let mp4a = trak.mdia.minf.stbl.stsd.mp4a
-                
+                trackItem.mediaType = .audio
+                trackItem.sampleRate = mp4a.sampleRate
+                trackItem.numberOfChannels = mp4a.numberOfChannels
             }
             
             trackItem.chunks = chunks

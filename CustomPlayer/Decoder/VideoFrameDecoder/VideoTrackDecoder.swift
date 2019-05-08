@@ -11,11 +11,9 @@ import VideoToolbox
 import AVFoundation
 
 class VideoTrackDecoder: TrackDecodable {
-    var mediaReader: MediaFileReader?
-    var samples: [CMSampleBuffer] = []
-    var currentTime: CMTime?
-    var time: CMTime = CMTime(value: 1, timescale: 24)
-    var track: Track = Track()
+    //var samples: [CMSampleBuffer] = []
+    //var currentTime: CMTime?
+    //var time: CMTime = CMTime(value: 1, timescale: 24)
     var count = 0
     private var formatDescription: CMVideoFormatDescription?
     private var decompressionSession: VTDecompressionSession?
@@ -23,16 +21,16 @@ class VideoTrackDecoder: TrackDecodable {
     var spsSize: Int = 0
     var ppsSize: Int = 0
     
-    var sps: [UInt8]?
-    var pps: [UInt8]?
+    var sps: [UInt8]
+    var pps: [UInt8]
     
-    var videoFrameReader: VideoFrameReadable
+    init(sps: [UInt8], pps: [UInt8]) {
+        self.sps = sps
+        self.pps = pps
+    }
     
     weak var delegate: MultiMediaDecoderDelegate?
     var semaphore: DispatchSemaphore = DispatchSemaphore(value: 1)
-    init(videoFrameReader: VideoFrameReadable) {
-        self.videoFrameReader = videoFrameReader
-    }
     
     fileprivate var callback:VTDecompressionOutputCallback = {(
         decompressionOutputRefCon:UnsafeMutableRawPointer?,
@@ -46,18 +44,9 @@ class VideoTrackDecoder: TrackDecodable {
         decoder.didOutputForSession(status, infoFlags: infoFlags, imageBuffer: imageBuffer, presentationTimeStamp: presentationTimeStamp, duration: duration)
     }
     
-    func decodeFile(url: URL) {
-       
-        videoFrameReader.open(url: url)
-        
-        while var packet = videoFrameReader.extractFrame() {
-            analyzeNALAndDecode(videoPacket: &packet)
-        }
-    }
-    
+
     func decodeTrack(samples frames: [[UInt8]], pts: [Int]) {
-        pps = track.pictureParams.toUInt8Array
-        sps = track.sequenceParameters.toUInt8Array
+        
         var count = 0
         let duration = pts[1] * pts.count
         
@@ -89,12 +78,9 @@ class VideoTrackDecoder: TrackDecodable {
         
         var sampleBuffer: CMSampleBuffer?
         let sampleSizeArray = [videoPacket.count]
-//CMSampleBufferCreate(allocator: <#T##CFAllocator?#>, dataBuffer: <#T##CMBlockBuffer?#>, dataReady: <#T##Bool#>, makeDataReadyCallback: <#T##CMSampleBufferMakeDataReadyCallback?##CMSampleBufferMakeDataReadyCallback?##(CMSampleBuffer, UnsafeMutableRawPointer?) -> OSStatus#>, refcon: <#T##UnsafeMutableRawPointer?#>, formatDescription: <#T##CMFormatDescription?#>, sampleCount: <#T##CMItemCount#>, sampleTimingEntryCount: <#T##CMItemCount#>, sampleTimingArray: <#T##UnsafePointer<CMSampleTimingInfo>?#>, sampleSizeEntryCount: <#T##CMItemCount#>, sampleSizeArray: <#T##UnsafePointer<Int>?#>, sampleBufferOut: <#T##UnsafeMutablePointer<CMSampleBuffer?>#>)
         
         let timingInfo = [CMSampleTimingInfo(duration: CMTime(value: 0, timescale: 0), presentationTimeStamp: CMTime(value: Int64(pts), timescale: 24000), decodeTimeStamp: CMTime(value: 0, timescale: 0))]
-        //self.time.value += Int64(pts)
-        //count += 2
-       // print("is timeinfo \(timingInfo.presentationTimeStamp)")
+ 
         status = CMSampleBufferCreateReady(allocator: kCFAllocatorDefault,
                                            dataBuffer: blockBuffer,
                                            formatDescription: formatDescription,
@@ -111,8 +97,6 @@ class VideoTrackDecoder: TrackDecodable {
                 return
         }
         
-       // print("here2")
-        ///공부해야함
         guard let attachments: CFArray =
             CMSampleBufferGetSampleAttachmentsArray(buffer,
                                                     createIfNecessary: true)
@@ -123,10 +107,7 @@ class VideoTrackDecoder: TrackDecodable {
         CFDictionarySetValue(attributes,
                              Unmanaged.passUnretained(kCMSampleAttachmentKey_DisplayImmediately).toOpaque(),
                              Unmanaged.passUnretained(kCFBooleanFalse).toOpaque())
-       /* if layer.isReadyForMoreMediaData {
-            self.delegate?.shouldUpdateLayer(with: buffer)
-        }*/
-        
+
         
         var flag = VTDecodeInfoFlags()
         
@@ -136,41 +117,23 @@ class VideoTrackDecoder: TrackDecodable {
                                                            ._EnableTemporalProcessing],
                                                    frameRefcon: nil,
                                                    infoFlagsOut: &flag)
-        switch status {
-        case noErr:
-            let va = 1
-        case kVTInvalidSessionErr:
-            print("invalid")
-        case kVTVideoDecoderBadDataErr:
-            print("badData")
-        default:
-            print("\(status)")
+        if status != noErr {
+            return
         }
     }
     
     
-    private func buildDecompressionSession() -> Bool {
+    private func buildDecompressionSession() {
         formatDescription = nil
-        
-        guard let spsData = sps, let ppsData =  pps else {
-            print("param fail")
-            return false
-        }
-        
-        print("is \(spsData)")
-        print("is \(ppsData)")
+        var spsData = sps
+        var ppsData = pps
         let spsPointer = UnsafePointer<UInt8>(Array(spsData))
         let ppsPointer = UnsafePointer<UInt8>(Array(ppsData))
         
         let parameters = [spsPointer, ppsPointer]
         let parameterSetPointers = UnsafePointer<UnsafePointer<UInt8>>(parameters)
         
-        //let sizeOfParameters = [spsData.count, ppsData.count]
-       // let sizeOfparameterSet = UnsafePointer<Int>(sizeOfParameters)
-      
-        
         let sizeParamArray = [spsData.count, ppsData.count]
-//CMVideoFormatDescriptionRef
         let parameterSetSizes = UnsafePointer<Int>(sizeParamArray)
         let status = CMVideoFormatDescriptionCreateFromH264ParameterSets(allocator: kCFAllocatorDefault,
                                                                          parameterSetCount: 2,
@@ -179,10 +142,9 @@ class VideoTrackDecoder: TrackDecodable {
                                                                          nalUnitHeaderLength: 4,
                                                                          formatDescriptionOut: &formatDescription)
         guard let formatDescription = self.formatDescription,
-            status == noErr
-            else {
+            status == noErr else {
                 print("desc fail\(status)")
-            return false
+                return
         }
         if let session = decompressionSession {
             VTDecompressionSessionInvalidate(session)
@@ -194,13 +156,7 @@ class VideoTrackDecoder: TrackDecodable {
         let decoderPixelBufferAttributes = NSMutableDictionary()
         decoderPixelBufferAttributes.setValue(NSNumber(value: kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange as UInt32), forKey: kCVPixelBufferPixelFormatTypeKey as String)
         
-       // var outputCallback = VTDecompressionOutputCallbackRecord()
-        
-       // outputCallback.decompressionOutputCallback = nil
-        
-       // outputCallback.decompressionOutputRefCon =
-            UnsafeMutableRawPointer(Unmanaged.passUnretained(self).toOpaque())
-        
+       
         var record:VTDecompressionOutputCallbackRecord = VTDecompressionOutputCallbackRecord(
             decompressionOutputCallback: callback,
             decompressionOutputRefCon: unsafeBitCast(self, to: UnsafeMutableRawPointer.self)
@@ -215,10 +171,8 @@ class VideoTrackDecoder: TrackDecodable {
         if sessionStatus != noErr {
             assertionFailure("decomp Error")
         }
+        
         decompressionSession = localSession
-        return true
-        
-        
     }
     
     
@@ -232,8 +186,7 @@ class VideoTrackDecoder: TrackDecodable {
             presentationTimeStamp: presentationTimeStamp,
             decodeTimeStamp: CMTime(value: 0, timescale: 0)
             
-        )//kCMTimeInvalid
-      //  print(duration)
+        )
         var videoFormatDescription:CMVideoFormatDescription? = nil
         CMVideoFormatDescriptionCreateForImageBuffer(
             allocator: kCFAllocatorDefault,
@@ -262,16 +215,14 @@ class VideoTrackDecoder: TrackDecodable {
         
         var lengthOfNAL = CFSwapInt32HostToBig((UInt32(videoPacket.count - 4)))
         
-        //print("before\(videoPacket)")
         memcpy(&videoPacket, &lengthOfNAL, 4)
-        //print(videoPacket)
         let typeOfNAL = videoPacket[4] & 0x1F
         
         switch typeOfNAL {
         case TypeOfNAL.idr.rawValue:
-            if buildDecompressionSession() {
+            buildDecompressionSession()
           //      decodeVideoPacket(videoPacket: videoPacket)
-            }
+            
         case TypeOfNAL.sps.rawValue:
             spsSize = videoPacket.count - 4
             sps = Array(videoPacket[4..<videoPacket.count])
