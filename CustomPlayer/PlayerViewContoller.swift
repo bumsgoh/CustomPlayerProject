@@ -15,10 +15,13 @@ class PlayerViewContoller: UIViewController {
     let serialQueue = DispatchQueue(label: "serial queue")
     var localBuffer: [CMSampleBuffer] = []
     var count = 0
-    let semaphore: DispatchSemaphore = DispatchSemaphore(value: 1)
+    let semaphore: DispatchSemaphore = DispatchSemaphore(value: 0)
+    var tracks: [Track] = []
+    
+    var audioTrackDecoder: TrackDecodable?
+    var videoTrackDecoder: TrackDecodable?
    
-    let audioRenderer = AVSampleBufferAudioRenderer()
-    let synchronizer: AVSynchronizedLayer = AVSynchronizedLayer()
+
     private let videoPlayerLayer: AVSampleBufferDisplayLayer = {
         let layer = AVSampleBufferDisplayLayer()
         layer.videoGravity = AVLayerVideoGravity.resizeAspect
@@ -76,7 +79,7 @@ class PlayerViewContoller: UIViewController {
             assertionFailure("fail to clock")
         }
         else {
-            CMTimebaseSetRate(controlTimebase!, rate: 1.0);
+            CMTimebaseSetRate(controlTimebase!, rate: 0.5);
             CMTimebaseSetTime(controlTimebase!, time: CMTime(value: 1, timescale: 5))
         }
         
@@ -127,38 +130,78 @@ class PlayerViewContoller: UIViewController {
     @objc func playButtonDidTap() {
         playButton.isHidden = true
         
-            guard let filePath =  Bundle.main.path(forResource: "you", ofType: "mp4") else { return }
-            let url = URL(fileURLWithPath: filePath)
-            let reader = FileReader(url: url)
-            let mediaReader = Mpeg4FileReader(fileReader: reader!)
-            mediaReader.decodeMediaData()
-            let tracks = mediaReader.makeTracks()
-            
-          //  videoDecoder.track = tracks[0]
-
-            var frames: [[UInt8]] = []
-                    for sample in tracks[0].samples {
-                        mediaReader.fileReader.seek(offset: UInt64(sample.offset))
-                        mediaReader.fileReader.read(length: sample.size) { (data) in
-            
-                            frames.append(Array(data))
+        guard let filePath =  Bundle.main.path(forResource: "you", ofType: "mp4") else { return }
+        let url = URL(fileURLWithPath: filePath)
+        let fileReader = FileReader(url: url)
+        let mediaFileReader = Mpeg4FileReader(fileReader: fileReader!)
         
-                        }
-                    }
-                    //videoDecoder.track = tracks[0]
-        let timingPts = tracks[0].samples.map {
-            $0.startTime
+        mediaFileReader.decodeMediaData()
+        tracks = mediaFileReader.makeTracks()
+        
+        for track in tracks {
+            
+            var frames: [[UInt8]] = []
+            var presentationTimestamp: [Int] = []
+            
+            for sample in track.samples {
+                mediaFileReader.fileReader.seek(offset: UInt64(sample.offset))
+                mediaFileReader.fileReader.read(length: sample.size) { (data) in
+                    
+                    frames.append(Array(data))
+                }
+                presentationTimestamp = track.samples.map {
+                    $0.startTime
+                }
+            }
+            switch track.mediaType {
+            case .audio:
+                self.audioTrackDecoder = AudioTrackDecoder(track: track,
+                                                           samples: frames,
+                                                           presentationTimestamp: presentationTimestamp)
+                audioTrackDecoder?.audioDelegate = self
+                audioTrackDecoder?.decodeTrack()
+            case .video:
+                videoTrackDecoder = VideoTrackDecoder(track: track, samples: frames, presentationTimestamp: presentationTimestamp)
+                videoTrackDecoder?.videoDelegate = self
+                videoTrackDecoder?.decodeTrack()
+            case .unknown:
+                assertionFailure("player init failed")
+            }
         }
         
-       
+      //  let videoDecoder = VideoTrackDecoder(track: <#T##Track#>, samples: <#T##[[UInt8]]#>, presentationTimestamp: <#T##[Int]#>)
+        
+//            let reader = FileReader(url: url)
+//            let mediaReader = Mpeg4FileReader(fileReader: reader!)
+//            mediaReader.decodeMediaData()
+//            let tracks = mediaReader.makeTracks()
+//
+//          //  videoDecoder.track = tracks[0]
+//
+//            var frames: [[UInt8]] = []
+//                    for sample in tracks[0].samples {
+//                        mediaReader.fileReader.seek(offset: UInt64(sample.offset))
+//                        mediaReader.fileReader.read(length: sample.size) { (data) in
+//
+//                            frames.append(Array(data))
+//
+//                        }
+//                    }
+//                    //videoDecoder.track = tracks[0]
+//        let timingPts = tracks[0].samples.map {
+//            $0.startTime
+//        }
+        
+        
+       // let mp4File = Mpeg4File(url: url)
+        
       // videoDecoder.decodeTrack(samples: frames, pts: timingPts)
   
-  /*      videoPlayerLayer.requestMediaDataWhenReady(on: serialQueue, using: { [weak self] in
+       /* videoPlayerLayer.requestMediaDataWhenReady(on: serialQueue, using: { [weak self] in
             guard let self = self else { return }
             while self.videoPlayerLayer.isReadyForMoreMediaData {
-                if let sample = self.copyNextSample() {
+               // if let sample = mp4File.videoData.copyNextSample(){
        
-                
                     self.videoPlayerLayer.enqueue(sample)
                
                 } else {
@@ -167,8 +210,8 @@ class PlayerViewContoller: UIViewController {
                 
                 
             }
-        })
-    */
+        })*/
+    
     }
     
     @objc func readButtonDidTap() {
@@ -192,42 +235,50 @@ class PlayerViewContoller: UIViewController {
             }
         }
         
-        let timingPts = tracks[0].samples.map {
-            $0.startTime
-        }
+  
 
         //audioDecoder?.decodeTrack(samples: frames, pts: timingPts)
         
  
     }
+    
+    
+
+
 }
 
-extension PlayerViewContoller: MultiMediaDecoderDelegate {
-    func shouldUpdateLayer(with buffer: CMSampleBuffer) {
-     //  AVAudioSession().
-        //localBuffer.append(buffer)
-        //semaphore.wait()
-       // semaphore.wait()
-       // if self.videoPlayerLayer.isReadyForMoreMediaData {
-            self.videoPlayerLayer.enqueue(buffer)
-            self.videoPlayerLayer.setNeedsDisplay()
+extension PlayerViewContoller: MultiMediaVideoTypeDecoderDelegate {
+    func prepareToDisplay(with buffers: [CMSampleBuffer]) {
+        var mutableBuffer = buffers
+        //self.semaphore.wait()
+        videoPlayerLayer.requestMediaDataWhenReady(on: serialQueue, using: { [weak self] in
+            guard let self = self else { return }
             
-           // print(CMSampleBufferGetOutputPresentationTimeStamp(buffer))
-            //print(CMSampleBufferGetOutputDuration(buffer))
-       // }
-       // semaphore.signal()
-    }
-    
-    
-    func copyNextSample() -> CMSampleBuffer? {
-        if localBuffer.isEmpty {
-            return nil
+            while self.videoPlayerLayer.isReadyForMoreMediaData {
+                if let sample = mutableBuffer.copyNextSample(){
+                
+                self.videoPlayerLayer.enqueue(sample)
+                    
+                
+            } else {
+                
+                self.videoPlayerLayer.stopRequestingMediaData()
+            }
+            
+            
         }
-        let sample = localBuffer.first!
-       // semaphore.wait()
-        localBuffer.remove(at: 0)
-        
-        return sample
+    })
     }
-    
+}
+
+extension PlayerViewContoller: MultiMediaAudioTypeDecoderDelegate {
+    func prepareToPlay(with data: Data) {
+        guard let filePath =  Bundle.main.path(forResource: "ma", ofType: "mp4") else { return }
+        let url = URL(fileURLWithPath: filePath)
+        let avPlayer = AudioPlayer(url: url, data: data)
+        DispatchQueue.global().async {
+            avPlayer.play()
+     //       self.semaphore.signal()
+        }
+    }
 }

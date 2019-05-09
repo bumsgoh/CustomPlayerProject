@@ -203,7 +203,7 @@ class Mpeg4FileReader: MediaFileReadable {
                 trackItem.mediaType = .video
                 trackItem.sequenceParameters = avcC.sequenceParameters
                 trackItem.sequenceParameterSet = avcC.sequenceParameterSet
-                trackItem.pictureParams = avcC.pictureParams
+                trackItem.pictureParameters = avcC.pictureParams
                 trackItem.pictureParameterSet = avcC.pictureParameterSet
             } else {
                 let mp4a = trak.mdia.minf.stbl.stsd.mp4a

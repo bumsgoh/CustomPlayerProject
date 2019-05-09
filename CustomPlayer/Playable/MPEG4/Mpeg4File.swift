@@ -7,11 +7,26 @@
 //
 
 import Foundation
+import VideoToolbox
 
 class Mpeg4File: Playable {
+    
     private var videoTrackDecoder: TrackDecodable!
     private var audioTrackDecoder: TrackDecodable!
     private var mediaFileReader: MediaFileReadable!
+    
+    var videoData: [CMSampleBuffer] = [] {
+        didSet {
+            self.status = .prepared
+        }
+    }
+    
+    var audioData: [Data] = [] {
+        didSet {
+            self.status = .prepared
+        }
+    }
+    
     private(set) var timescale: Int = 0
     private(set) var isPlayable: Bool = false
     private(set) var status: MediaStatus = .paused
@@ -25,58 +40,74 @@ class Mpeg4File: Playable {
             return
         }
         self.mediaFileReader = Mpeg4FileReader(fileReader: fileReader)
-    }
-    
-    convenience init() {
-        self.init()
         self.mediaFileReader.decodeMediaData()
-        self.fetchTracks() { [weak self] in
-            guard let self = self else { return }
-            
-        }
+        self.fetchTracks()
+            self.trackDecode()
+    
+        
     }
     
-    private func fetchTracks(completion: @escaping () -> Void) {
-        jobQueue.async { [weak self] in
-            guard let self = self else { return }
+    private func fetchTracks() {
+      //  jobQueue.sync { [weak self] in
+        
             self.status = .making
             self.tracks = self.mediaFileReader.makeTracks()
             self.timescale = self.tracks[0].timescale
-            
-        }
+       // }
     }
     
-    private func trackDecoding() {
+ 
+
+    
+    private func trackDecode() {
         
         for track in tracks {
             
             var frames: [[UInt8]] = []
-            var presentationTime: [Int] = []
+            var presentationTimestamp: [Int] = []
             
-            for track in tracks {
                 for sample in track.samples {
                     mediaFileReader.fileReader.seek(offset: UInt64(sample.offset))
                     mediaFileReader.fileReader.read(length: sample.size) { (data) in
                 
                         frames.append(Array(data))
                     }
-                    presentationTime = track.samples.map {
+                    presentationTimestamp = track.samples.map {
                         $0.startTime
                     }
                 }
-            }
+            
             
             switch track.mediaType {
             case .audio:
-                self.audioTrackDecoder = AudioTrackDecoder()
-                audioTrackDecoder.decodeTrack(samples: frames, pts: presentationTime)
+                self.audioTrackDecoder = AudioTrackDecoder(track: track,
+                                                           samples: frames,
+                                                           presentationTimestamp: presentationTimestamp)
+                audioTrackDecoder.audioDelegate = self
+                audioTrackDecoder.decodeTrack()
             case .video:
-                self.videoTrackDecoder = VideoTrackDecoder(sps: track.sequenceParameters.toUInt8Array,
-                                                           pps: track.pictureParams.toUInt8Array)
-                videoTrackDecoder.decodeTrack(samples: frames, pts: presentationTime)
+                videoTrackDecoder = VideoTrackDecoder(track: track, samples: frames, presentationTimestamp: presentationTimestamp)
+                videoTrackDecoder.videoDelegate = self
+                videoTrackDecoder.decodeTrack()
             case .unknown:
                 assertionFailure("player init failed")
             }
         }
+    }
+}
+
+extension Mpeg4File: MultiMediaVideoTypeDecoderDelegate {
+    func prepareToDisplay(with buffers: [CMSampleBuffer]) {
+        self.videoData = buffers
+    }
+}
+
+extension Mpeg4File: MultiMediaAudioTypeDecoderDelegate {
+    func prepareToPlay(with data: Data) {
+        
+    }
+    
+    func prepareToPlay(with data: [Data]) {
+        self.audioData = data
     }
 }

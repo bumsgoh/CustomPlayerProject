@@ -7,6 +7,7 @@
 //
 
 import Foundation
+import VideoToolbox
 
 extension Data {
     var convertToInt: Int {
@@ -63,6 +64,7 @@ extension Data {
         return mutablePacket
         
     }
+    
 }
 
 extension String {
@@ -92,6 +94,17 @@ extension Array where Element == UInt8 {
             $0.toHexNumber
         }
         return hexNumbers
+    }
+}
+
+extension Array where Element == CMSampleBuffer {
+    mutating func copyNextSample() -> CMSampleBuffer? {
+        if self.isEmpty {
+            return nil
+        }
+        let item = self.first
+        self.remove(at: 0)
+        return item
     }
 }
 
@@ -130,6 +143,17 @@ extension Array where Element == Data {
         }
         return array
     }
+    
+    mutating func copyNextSample() -> Data? {
+        if self.isEmpty {
+            return nil
+        }
+        let item = self.first
+        self.remove(at: 0)
+        return item
+    }
+    
+    
 }
 
 extension Container {

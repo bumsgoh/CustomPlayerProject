@@ -40,7 +40,7 @@ class Track {
     var sequenceParameters: [Data] = []
     
     var pictureParameterSet: Data = Data()
-    var pictureParams: [Data] = []
+    var pictureParameters: [Data] = []
     
     var numberOfChannels: Int = 0
     var sampleRate: Int = 0
