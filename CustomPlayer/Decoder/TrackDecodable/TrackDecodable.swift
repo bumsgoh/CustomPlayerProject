@@ -17,7 +17,7 @@ protocol TrackDecodable: class {
     var videoDelegate: MultiMediaVideoTypeDecoderDelegate? { get set }
     var audioDelegate: MultiMediaAudioTypeDecoderDelegate? { get set }
     
-    func decodeTrack()
+    func decodeTrack(samples frames: [[UInt8]], pts: [Int])
 
     
 }

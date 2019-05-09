@@ -10,7 +10,7 @@ import Foundation
 import VideoToolbox
 
 protocol MultiMediaVideoTypeDecoderDelegate: class {
-     func prepareToDisplay(with buffers: [CMSampleBuffer]) 
+     func prepareToDisplay(with buffers: CMSampleBuffer) 
 }
 
 protocol MultiMediaAudioTypeDecoderDelegate: class {

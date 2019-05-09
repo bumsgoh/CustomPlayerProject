@@ -17,6 +17,8 @@ class PlayerViewContoller: UIViewController {
     var count = 0
     let semaphore: DispatchSemaphore = DispatchSemaphore(value: 0)
     var tracks: [Track] = []
+    let audioRenderer = AVSampleBufferAudioRenderer()
+    let renderSynchronizer = AVSampleBufferRenderSynchronizer()
     
     var audioTrackDecoder: TrackDecodable?
     var videoTrackDecoder: TrackDecodable?
@@ -61,7 +63,7 @@ class PlayerViewContoller: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         //videoDecoder.layer = self.videoPlayerLayer
-        
+         renderSynchronizer.addRenderer(audioRenderer)
         setUpLayer()
         setUpViews()
        
@@ -79,8 +81,8 @@ class PlayerViewContoller: UIViewController {
             assertionFailure("fail to clock")
         }
         else {
-            CMTimebaseSetRate(controlTimebase!, rate: 0.5);
-            CMTimebaseSetTime(controlTimebase!, time: CMTime(value: 1, timescale: 5))
+            CMTimebaseSetRate(controlTimebase!, rate: 1);
+            CMTimebaseSetTime(controlTimebase!, time: CMTime(value: 1, timescale: 24))
         }
         
         self.videoPlayerLayer.controlTimebase = controlTimebase
@@ -159,11 +161,11 @@ class PlayerViewContoller: UIViewController {
                                                            samples: frames,
                                                            presentationTimestamp: presentationTimestamp)
                 audioTrackDecoder?.audioDelegate = self
-                audioTrackDecoder?.decodeTrack()
+                audioTrackDecoder?.decodeTrack(samples: frames, pts: presentationTimestamp)
             case .video:
                 videoTrackDecoder = VideoTrackDecoder(track: track, samples: frames, presentationTimestamp: presentationTimestamp)
                 videoTrackDecoder?.videoDelegate = self
-                videoTrackDecoder?.decodeTrack()
+               // videoTrackDecoder?.decodeTrack(samples: frames, pts: presentationTimestamp)
             case .unknown:
                 assertionFailure("player init failed")
             }
@@ -216,7 +218,7 @@ class PlayerViewContoller: UIViewController {
     
     @objc func readButtonDidTap() {
       
-        guard let filePath =  Bundle.main.path(forResource: "you", ofType: "mp4") else { return }
+        guard let filePath =  Bundle.main.path(forResource: "ma", ofType: "mp4") else { return }
         let url = URL(fileURLWithPath: filePath)
         let reader = FileReader(url: url)
         let mediaReader = Mpeg4FileReader(fileReader: reader!)
@@ -248,37 +250,35 @@ class PlayerViewContoller: UIViewController {
 }
 
 extension PlayerViewContoller: MultiMediaVideoTypeDecoderDelegate {
-    func prepareToDisplay(with buffers: [CMSampleBuffer]) {
+    func prepareToDisplay(with buffers: CMSampleBuffer) {
         var mutableBuffer = buffers
         //self.semaphore.wait()
-        videoPlayerLayer.requestMediaDataWhenReady(on: serialQueue, using: { [weak self] in
-            guard let self = self else { return }
-            
-            while self.videoPlayerLayer.isReadyForMoreMediaData {
-                if let sample = mutableBuffer.copyNextSample(){
+      
+         //   if self.videoPlayerLayer.isReadyForMoreMediaData {
+                DispatchQueue.global().sync {
+                    self.videoPlayerLayer.enqueue(buffers)
+                }
                 
-                self.videoPlayerLayer.enqueue(sample)
                     
-                
-            } else {
-                
-                self.videoPlayerLayer.stopRequestingMediaData()
-            }
-            
-            
-        }
-    })
-    }
+           //     }
+        
+ 
+    
+}
 }
 
 extension PlayerViewContoller: MultiMediaAudioTypeDecoderDelegate {
     func prepareToPlay(with data: Data) {
-        guard let filePath =  Bundle.main.path(forResource: "ma", ofType: "mp4") else { return }
-        let url = URL(fileURLWithPath: filePath)
-        let avPlayer = AudioPlayer(url: url, data: data)
+
+        let avPlayer = AudioPlayer(data: data)
         DispatchQueue.global().async {
             avPlayer.play()
-     //       self.semaphore.signal()
+            //       self.semaphore.signal()
         }
     }
+        
+    }
+    
+    func prepareToPlay(with data: [Data]) {
+       
 }

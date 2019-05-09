@@ -9,6 +9,12 @@
 import Foundation
 import VideoToolbox
 
+
+func assertDependOnMultiMediaValueStatus(_ status: OSStatus) {
+    if status != 0 { assertionFailure("multimedia property error") }
+}
+
+
 extension Data {
     var convertToInt: Int {
         var uIntArray: [UInt8] = []

@@ -27,12 +27,12 @@ class VideoTrackDecoder: NSObject, TrackDecodable {
     private var sps: [UInt8] = []
     private var pps: [UInt8] = []
     
-    var sampleBuffers: [CMSampleBuffer] = [] {
+    var sampleBuffers: CMSampleBuffer? = nil {
         didSet {
-            if sampleBuffers.count == samples.count {
+            
                 isPrepared = true
-                videoDelegate?.prepareToDisplay(with: sampleBuffers)
-            }
+                videoDelegate?.prepareToDisplay(with: sampleBuffers!)
+            
         }
     }
     
@@ -58,29 +58,41 @@ class VideoTrackDecoder: NSObject, TrackDecodable {
         
         let decoder: VideoTrackDecoder = unsafeBitCast(decompressionOutputRefCon,
                                                        to: VideoTrackDecoder.self)
-        decoder.didframeDecodeComplete(status,
+       /* decoder.didframeDecodeComplete(status,
                                     infoFlags: infoFlags,
                                     imageBuffer: imageBuffer,
                                     presentationTimeStamp: presentationTimeStamp,
-                                    duration: duration)
+                                    duration: duration)*/
     }
     
-    func decodeTrack() {
+    func decodeTrack(samples frames: [[UInt8]], pts: [Int]) {
+        
         var count = 0
-        let duration = presentationTimestamp[1] * presentationTimestamp.count
+        let duration = pts[1] * pts.count
+        
+        var timingInfos: [CMSampleTimingInfo] = []
+        
+        for i in pts {
+            timingInfos.append(CMSampleTimingInfo(duration: CMTime(value: 1, timescale: 24), presentationTimeStamp: CMTime(value: CMTimeValue(i), timescale: 30000), decodeTimeStamp: CMTime(value: 0, timescale: 0)))
+        }
+        let sizeArray = frames.map {
+            $0.count
+        }
+        let packets: [UInt8] = Array(frames.joined())
+        
         
         buildDecompressionSession()
-        for packet in samples {
-            semaphore.wait()
-                decodeVideoPacket(videoPacket: packet, pts: presentationTimestamp[count], duration: duration)
+       // for packet in frames {
+          //  semaphore.wait()
+            decodeVideoPacket(videoPacket: packets, timingInfos: timingInfos, sizeArray: sizeArray, duration: duration)
             count += 1
-        }
+      //  }
+        
     }
     
-
-    private func decodeVideoPacket(videoPacket: [UInt8],
-                                   pts: Int,
-                                   duration: Int) {
+    
+    private func decodeVideoPacket(videoPacket: [UInt8], timingInfos: [CMSampleTimingInfo],
+                                   sizeArray: [Int] , duration: Int) {
         let bufferPointer = UnsafeMutablePointer<UInt8>(mutating: videoPacket)
         var blockBuffer: CMBlockBuffer?
         var status = CMBlockBufferCreateWithMemoryBlock(allocator: kCFAllocatorDefault,
@@ -97,21 +109,24 @@ class VideoTrackDecoder: NSObject, TrackDecodable {
         }
         
         var sampleBuffer: CMSampleBuffer?
-        let sampleSizeArray = [videoPacket.count]
+        let sampleSizeArray = sizeArray
+        var timingInfos = timingInfos
         
-        let timingInfo = [CMSampleTimingInfo(duration: CMTime(value: 0, timescale: 0), presentationTimeStamp: CMTime(value: Int64(pts), timescale: 30000), decodeTimeStamp: CMTime(value: 0, timescale: 0))]
+      /*  let timingInfo = [CMSampleTimingInfo(duration: CMTime(value: 0, timescale: 0), presentationTimeStamp: CMTime(value: Int64(pts), timescale: 24000), decodeTimeStamp: CMTime(value: 0, timescale: 0))]
+         CMSampleBufferCreate*/
         status = CMSampleBufferCreateReady(allocator: kCFAllocatorDefault,
                                            dataBuffer: blockBuffer,
                                            formatDescription: formatDescription,
-                                           sampleCount: 1,
-                                           sampleTimingEntryCount: 1,
-                                           sampleTimingArray: timingInfo,
-                                           sampleSizeEntryCount: 1,
+                                           sampleCount: sampleSizeArray.count,
+                                           sampleTimingEntryCount: timingInfos.count,
+                                           sampleTimingArray: timingInfos,
+                                           sampleSizeEntryCount: sampleSizeArray.count,
                                            sampleSizeArray: sampleSizeArray,
                                            sampleBufferOut: &sampleBuffer)
         guard let buffer = sampleBuffer,
             let session = decompressionSession,
             status == kCMBlockBufferNoErr else {
+                print("no session")
                 return
         }
         
@@ -125,7 +140,7 @@ class VideoTrackDecoder: NSObject, TrackDecodable {
         CFDictionarySetValue(attributes,
                              Unmanaged.passUnretained(kCMSampleAttachmentKey_DisplayImmediately).toOpaque(),
                              Unmanaged.passUnretained(kCFBooleanFalse).toOpaque())
-
+        
         
         var flag = VTDecodeInfoFlags()
         
@@ -138,6 +153,9 @@ class VideoTrackDecoder: NSObject, TrackDecodable {
         if status != noErr {
             return
         }
+      //  semaphore.signal()
+        sampleBuffers = buffer
+       // print(buffer)
     }
     
     
@@ -239,8 +257,7 @@ class VideoTrackDecoder: NSObject, TrackDecodable {
             return
         }
         
-        semaphore.signal()
-        sampleBuffers.append(buffer)
+        
     }
     
     private func analyzeNALAndDecode(videoPacket: inout [UInt8]) {

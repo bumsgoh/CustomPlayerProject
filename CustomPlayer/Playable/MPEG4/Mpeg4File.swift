@@ -84,11 +84,11 @@ class Mpeg4File: Playable {
                                                            samples: frames,
                                                            presentationTimestamp: presentationTimestamp)
                 audioTrackDecoder.audioDelegate = self
-                audioTrackDecoder.decodeTrack()
+             //   audioTrackDecoder.decodeTrack(samples: frames)
             case .video:
                 videoTrackDecoder = VideoTrackDecoder(track: track, samples: frames, presentationTimestamp: presentationTimestamp)
                 videoTrackDecoder.videoDelegate = self
-                videoTrackDecoder.decodeTrack()
+               // videoTrackDecoder.decodeTrack(samples: frames)
             case .unknown:
                 assertionFailure("player init failed")
             }
@@ -97,12 +97,16 @@ class Mpeg4File: Playable {
 }
 
 extension Mpeg4File: MultiMediaVideoTypeDecoderDelegate {
-    func prepareToDisplay(with buffers: [CMSampleBuffer]) {
-        self.videoData = buffers
+    func prepareToDisplay(with buffers: CMSampleBuffer) {
+       // self.videoData = buffers
     }
 }
 
 extension Mpeg4File: MultiMediaAudioTypeDecoderDelegate {
+    func prepareToPlay(with data: CMSampleBuffer) {
+        
+    }
+    
     func prepareToPlay(with data: Data) {
         
     }
