@@ -86,8 +86,9 @@ class Mpeg4File: Playable {
                 audioTrackDecoder.audioDelegate = self
              //   audioTrackDecoder.decodeTrack(samples: frames)
             case .video:
-                videoTrackDecoder = VideoTrackDecoder(track: track, samples: frames, presentationTimestamp: presentationTimestamp)
-                videoTrackDecoder.videoDelegate = self
+                print("dd")
+             //   videoTrackDecoder = VideoTrackDecoder(track: track, dataPackage: DataPackage)
+               // videoTrackDecoder.videoDelegate = self
                // videoTrackDecoder.decodeTrack(samples: frames)
             case .unknown:
                 assertionFailure("player init failed")

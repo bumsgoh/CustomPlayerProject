@@ -143,18 +143,27 @@ class PlayerViewContoller: UIViewController {
         for track in tracks {
             
             var frames: [[UInt8]] = []
+            var sizeArray: [Int] = []
+            var rawFrames: Data = Data()
             var presentationTimestamp: [Int] = []
             
             for sample in track.samples {
+                
                 mediaFileReader.fileReader.seek(offset: UInt64(sample.offset))
                 mediaFileReader.fileReader.read(length: sample.size) { (data) in
-                    
-                    frames.append(Array(data))
-                }
-                presentationTimestamp = track.samples.map {
-                    $0.startTime
+                    rawFrames.append(data)
+                    sizeArray.append(data.count)
+                  //  frames.append(Array(data))
                 }
             }
+            presentationTimestamp = track.samples.map {
+                $0.startTime
+            }
+            let dataPackage = DataPackage(sizeArray: sizeArray,
+                                          presentationTimestamp: presentationTimestamp,
+                                          dataStorage: rawFrames)
+                
+            
             switch track.mediaType {
             case .audio:
                 self.audioTrackDecoder = AudioTrackDecoder(track: track,
@@ -163,7 +172,7 @@ class PlayerViewContoller: UIViewController {
                 audioTrackDecoder?.audioDelegate = self
                 audioTrackDecoder?.decodeTrack(samples: frames, pts: presentationTimestamp)
             case .video:
-                videoTrackDecoder = VideoTrackDecoder(track: track, samples: frames, presentationTimestamp: presentationTimestamp)
+                videoTrackDecoder = VideoTrackDecoder(track: track, dataPackage: dataPackage)
                 videoTrackDecoder?.videoDelegate = self
                 videoTrackDecoder?.decodeTrack(samples: frames, pts: presentationTimestamp)
             case .unknown:
@@ -213,9 +222,9 @@ extension PlayerViewContoller: MultiMediaVideoTypeDecoderDelegate {
       
          //   if self.videoPlayerLayer.isReadyForMoreMediaData {
                 DispatchQueue.global().sync {
-                    if self.videoPlayerLayer.isReadyForMoreMediaData {
+                   // if self.videoPlayerLayer.isReadyForMoreMediaData {
                     self.videoPlayerLayer.enqueue(buffers)
-                    }
+                 //  }
                     
                 }
                 
@@ -241,4 +250,10 @@ extension PlayerViewContoller: MultiMediaAudioTypeDecoderDelegate {
     
     func prepareToPlay(with data: [Data]) {
        
+}
+
+struct DataPackage {
+    let sizeArray: [Int]
+    let presentationTimestamp: [Int]
+    var dataStorage: Data
 }

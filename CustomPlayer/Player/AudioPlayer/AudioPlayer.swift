@@ -12,14 +12,29 @@ import AudioToolbox
 
 class AudioPlayer: NSObject {
 
-   private var fileStreamID: AudioFileStreamID?
-   private var streamDescription: AudioStreamBasicDescription?
-   private var audioQueue: AudioQueueRef?
-   private var isRunning: UInt32 = 0
-   private var state: MediaStatus = .making
-   private var passedData: Data
+    private var streamDescription: AudioStreamBasicDescription?
+    private var isRunning: UInt32 = 0
+    private var state: MediaStatus = .making
+    private var passedData: Data
     private lazy var parse = {
         self.parseDeliveredData()
+    }
+    private var audioQueue:AudioQueueRef? = nil {
+        didSet {
+            guard let oldValue:AudioQueueRef = oldValue else {
+                return
+            }
+            AudioQueueStop(oldValue, true)
+            AudioQueueDispose(oldValue, true)
+        }
+    }
+    private var fileStreamID:AudioFileStreamID? = nil {
+        didSet {
+            guard let oldValue:AudioFileStreamID = oldValue else {
+                return
+            }
+            AudioFileStreamClose(oldValue)
+        }
     }
     
    private var propertyListener: AudioFileStream_PropertyListenerProc = { (clientData,

@@ -11,9 +11,8 @@ import AVFoundation
 
 protocol TrackDecodable: class {
 
-    var presentationTimestamp: [Int] { get }
     var track: Track { get }
-    var samples: [[UInt8]] { get }
+    
     var videoDelegate: MultiMediaVideoTypeDecoderDelegate? { get set }
     var audioDelegate: MultiMediaAudioTypeDecoderDelegate? { get set }
     
