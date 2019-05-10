@@ -16,7 +16,8 @@ protocol Playable {
 }
 
 enum MediaStatus {
+    case stopped
     case paused
-    case making
     case prepared
+    case playing
 }

@@ -13,6 +13,7 @@ import AVFoundation
 class PlayerViewContoller: UIViewController {
     
     let serialQueue = DispatchQueue(label: "serial queue")
+    let lockQueue = DispatchQueue(label: "lock queue")
     var localBuffer: [CMSampleBuffer] = []
     var count = 0
     let semaphore: DispatchSemaphore = DispatchSemaphore(value: 0)
@@ -215,15 +216,20 @@ extension PlayerViewContoller: MultiMediaVideoTypeDecoderDelegate {
     func prepareToDisplay(with buffers: CMSampleBuffer) {
         var mutableBuffer = buffers
        // self.semaphore.wait()
+        
       
          //   if self.videoPlayerLayer.isReadyForMoreMediaData {
             //self.semaphore.wait()
         
-       // DispatchQueue.main.async {
-            
-            self.videoPlayerLayer.enqueue(buffers)
-            self.videoPlayerLayer.setNeedsDisplay()
-      //  }
+        lockQueue.async {
+          //  if !Thread.isMainThread {self.semaphore.wait()}
+            self.semaphore.wait()
+            self.serialQueue.sync {
+                self.videoPlayerLayer.enqueue(buffers)
+                self.videoPlayerLayer.setNeedsDisplay()
+            }
+        
+        }
        
      
     }
@@ -240,9 +246,10 @@ extension PlayerViewContoller: MultiMediaAudioTypeDecoderDelegate {
         let avPlayer = AudioPlayer(data: data)
         print(data)
         serialQueue.async {
+            avPlayer.addObserver(<#T##observer: NSObject##NSObject#>, forKeyPath: <#T##String#>, options: <#T##NSKeyValueObservingOptions#>, context: <#T##UnsafeMutableRawPointer?#>)
             avPlayer.play()
          
-          //  self.semaphore.signal()
+           self.semaphore.signal()
         }
     }
 }

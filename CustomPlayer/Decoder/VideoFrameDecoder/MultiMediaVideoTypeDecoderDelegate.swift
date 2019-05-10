@@ -16,3 +16,7 @@ protocol MultiMediaVideoTypeDecoderDelegate: class {
 protocol MultiMediaAudioTypeDecoderDelegate: class {
     func prepareToPlay(with data: Data)
 }
+
+protocol MultiMediaDecoderDelegate: class {
+    func prepareToPlay<T>(with mediaData: T)
+}

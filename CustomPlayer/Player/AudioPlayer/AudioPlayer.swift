@@ -14,8 +14,21 @@ class AudioPlayer: NSObject {
 
     private var streamDescription: AudioStreamBasicDescription?
     private var isRunning: UInt32 = 0
-    private var state: MediaStatus = .making
+    private var state: MediaStatus = .stopped
     private var passedData: Data
+ 
+    private let decoder: TrackDecodable
+    private let track: Track
+    private let dataPackage: DataPackage
+    
+    init(decoder: TrackDecodable,
+         track: Track,
+         dataPackage: DataPackage) {
+        self.decoder = decoder
+        self.track = track
+        self.dataPackage = dataPackage
+    }
+    
     private lazy var parse = {
         self.parseDeliveredData()
     }
@@ -87,9 +100,10 @@ class AudioPlayer: NSObject {
                                 audioQueuebuffer!,
                                 numberPackets,
                                 packetDescriptions)
+        audioPlayerSelfPointer.state = .prepared
         AudioQueuePrime(audioQueue, 5, nil)
-        let status = AudioQueueStart (audioQueue, nil)
-    print(status)
+        AudioQueueStart (audioQueue, nil)
+
         }
     
     private var audioQueuePropertyListner: AudioQueuePropertyListenerProc = { (clientData,
@@ -133,7 +147,10 @@ class AudioPlayer: NSObject {
         }
     }
     
-    init(data: Data) {
+    init(data: Data,
+         decoder: TrackDecodable,
+         track: Track,
+         dataPackage: DataPackage) {
         self.passedData = data
         super.init()
         let audioPlayerSelfPointer = unsafeBitCast(self,
@@ -145,6 +162,9 @@ class AudioPlayer: NSObject {
             kAudioFileAAC_ADTSType,
             &fileStreamID)
         )
+        self.decoder = decoder
+        self.track = track
+        self.dataPackage = dataPackage
         parse()
     }
     
