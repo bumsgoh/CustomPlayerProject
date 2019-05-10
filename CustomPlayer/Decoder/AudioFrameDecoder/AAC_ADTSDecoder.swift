@@ -7,11 +7,8 @@
 //
 
 import Foundation
-import CoreMedia
-import AudioToolbox
 
-class AudioTrackDecoder: TrackDecodable {
-   var audioFileStreamID: AudioFileStreamID? = nil
+class AAC_ADTSDecoder: AudioTrackDecodable {
     var videoDelegate: MultiMediaVideoTypeDecoderDelegate? = nil
     
     var audioDelegate: MultiMediaAudioTypeDecoderDelegate?
@@ -31,10 +28,11 @@ class AudioTrackDecoder: TrackDecodable {
     
     func decodeTrack(timeScale: Int)  {
         var mergedData = Data()
+        
         dataPackage.dataStorage.forEach {
-            var mutableData = $0
-           mergedData.append(mutableData.addADTS)
+            mergedData.append($0.addADTS)
         }
+        
         audioDelegate?.prepareToPlay(with: mergedData)
     }
 }

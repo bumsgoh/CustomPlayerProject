@@ -11,10 +11,17 @@ import VideoToolbox
 
 
 func assertDependOnMultiMediaValueStatus(_ status: OSStatus) {
-    print(status)
     if status != 0 { assertionFailure("multimedia property error with") }
 }
 
+extension URL {
+    var isFileURL: Bool {
+        if self.absoluteString.contains("http") || self.absoluteString.contains("https") {
+            return false
+        }
+        return true
+    }
+}
 
 extension Data {
     var convertToInt: Int {

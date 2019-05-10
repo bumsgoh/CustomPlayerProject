@@ -10,7 +10,7 @@ import Foundation
 import VideoToolbox
 
 
-class VideoTrackDecoder: NSObject, TrackDecodable {
+class AvccDecoder: NSObject, VideoTrackDecodable {
     
     private(set) var track: Track
     
@@ -18,9 +18,6 @@ class VideoTrackDecoder: NSObject, TrackDecodable {
     
     private var formatDescription: CMVideoFormatDescription?
     private var decompressionSession: VTDecompressionSession?
-    
-    private var spsSize: Int = 0
-    private var ppsSize: Int = 0
     
     private var sps: [UInt8] = []
     private var pps: [UInt8] = []
@@ -42,7 +39,6 @@ class VideoTrackDecoder: NSObject, TrackDecodable {
     
     private var dataPackage: DataPackage
     
-    
     init(track: Track, dataPackage: DataPackage) {
         self.track = track
         self.dataPackage = dataPackage
@@ -57,8 +53,8 @@ class VideoTrackDecoder: NSObject, TrackDecodable {
         presentationTimeStamp: CMTime,
         duration: CMTime) in
         
-        let decoder: VideoTrackDecoder = unsafeBitCast(decompressionOutputRefCon,
-                                                       to: VideoTrackDecoder.self)
+        let decoder: AvccDecoder = unsafeBitCast(decompressionOutputRefCon,
+                                                       to: AvccDecoder.self)
         guard let decodedBuffer = imageBuffer else { return }
         
         var timingInfo:CMSampleTimingInfo = CMSampleTimingInfo(
@@ -90,7 +86,6 @@ class VideoTrackDecoder: NSObject, TrackDecodable {
     }
     
     func decodeTrack(timeScale: Int) {
-        print(timeScale)
         var timingInfos: [CMSampleTimingInfo] = []
         var count = 0
         for pts in dataPackage.presentationTimestamp {
@@ -159,13 +154,12 @@ class VideoTrackDecoder: NSObject, TrackDecodable {
         
         var flag = VTDecodeInfoFlags()
    
-        let st = VTDecompressionSessionDecodeFrame(
+        guard VTDecompressionSessionDecodeFrame(
             session,
             sampleBuffer: derivedSampleBuffer,
             flags: [._EnableAsynchronousDecompression],
             frameRefcon: nil,
-            infoFlagsOut: &flag)
-        print(st)
+            infoFlagsOut: &flag) == 0 else { return }
         
     }
     
@@ -224,35 +218,6 @@ class VideoTrackDecoder: NSObject, TrackDecodable {
         
         decompressionSession = localSession
     }
+}
     
-    private func analyzeNALAndDecode(videoPacket: inout [UInt8]) {
-        
-        var lengthOfNAL = CFSwapInt32HostToBig((UInt32(videoPacket.count - 4)))
-        
-        memcpy(&videoPacket, &lengthOfNAL, 4)
-        let typeOfNAL = videoPacket[4] & 0x1F
-        
-        switch typeOfNAL {
-        case TypeOfNAL.idr.rawValue:
-            buildDecompressionSession()
-          //      decodeVideoPacket(videoPacket: videoPacket)
-            
-        case TypeOfNAL.sps.rawValue:
-            spsSize = videoPacket.count - 4
-            sps = Array(videoPacket[4..<videoPacket.count])
-        case TypeOfNAL.pps.rawValue:
-            ppsSize = videoPacket.count - 4
-            pps = Array(videoPacket[4..<videoPacket.count])
-        default:
-         //   decodeVideoPacket(videoPacket: videoPacket)
-            break
-        }
-    }
-}
-
-enum TypeOfNAL: UInt8 {
-    case idr = 0x05
-    case sps = 0x07
-    case pps = 0x08
-    case bpFrame
-}
+  

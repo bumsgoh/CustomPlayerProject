@@ -132,51 +132,12 @@ class PlayerViewContoller: UIViewController {
     
     @objc func playButtonDidTap() {
         playButton.isHidden = true
-        
         guard let filePath =  Bundle.main.path(forResource: "you", ofType: "mp4") else { return }
         let url = URL(fileURLWithPath: filePath)
-        let fileReader = FileReader(url: url)
-        let mediaFileReader = Mpeg4FileReader(fileReader: fileReader!)
-        
-        mediaFileReader.decodeMediaData()
-        tracks = mediaFileReader.makeTracks()
-        
-        for track in tracks {
-            
-            var frames: [[UInt8]] = []
-            var sizeArray: [Int] = []
-            var rawFrames: [Data] = []
-            var presentationTimestamp: [Int] = []
-            
-            for sample in track.samples {
-                
-                mediaFileReader.fileReader.seek(offset: UInt64(sample.offset))
-                mediaFileReader.fileReader.read(length: sample.size) { (data) in
-                    rawFrames.append(data)
-                    sizeArray.append(data.count)
-                }
-            }
-            presentationTimestamp = track.samples.map {
-                $0.startTime
-            }
-            let dataPackage = DataPackage(presentationTimestamp: presentationTimestamp,
-                                          dataStorage: rawFrames)
-                
-            
-            switch track.mediaType {
-            case .audio:
-                self.audioTrackDecoder = AudioTrackDecoder(track: track, dataPackage: dataPackage)
-                audioTrackDecoder?.audioDelegate = self
-                audioTrackDecoder?.decodeTrack(timeScale: track.timescale)
-            case .video:
-                videoTrackDecoder = VideoTrackDecoder(track: track, dataPackage: dataPackage)
-                videoTrackDecoder?.videoDelegate = self
-                videoTrackDecoder?.decodeTrack(timeScale: track.timescale)
-            case .unknown:
-                assertionFailure("player init failed")
-            }
-        }
-    
+        let movie = MoviePlayer(url: url)
+        movie.delegate = self
+        movie.prepareToPlay()
+        movie.play()
     }
     
     @objc func readButtonDidTap() {
@@ -184,7 +145,7 @@ class PlayerViewContoller: UIViewController {
         guard let filePath =  Bundle.main.path(forResource: "ma", ofType: "mp4") else { return }
         let url = URL(fileURLWithPath: filePath)
         let reader = FileReader(url: url)
-        let mediaReader = Mpeg4FileReader(fileReader: reader!)
+        let mediaReader = Mpeg4Parser(fileReader: reader!)
         mediaReader.decodeMediaData()
         let tracks = mediaReader.makeTracks()
        // audioDecoder?.play()
@@ -212,45 +173,13 @@ class PlayerViewContoller: UIViewController {
 
 }
 
-extension PlayerViewContoller: MultiMediaVideoTypeDecoderDelegate {
-    func prepareToDisplay(with buffers: CMSampleBuffer) {
-        var mutableBuffer = buffers
-       // self.semaphore.wait()
-        
-      
-         //   if self.videoPlayerLayer.isReadyForMoreMediaData {
-            //self.semaphore.wait()
-        
-        lockQueue.async {
-          //  if !Thread.isMainThread {self.semaphore.wait()}
-            self.semaphore.wait()
-            self.serialQueue.sync {
-                self.videoPlayerLayer.enqueue(buffers)
-                self.videoPlayerLayer.setNeedsDisplay()
-            }
-        
-        }
-       
-     
-    }
-           //     }
-        
- 
-    
 
-}
-
-extension PlayerViewContoller: MultiMediaAudioTypeDecoderDelegate {
-    func prepareToPlay(with data: Data) {
-
-        let avPlayer = AudioPlayer(data: data)
-        print(data)
-        serialQueue.async {
-            avPlayer.addObserver(<#T##observer: NSObject##NSObject#>, forKeyPath: <#T##String#>, options: <#T##NSKeyValueObservingOptions#>, context: <#T##UnsafeMutableRawPointer?#>)
-            avPlayer.play()
-         
-           self.semaphore.signal()
-        }
+extension PlayerViewContoller: VideoQueueDelegate {
+    func displayQueue(with buffers: CMSampleBuffer) {
+       // DispatchQueue.main.async {
+            self.videoPlayerLayer.enqueue(buffers)
+            self.videoPlayerLayer.setNeedsDisplay()
+        //}
     }
 }
 

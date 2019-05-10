@@ -8,7 +8,7 @@
 
 import Foundation
 
-class VideoFrameReader: VideoFrameReadable {
+class H264Decoder: VideoFrameReadable {
     var streamBuffer: [UInt8] = []
     
     var fileStream: InputStream?
@@ -63,6 +63,35 @@ class VideoFrameReader: VideoFrameReadable {
         return 0
     }
     
-    
+    /*
+      private func analyzeNALAndDecode(videoPacket: inout [UInt8]) {
+        
+        var lengthOfNAL = CFSwapInt32HostToBig((UInt32(videoPacket.count - 4)))
+        
+        memcpy(&videoPacket, &lengthOfNAL, 4)
+        let typeOfNAL = videoPacket[4] & 0x1F
+        
+        switch typeOfNAL {
+        case TypeOfNAL.idr.rawValue:
+            buildDecompressionSession()
+            //      decodeVideoPacket(videoPacket: videoPacket)
+            
+        case TypeOfNAL.sps.rawValue:
+            spsSize = videoPacket.count - 4
+            sps = Array(videoPacket[4..<videoPacket.count])
+        case TypeOfNAL.pps.rawValue:
+            ppsSize = videoPacket.count - 4
+            pps = Array(videoPacket[4..<videoPacket.count])
+        default:
+            //   decodeVideoPacket(videoPacket: videoPacket)
+            break
+        }
+    }
+}*/
 }
-
+enum TypeOfNAL: UInt8 {
+    case idr = 0x05
+    case sps = 0x07
+    case pps = 0x08
+    case bpFrame
+}

@@ -7,3 +7,9 @@
 //
 
 import Foundation
+
+protocol MediaPlayable {
+    func play()
+    func pause()
+    func stop()
+}

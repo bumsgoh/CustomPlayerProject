@@ -8,7 +8,7 @@
 
 import Foundation
 
-class Mpeg4FileReader: MediaFileReadable {
+class Mpeg4Parser: MediaFileReadable {
     
     private(set) var status: MediaStatus = .paused
     private(set) var fileReader: FileStreamReadable
@@ -46,7 +46,7 @@ class Mpeg4FileReader: MediaFileReadable {
         
         lockQueue.sync { [weak self] in
             guard let self = self else { return }
-            self.status = .making
+            self.status = .paused
             containers = decode(root: root)
             
             while let item = containers.first {

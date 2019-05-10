@@ -12,11 +12,13 @@ import AVFoundation
 protocol TrackDecodable: class {
 
     var track: Track { get }
-    
-    var videoDelegate: MultiMediaVideoTypeDecoderDelegate? { get set }
-    var audioDelegate: MultiMediaAudioTypeDecoderDelegate? { get set }
-    
     func decodeTrack(timeScale: Int)
+}
 
-    
+protocol AudioTrackDecodable: TrackDecodable {
+     var audioDelegate: MultiMediaAudioTypeDecoderDelegate? { get set }
+}
+
+protocol VideoTrackDecodable: TrackDecodable {
+     var videoDelegate: MultiMediaVideoTypeDecoderDelegate? { get set }
 }

@@ -8,7 +8,7 @@
 
 import Foundation
 import VideoToolbox
-
+/*
 class Mpeg4File: Playable {
     
     private var videoTrackDecoder: TrackDecodable!
@@ -39,7 +39,7 @@ class Mpeg4File: Playable {
             assertionFailure("Failed to make file")
             return
         }
-        self.mediaFileReader = Mpeg4FileReader(fileReader: fileReader)
+        self.mediaFileReader = Mpeg4Parser(fileReader: fileReader)
         self.mediaFileReader.decodeMediaData()
         self.fetchTracks()
             self.trackDecode()
@@ -116,3 +116,4 @@ extension Mpeg4File: MultiMediaAudioTypeDecoderDelegate {
         self.audioData = data
     }
 }
+*/
