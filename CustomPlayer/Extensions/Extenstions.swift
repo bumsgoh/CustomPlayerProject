@@ -11,7 +11,8 @@ import VideoToolbox
 
 
 func assertDependOnMultiMediaValueStatus(_ status: OSStatus) {
-    if status != 0 { assertionFailure("multimedia property error") }
+    print(status)
+    if status != 0 { assertionFailure("multimedia property error with") }
 }
 
 

@@ -15,7 +15,7 @@ class PlayerViewContoller: UIViewController {
     let serialQueue = DispatchQueue(label: "serial queue")
     var localBuffer: [CMSampleBuffer] = []
     var count = 0
-    let semaphore: DispatchSemaphore = DispatchSemaphore(value: 0)
+    let semaphore: DispatchSemaphore = DispatchSemaphore(value: 1)
     var tracks: [Track] = []
     let audioRenderer = AVSampleBufferAudioRenderer()
     let renderSynchronizer = AVSampleBufferRenderSynchronizer()
@@ -165,54 +165,11 @@ class PlayerViewContoller: UIViewController {
             case .video:
                 videoTrackDecoder = VideoTrackDecoder(track: track, samples: frames, presentationTimestamp: presentationTimestamp)
                 videoTrackDecoder?.videoDelegate = self
-               // videoTrackDecoder?.decodeTrack(samples: frames, pts: presentationTimestamp)
+                videoTrackDecoder?.decodeTrack(samples: frames, pts: presentationTimestamp)
             case .unknown:
                 assertionFailure("player init failed")
             }
         }
-        
-      //  let videoDecoder = VideoTrackDecoder(track: <#T##Track#>, samples: <#T##[[UInt8]]#>, presentationTimestamp: <#T##[Int]#>)
-        
-//            let reader = FileReader(url: url)
-//            let mediaReader = Mpeg4FileReader(fileReader: reader!)
-//            mediaReader.decodeMediaData()
-//            let tracks = mediaReader.makeTracks()
-//
-//          //  videoDecoder.track = tracks[0]
-//
-//            var frames: [[UInt8]] = []
-//                    for sample in tracks[0].samples {
-//                        mediaReader.fileReader.seek(offset: UInt64(sample.offset))
-//                        mediaReader.fileReader.read(length: sample.size) { (data) in
-//
-//                            frames.append(Array(data))
-//
-//                        }
-//                    }
-//                    //videoDecoder.track = tracks[0]
-//        let timingPts = tracks[0].samples.map {
-//            $0.startTime
-//        }
-        
-        
-       // let mp4File = Mpeg4File(url: url)
-        
-      // videoDecoder.decodeTrack(samples: frames, pts: timingPts)
-  
-       /* videoPlayerLayer.requestMediaDataWhenReady(on: serialQueue, using: { [weak self] in
-            guard let self = self else { return }
-            while self.videoPlayerLayer.isReadyForMoreMediaData {
-               // if let sample = mp4File.videoData.copyNextSample(){
-       
-                    self.videoPlayerLayer.enqueue(sample)
-               
-                } else {
-                    self.videoPlayerLayer.stopRequestingMediaData()
-                }
-                
-                
-            }
-        })*/
     
     }
     
@@ -252,11 +209,14 @@ class PlayerViewContoller: UIViewController {
 extension PlayerViewContoller: MultiMediaVideoTypeDecoderDelegate {
     func prepareToDisplay(with buffers: CMSampleBuffer) {
         var mutableBuffer = buffers
-        //self.semaphore.wait()
+       // self.semaphore.wait()
       
          //   if self.videoPlayerLayer.isReadyForMoreMediaData {
                 DispatchQueue.global().sync {
+                    if self.videoPlayerLayer.isReadyForMoreMediaData {
                     self.videoPlayerLayer.enqueue(buffers)
+                    }
+                    
                 }
                 
                     
@@ -273,7 +233,7 @@ extension PlayerViewContoller: MultiMediaAudioTypeDecoderDelegate {
         let avPlayer = AudioPlayer(data: data)
         DispatchQueue.global().async {
             avPlayer.play()
-            //       self.semaphore.signal()
+                   self.semaphore.signal()
         }
     }
         

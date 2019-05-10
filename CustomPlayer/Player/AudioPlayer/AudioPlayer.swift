@@ -12,12 +12,15 @@ import AudioToolbox
 
 class AudioPlayer: NSObject {
 
-   private var fileStreamID: AudioFileStreamID? = nil
+   private var fileStreamID: AudioFileStreamID?
    private var streamDescription: AudioStreamBasicDescription?
    private var audioQueue: AudioQueueRef?
    private var isRunning: UInt32 = 0
    private var state: MediaStatus = .making
    private var passedData: Data
+    private lazy var parse = {
+        self.parseDeliveredData()
+    }
     
    private var propertyListener: AudioFileStream_PropertyListenerProc = { (clientData,
         audioFileStreamID,
@@ -30,14 +33,14 @@ class AudioPlayer: NSObject {
         var sizeOfProperty: UInt32 = 0
         var isWritable: DarwinBoolean = false
         var audioStreamDescription = AudioStreamBasicDescription()
-    
-        assertDependOnMultiMediaValueStatus(
+   
+   
+       assertDependOnMultiMediaValueStatus(
             AudioFileStreamGetPropertyInfo(audioFileStreamID,
             kAudioFileStreamProperty_DataFormat,
             &sizeOfProperty,
             &isWritable)
         )
-    
     
         assertDependOnMultiMediaValueStatus(
             AudioFileStreamGetProperty(audioFileStreamID,
@@ -45,8 +48,8 @@ class AudioPlayer: NSObject {
                                        &sizeOfProperty,
                                        &audioStreamDescription)
             )
-        audioPlayerSelfPointer.makeNewAudioQueue(audioStreamDescription)
-        }
+        audioPlayerSelfPointer.makeNewAudioQueue(audioStreamDescription)}
+    
     
     
    private var packetInformationListner: AudioFileStream_PacketsProc = { (clientData,
@@ -54,7 +57,6 @@ class AudioPlayer: NSObject {
         numberPackets,
         inputData,
         packetDescriptions) -> Void in
-    
         let audioPlayerSelfPointer: AudioPlayer = unsafeBitCast(clientData,
                                                                 to: AudioPlayer.self)
 
@@ -71,7 +73,8 @@ class AudioPlayer: NSObject {
                                 numberPackets,
                                 packetDescriptions)
         AudioQueuePrime(audioQueue, 5, nil)
-        AudioQueueStart (audioQueue, nil)
+        let status = AudioQueueStart (audioQueue, nil)
+    print(status)
         }
     
     private var audioQueuePropertyListner: AudioQueuePropertyListenerProc = { (clientData,
@@ -99,7 +102,7 @@ class AudioPlayer: NSObject {
     private var outputListner: AudioQueueOutputCallback = { (clientData,
         audioQueue,
         buffer) -> Void in
-        let selfPointee = Unmanaged<AudioPlayer>.fromOpaque(clientData!).takeUnretainedValue()
+        let audioPlayer = Unmanaged<AudioPlayer>.fromOpaque(clientData!).takeUnretainedValue()
         AudioQueueFreeBuffer(audioQueue, buffer)
     }
     
@@ -127,6 +130,7 @@ class AudioPlayer: NSObject {
             kAudioFileAAC_ADTSType,
             &fileStreamID)
         )
+        parse()
     }
     
     deinit {
@@ -137,8 +141,9 @@ class AudioPlayer: NSObject {
     }
     
     func play() {
-        parseDeliveredData()
+        
         guard let audioQueue = audioQueue else { return }
+        
         AudioQueueStart(audioQueue,nil)
     }
     
@@ -150,6 +155,7 @@ class AudioPlayer: NSObject {
     }
     
     private func makeNewAudioQueue(_ audioStreamDescription: AudioStreamBasicDescription) {
+        
         var mutableAudioStreamDescription = audioStreamDescription
         streamDescription = mutableAudioStreamDescription
         let audioPlayerSelfPointer = unsafeBitCast(self, to: UnsafeMutableRawPointer.self)
@@ -177,9 +183,9 @@ class AudioPlayer: NSObject {
     
     func parseDeliveredData() {
         var parseFlags: AudioFileStreamParseFlags
-            if state == .paused {
-                parseFlags = .discontinuity
-            } else {
+            //if state == .paused {
+              //  parseFlags = .discontinuity
+            //} else {
                 guard let fileId = fileStreamID else { return }
                 parseFlags = AudioFileStreamParseFlags(rawValue: 0)
                 assertDependOnMultiMediaValueStatus(AudioFileStreamParseBytes(fileId,
@@ -187,8 +193,10 @@ class AudioPlayer: NSObject {
                                                        (passedData as NSData).bytes,
                                                        parseFlags)
                 )
-            }
+           // }
         }
+    
+    
     
 }
 
