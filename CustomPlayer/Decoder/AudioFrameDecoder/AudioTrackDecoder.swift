@@ -16,28 +16,24 @@ class AudioTrackDecoder: TrackDecodable {
     
     var audioDelegate: MultiMediaAudioTypeDecoderDelegate?
     
-    private(set) var presentationTimestamp: [Int]
     private(set) var track: Track
-    private(set) var samples: [[UInt8]]
+
     private var derivedData: Data = Data()
+    var dataPackage: DataPackage
     
     private var isPrepared: Bool = false
     
 
-    init(track: Track, samples: [[UInt8]], presentationTimestamp: [Int]) {
+    init(track: Track, dataPackage: DataPackage) {
         self.track = track
-        self.samples = samples
-        self.presentationTimestamp = presentationTimestamp
+        self.dataPackage = dataPackage
     }
     
-    func decodeTrack(samples frames: [[UInt8]], pts: [Int])  {
+    func decodeTrack(timeScale: Int)  {
         var mergedData = Data()
-        samples.forEach {
-           mergedData.append($0.tohexNumbers
-                .mergeToString
-                .convertHexStringToData
-                .addADTS
-            )
+        dataPackage.dataStorage.forEach {
+            var mutableData = $0
+           mergedData.append(mutableData.addADTS)
         }
         audioDelegate?.prepareToPlay(with: mergedData)
     }

@@ -80,9 +80,9 @@ class Mpeg4File: Playable {
             
             switch track.mediaType {
             case .audio:
-                self.audioTrackDecoder = AudioTrackDecoder(track: track,
-                                                           samples: frames,
-                                                           presentationTimestamp: presentationTimestamp)
+               // self.audioTrackDecoder = AudioTrackDecoder(track: track,
+                       //                                    samples: frames,
+                            //                               presentationTimestamp: presentationTimestamp)
                 audioTrackDecoder.audioDelegate = self
              //   audioTrackDecoder.decodeTrack(samples: frames)
             case .video:

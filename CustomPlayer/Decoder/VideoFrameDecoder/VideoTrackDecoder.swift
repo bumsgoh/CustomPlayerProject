@@ -89,27 +89,37 @@ class VideoTrackDecoder: NSObject, TrackDecodable {
         decoder.videoDelegate?.prepareToDisplay(with: decodedSampleBuffer!)
     }
     
-    func decodeTrack(samples frames: [[UInt8]], pts: [Int]) {
-        
+    func decodeTrack(timeScale: Int) {
+        print(timeScale)
         var timingInfos: [CMSampleTimingInfo] = []
-        
+        var count = 0
         for pts in dataPackage.presentationTimestamp {
+            let composionTimestamp = track.samples[count].compositionTimeOffset
             timingInfos.append(CMSampleTimingInfo(duration: CMTime(value: 0, timescale: 0),
-                                                  presentationTimeStamp: CMTime(value: CMTimeValue(pts),
-                                                                                timescale: 30000),
+                                                  presentationTimeStamp: CMTime(value: CMTimeValue(pts + composionTimestamp),
+                                                                                timescale: CMTimeScale(timeScale)),
                                                   decodeTimeStamp: CMTime(value: 0, timescale: 0)))
+            count += 1
         }
         
         buildDecompressionSession()
-        decodeVideoPacket(dataLength: dataPackage.dataStorage.count, timingInfos: timingInfos)
+        decodeVideoPacket(timingInfos: timingInfos)
         
     }
     
     
-    private func decodeVideoPacket(dataLength: Int, timingInfos: [CMSampleTimingInfo]) {
+    private func decodeVideoPacket(timingInfos: [CMSampleTimingInfo]) {
         var blockBuffer: CMBlockBuffer?
-        var dataLength = dataLength
-        dataPackage.dataStorage.withUnsafeMutableBytes { (bytes: UnsafeMutablePointer<UInt8>) -> Void in
+        let dataLength = dataPackage.dataStorage.map {
+            $0.count
+            }.reduce(0, {$0 + $1})
+        
+        let sizeArray = dataPackage.dataStorage.map {
+            $0.count
+        }
+        var mergedData = Data(dataPackage.dataStorage.joined())
+        mergedData.withUnsafeMutableBytes { (bytes: UnsafeMutablePointer<UInt8>) -> Void in
+        
         guard CMBlockBufferCreateWithMemoryBlock(
             allocator: kCFAllocatorDefault,
             memoryBlock: bytes,
@@ -127,50 +137,36 @@ class VideoTrackDecoder: NSObject, TrackDecodable {
       
         
         var sampleBuffer: CMSampleBuffer?
-        
+        var timingEntries = dataPackage.presentationTimestamp.count
 
         guard CMSampleBufferCreateReady(
             allocator: kCFAllocatorDefault,
             dataBuffer: blockBuffer,
             formatDescription: formatDescription,
-            sampleCount: dataPackage.sizeArray.count,
-            sampleTimingEntryCount: dataPackage.presentationTimestamp.count,
+            sampleCount: sizeArray.count,
+            sampleTimingEntryCount: timingEntries,
             sampleTimingArray: timingInfos,
-            sampleSizeEntryCount: dataPackage.sizeArray.count,
-            sampleSizeArray: dataPackage.sizeArray,
+            sampleSizeEntryCount: sizeArray.count,
+            sampleSizeArray: sizeArray,
             sampleBufferOut: &sampleBuffer) == kCMBlockBufferNoErr,
             let derivedSampleBuffer = sampleBuffer else {
             return
         }
-        
         guard let session = decompressionSession else {
                 print("failed to fetch session")
                 return
         }
         
-        guard let attachments: CFArray =
-            CMSampleBufferGetSampleAttachmentsArray(derivedSampleBuffer,
-                                                    createIfNecessary: true)
-            else { return }
-        
-        let attributes = unsafeBitCast(CFArrayGetValueAtIndex(attachments, 0),
-                                       to: CFMutableDictionary.self)
-        CFDictionarySetValue(attributes,
-                             Unmanaged.passUnretained(kCMSampleAttachmentKey_DisplayImmediately).toOpaque(),
-                             Unmanaged.passUnretained(kCFBooleanTrue).toOpaque())
-        
-        
         var flag = VTDecodeInfoFlags()
-        
-        guard VTDecompressionSessionDecodeFrame(
+   
+        let st = VTDecompressionSessionDecodeFrame(
             session,
             sampleBuffer: derivedSampleBuffer,
-            flags: [._EnableAsynchronousDecompression,
-                   ._EnableTemporalProcessing],
+            flags: [._EnableAsynchronousDecompression],
             frameRefcon: nil,
-            infoFlagsOut: &flag) == noErr else {
-            return
-        }
+            infoFlagsOut: &flag)
+        print(st)
+        
     }
     
     private func buildDecompressionSession() {

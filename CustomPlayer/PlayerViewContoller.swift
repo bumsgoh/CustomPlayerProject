@@ -15,7 +15,7 @@ class PlayerViewContoller: UIViewController {
     let serialQueue = DispatchQueue(label: "serial queue")
     var localBuffer: [CMSampleBuffer] = []
     var count = 0
-    let semaphore: DispatchSemaphore = DispatchSemaphore(value: 1)
+    let semaphore: DispatchSemaphore = DispatchSemaphore(value: 0)
     var tracks: [Track] = []
     let audioRenderer = AVSampleBufferAudioRenderer()
     let renderSynchronizer = AVSampleBufferRenderSynchronizer()
@@ -82,7 +82,7 @@ class PlayerViewContoller: UIViewController {
         }
         else {
             CMTimebaseSetRate(controlTimebase!, rate: 1);
-            CMTimebaseSetTime(controlTimebase!, time: CMTime(value: 1, timescale: 24))
+            CMTimebaseSetTime(controlTimebase!, time: CMTime(value: 1, timescale: 1))
         }
         
         self.videoPlayerLayer.controlTimebase = controlTimebase
@@ -144,7 +144,7 @@ class PlayerViewContoller: UIViewController {
             
             var frames: [[UInt8]] = []
             var sizeArray: [Int] = []
-            var rawFrames: Data = Data()
+            var rawFrames: [Data] = []
             var presentationTimestamp: [Int] = []
             
             for sample in track.samples {
@@ -153,28 +153,24 @@ class PlayerViewContoller: UIViewController {
                 mediaFileReader.fileReader.read(length: sample.size) { (data) in
                     rawFrames.append(data)
                     sizeArray.append(data.count)
-                  //  frames.append(Array(data))
                 }
             }
             presentationTimestamp = track.samples.map {
                 $0.startTime
             }
-            let dataPackage = DataPackage(sizeArray: sizeArray,
-                                          presentationTimestamp: presentationTimestamp,
+            let dataPackage = DataPackage(presentationTimestamp: presentationTimestamp,
                                           dataStorage: rawFrames)
                 
             
             switch track.mediaType {
             case .audio:
-                self.audioTrackDecoder = AudioTrackDecoder(track: track,
-                                                           samples: frames,
-                                                           presentationTimestamp: presentationTimestamp)
+                self.audioTrackDecoder = AudioTrackDecoder(track: track, dataPackage: dataPackage)
                 audioTrackDecoder?.audioDelegate = self
-                audioTrackDecoder?.decodeTrack(samples: frames, pts: presentationTimestamp)
+                audioTrackDecoder?.decodeTrack(timeScale: track.timescale)
             case .video:
                 videoTrackDecoder = VideoTrackDecoder(track: track, dataPackage: dataPackage)
                 videoTrackDecoder?.videoDelegate = self
-                videoTrackDecoder?.decodeTrack(samples: frames, pts: presentationTimestamp)
+                videoTrackDecoder?.decodeTrack(timeScale: track.timescale)
             case .unknown:
                 assertionFailure("player init failed")
             }
@@ -221,39 +217,37 @@ extension PlayerViewContoller: MultiMediaVideoTypeDecoderDelegate {
        // self.semaphore.wait()
       
          //   if self.videoPlayerLayer.isReadyForMoreMediaData {
-                DispatchQueue.global().sync {
-                   // if self.videoPlayerLayer.isReadyForMoreMediaData {
-                    self.videoPlayerLayer.enqueue(buffers)
-                 //  }
-                    
-                }
-                
-                    
+            //self.semaphore.wait()
+        
+       // DispatchQueue.main.async {
+            
+            self.videoPlayerLayer.enqueue(buffers)
+            self.videoPlayerLayer.setNeedsDisplay()
+      //  }
+       
+     
+    }
            //     }
         
  
     
-}
+
 }
 
 extension PlayerViewContoller: MultiMediaAudioTypeDecoderDelegate {
     func prepareToPlay(with data: Data) {
 
         let avPlayer = AudioPlayer(data: data)
-        DispatchQueue.global().async {
+        print(data)
+        serialQueue.async {
             avPlayer.play()
-                   self.semaphore.signal()
+         
+          //  self.semaphore.signal()
         }
     }
-        
-    }
-    
-    func prepareToPlay(with data: [Data]) {
-       
 }
 
 struct DataPackage {
-    let sizeArray: [Int]
     let presentationTimestamp: [Int]
-    var dataStorage: Data
+    var dataStorage: [Data]
 }
