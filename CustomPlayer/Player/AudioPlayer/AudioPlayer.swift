@@ -14,6 +14,7 @@ class AudioPlayer: NSObject {
 
     private var streamDescription: AudioStreamBasicDescription?
     private var isRunning: UInt32 = 0
+    private var isPlaying: Bool = false
     private var state: MediaStatus = .stopped
     private var passedData: Data
     
@@ -65,7 +66,12 @@ class AudioPlayer: NSObject {
                                        &sizeOfProperty,
                                        &audioStreamDescription)
             )
-        audioPlayerSelfPointer.makeNewAudioQueue(audioStreamDescription)}
+  
+          audioPlayerSelfPointer.makeNewAudioQueue(audioStreamDescription)
+    
+    }
+    
+    
     
     
     
@@ -90,8 +96,8 @@ class AudioPlayer: NSObject {
                                 numberPackets,
                                 packetDescriptions)
         audioPlayerSelfPointer.state = .prepared
-        AudioQueuePrime(audioQueue, 5, nil)
-        AudioQueueStart (audioQueue, nil)
+        //AudioQueuePrime(audioQueue, 5, nil)
+        //AudioQueueStart (audioQueue, nil)
 
         }
     
@@ -158,10 +164,11 @@ class AudioPlayer: NSObject {
         AudioFileStreamClose(fileId)
     }
     
-    func play() {
+    func playIfNeeded() {
         
-        guard let audioQueue = audioQueue else { return }
-        
+        guard let audioQueue = audioQueue, !isPlaying else { return }
+        isPlaying = true
+        AudioQueuePrime(audioQueue, 5, nil)
         AudioQueueStart(audioQueue,nil)
     }
     

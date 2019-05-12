@@ -13,17 +13,30 @@ class MoviePlayer: NSObject {
     typealias T = CMSampleBuffer
     var state: MediaStatus = .stopped
     let jobQueue: DispatchQueue = DispatchQueue(label: "decodeQueue")
+    let lockQueue: DispatchQueue = DispatchQueue(label: "com.lockQueue", qos: .userInitiated, attributes: .concurrent, autoreleaseFrequency: .workItem, target: nil)
     let isFileBasedPlayer: Bool
     let url: URL
+    var videoPacketBuffer: [CMSampleBuffer] = []
+    var audioPacketBuffer: Data = Data()
     weak var delegate: VideoQueueDelegate?
     let audioQueue = DispatchQueue(label: "audioPlayQueue")
     let syncSemaphore: DispatchSemaphore = DispatchSemaphore(value: 0)
     private var audioDecoder: AudioTrackDecodable?
     private var videoDecoder: VideoTrackDecodable?
-
+    var audioPlayer: AudioPlayer?
+     private var isReady: Bool = false
+    var bufferTime: TimeInterval = 10 // sec
+    private(set) var duration: TimeInterval = 0
+    var playing = false
+    var isThumNailSet: Bool = false
     var isPlayable: Bool {
         return isVideoReady && isAudioReady
     }
+    lazy var queue: DisplayLinkedQueue = {
+        let queue: DisplayLinkedQueue = DisplayLinkedQueue()
+        queue.delegate = self
+        return queue
+    }()
     
     private var isVideoReady: Bool = false
     private var isAudioReady: Bool = false
@@ -75,7 +88,7 @@ class MoviePlayer: NSObject {
                 case .video:
                     self.videoDecoder  = AvccDecoder(track: track, dataPackage: dataPackage)
                     self.videoDecoder?.videoDelegate = self
-                    self.videoDecoder?.decodeTrack(timeScale: track.timescale)
+                    self.videoDecoder?.decodeTrack(timeScale: 30000)
                 case .unknown:
                     assertionFailure("player init failed")
                 }
@@ -84,8 +97,7 @@ class MoviePlayer: NSObject {
     }
     
     func play() {
-        guard state == .prepared else { return }
-       // syncSemaphore.signal()
+        queue.startRunning()
     }
     
     func pause() {
@@ -96,25 +108,30 @@ class MoviePlayer: NSObject {
 extension MoviePlayer: MultiMediaAudioTypeDecoderDelegate {
     func prepareToPlay(with data: Data) {
         isAudioReady = true
-        let audioPlayer = AudioPlayer(data: data)
-        audioQueue.async {
-          //  self.syncSemaphore.wait()
-            audioPlayer.play()
-          //  self.syncSemaphore.signal()
-        }
+    audioPlayer = AudioPlayer(data: data)
     }
-    
-   
 }
 
 extension MoviePlayer: MultiMediaVideoTypeDecoderDelegate {
     func prepareToDisplay(with buffers: CMSampleBuffer) {
-        isVideoReady = true
-      //   self.syncSemaphore.wait()
-        delegate?.displayQueue(with: buffers)
+
+         queue.enqueue(buffers)
     }
+    
 }
 
 protocol VideoQueueDelegate: class {
      func displayQueue(with buffers: CMSampleBuffer)
+}
+
+
+extension MoviePlayer: DisplayLinkedQueueDelegate {
+    // MARK: DisplayLinkedQueue
+    func queue(_ buffer: CMSampleBuffer) {
+        if playing == false {
+            playing = true
+            self.audioPlayer?.playIfNeeded()
+        }
+        delegate?.displayQueue(with: buffer)
+    }
 }

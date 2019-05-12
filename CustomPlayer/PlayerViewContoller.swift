@@ -83,7 +83,7 @@ class PlayerViewContoller: UIViewController {
         }
         else {
             CMTimebaseSetRate(controlTimebase!, rate: 1);
-            CMTimebaseSetTime(controlTimebase!, time: CMTime(value: 1, timescale: 1))
+            CMTimebaseSetTime(controlTimebase!, time: CMTime(value: 1, timescale: 24))
         }
         
         self.videoPlayerLayer.controlTimebase = controlTimebase
@@ -138,6 +138,7 @@ class PlayerViewContoller: UIViewController {
         movie.delegate = self
         movie.prepareToPlay()
         movie.play()
+        
     }
     
     @objc func readButtonDidTap() {
@@ -176,10 +177,10 @@ class PlayerViewContoller: UIViewController {
 
 extension PlayerViewContoller: VideoQueueDelegate {
     func displayQueue(with buffers: CMSampleBuffer) {
-       // DispatchQueue.main.async {
+        DispatchQueue.main.async {
             self.videoPlayerLayer.enqueue(buffers)
             self.videoPlayerLayer.setNeedsDisplay()
-        //}
+     }
     }
 }
 

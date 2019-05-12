@@ -14,6 +14,25 @@ func assertDependOnMultiMediaValueStatus(_ status: OSStatus) {
     if status != 0 { assertionFailure("multimedia property error with") }
 }
 
+
+extension CMSampleBuffer {
+    var numSamples: CMItemCount {
+        return CMSampleBufferGetNumSamples(self)
+    }
+    var duration: CMTime {
+        return CMSampleBufferGetDuration(self)
+    }
+    var formatDescription: CMFormatDescription? {
+        return CMSampleBufferGetFormatDescription(self)
+    }
+    var decodeTimeStamp: CMTime {
+        return CMSampleBufferGetDecodeTimeStamp(self)
+    }
+    var presentationTimeStamp: CMTime {
+        return CMSampleBufferGetPresentationTimeStamp(self)
+    }
+}
+
 extension URL {
     var isFileURL: Bool {
         if self.absoluteString.contains("http") || self.absoluteString.contains("https") {

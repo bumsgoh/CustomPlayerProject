@@ -58,7 +58,7 @@ class AvccDecoder: NSObject, VideoTrackDecodable {
         guard let decodedBuffer = imageBuffer else { return }
         
         var timingInfo:CMSampleTimingInfo = CMSampleTimingInfo(
-            duration: CMTime.invalid,
+            duration: duration,
             presentationTimeStamp: presentationTimeStamp,
             decodeTimeStamp: CMTime.invalid
         )
@@ -90,7 +90,7 @@ class AvccDecoder: NSObject, VideoTrackDecodable {
         var count = 0
         for pts in dataPackage.presentationTimestamp {
             let composionTimestamp = track.samples[count].compositionTimeOffset
-            timingInfos.append(CMSampleTimingInfo(duration: CMTime(value: 0, timescale: 0),
+            timingInfos.append(CMSampleTimingInfo(duration: CMTime(value: 1001, timescale: CMTimeScale(timeScale)),
                                                   presentationTimeStamp: CMTime(value: CMTimeValue(pts + composionTimestamp),
                                                                                 timescale: CMTimeScale(timeScale)),
                                                   decodeTimeStamp: CMTime(value: 0, timescale: 0)))
