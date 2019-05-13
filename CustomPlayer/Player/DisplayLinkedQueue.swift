@@ -67,7 +67,7 @@ final class DisplayLinkedQueue: NSObject {
         lockQueue.async {
             guard self.running else { return }
             self.displayLink = nil
-            self.buffers.removeAll()
+           // self.buffers.removeAll()
             self.running = false
         }
     }

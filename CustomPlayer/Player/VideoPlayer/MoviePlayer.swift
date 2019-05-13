@@ -38,6 +38,7 @@ class MoviePlayer: NSObject {
         queue.delegate = self
         return queue
     }()
+    var dataFromDecoder = Data()
     
     private var isVideoReady: Bool = false
     private var isAudioReady: Bool = false
@@ -52,7 +53,7 @@ class MoviePlayer: NSObject {
     }
     
     func prepareToPlay() {
-        jobQueue.sync { [weak self] in
+        jobQueue.async { [weak self] in
             guard let self = self else { return }
             
             guard let fileReader = FileReader(url: self.url) else { return }
@@ -60,7 +61,7 @@ class MoviePlayer: NSObject {
             
             mediaFileReader.decodeMediaData()
             let tracks = mediaFileReader.makeTracks()
-            totalDuration = tracks[0].duration
+            self.totalDuration = tracks[0].duration
             for track in tracks {
                 var sizeArray: [Int] = []
                 var rawFrames: [Data] = []
@@ -80,7 +81,6 @@ class MoviePlayer: NSObject {
                 let dataPackage = DataPackage(presentationTimestamp: presentationTimestamp,
                                               dataStorage: rawFrames)
                 
-                
                 switch track.mediaType {
                 case .audio:
                     self.audioDecoder = AAC_ADTSDecoder(track: track, dataPackage: dataPackage)
@@ -99,17 +99,26 @@ class MoviePlayer: NSObject {
     
     func play() {
         queue.startRunning()
+        audioPlayer?.playIfNeeded()
     }
     
     func pause() {
-
+        queue.stopRunning()
+        audioPlayer?.pause()
+    }
+    
+    func seek(to time: TimeInterval) {
+        audioPlayer?.seek(to: time)
+        audioPlayer?.parseDeliveredData(data: dataFromDecoder)
     }
 }
 
 extension MoviePlayer: MultiMediaAudioTypeDecoderDelegate {
     func prepareToPlay(with data: Data) {
         isAudioReady = true
-    audioPlayer = AudioPlayer(data: data)
+    audioPlayer = AudioPlayer()
+        dataFromDecoder = data
+        audioPlayer?.parseDeliveredData(data: data)
     }
 }
 

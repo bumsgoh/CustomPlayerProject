@@ -16,12 +16,12 @@ class AudioPlayer: NSObject {
     private var isRunning: UInt32 = 0
     private var isPlaying: Bool = false
     private var state: MediaStatus = .stopped
-    private var passedData: Data
+   // private var passedData: Data
     
     
-    private lazy var parse = {
-        self.parseDeliveredData()
-    }
+//    private lazy var parse = {
+//        self.parseDeliveredData()
+//    }
     private var audioQueue:AudioQueueRef? = nil {
         didSet {
             guard let oldValue:AudioQueueRef = oldValue else {
@@ -96,8 +96,7 @@ class AudioPlayer: NSObject {
                                 numberPackets,
                                 packetDescriptions)
         audioPlayerSelfPointer.state = .prepared
-        //AudioQueuePrime(audioQueue, 5, nil)
-        //AudioQueueStart (audioQueue, nil)
+        AudioQueuePrime(audioQueue, 0, nil)
 
         }
     
@@ -142,8 +141,8 @@ class AudioPlayer: NSObject {
         }
     }
     
-    init(data: Data) {
-        self.passedData = data
+    override init() {
+       // self.passedData = data
         super.init()
         let audioPlayerSelfPointer = unsafeBitCast(self,
                                                    to: UnsafeMutableRawPointer.self)
@@ -154,7 +153,7 @@ class AudioPlayer: NSObject {
             kAudioFileAAC_ADTSType,
             &fileStreamID)
         )
-        parse()
+       // parse()
     }
     
     deinit {
@@ -168,15 +167,40 @@ class AudioPlayer: NSObject {
         
         guard let audioQueue = audioQueue, !isPlaying else { return }
         isPlaying = true
+        
         AudioQueuePrime(audioQueue, 5, nil)
         AudioQueueStart(audioQueue,nil)
     }
     
     func pause() {
        guard let audioQueue = audioQueue else { return }
+        isPlaying = false
         assertDependOnMultiMediaValueStatus(
             AudioQueuePause(audioQueue)
         )
+    }
+    
+    func seek(to time: TimeInterval) {
+        guard let audioQueue = audioQueue else { return }
+         AudioQueueStop(audioQueue, true)
+        guard let description = streamDescription, let fileId = fileStreamID else { return }
+        let packetDuration = floor(time / (Float64(description.mFramesPerPacket) / description.mSampleRate))
+        var outDataByteOffset: Int64 = 0
+        var flags: AudioFileStreamSeekFlags = AudioFileStreamSeekFlags(rawValue: 0)
+        let status = AudioFileStreamSeek(fileId, Int64(packetDuration), &outDataByteOffset, &flags)
+    
+       print(outDataByteOffset)
+         let audioPlayerSelfPointer = unsafeBitCast(self, to: UnsafeMutableRawPointer.self)
+        AudioQueueStart(audioQueue,nil)
+//        assertDependOnMultiMediaValueStatus(
+//            AudioFileStreamOpen(audioPlayerSelfPointer,
+//                                propertyListener,
+//                                packetInformationListner,
+//                                kAudioFileAAC_ADTSType,
+//                                &fileStreamID)
+//        )
+        //guard let audioQueue = audioQueue else { return }
+      //  )
     }
     
     private func makeNewAudioQueue(_ audioStreamDescription: AudioStreamBasicDescription) {
@@ -203,10 +227,10 @@ class AudioPlayer: NSObject {
                                           audioPlayerSelfPointer)
             )
 
-        AudioQueueStart(audioQueue, nil)
+       // AudioQueueStart(audioQueue, nil)
     }
     
-    func parseDeliveredData() {
+    func parseDeliveredData(data: Data) {
         var parseFlags: AudioFileStreamParseFlags
             //if state == .paused {
               //  parseFlags = .discontinuity
@@ -214,8 +238,8 @@ class AudioPlayer: NSObject {
                 guard let fileId = fileStreamID else { return }
                 parseFlags = AudioFileStreamParseFlags(rawValue: 0)
                 assertDependOnMultiMediaValueStatus(AudioFileStreamParseBytes(fileId,
-                                                       UInt32(passedData.count),
-                                                       (passedData as NSData).bytes,
+                                                       UInt32(data.count),
+                                                       (data as NSData).bytes,
                                                        parseFlags)
                 )
            // }

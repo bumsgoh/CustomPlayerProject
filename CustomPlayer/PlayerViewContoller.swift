@@ -60,20 +60,31 @@ class PlayerViewContoller: UIViewController {
         // renderSynchronizer.addRenderer(audioRenderer)
        // setUpLayer()
         setUpViews()
-        setPlayButtonHandler()
+        setPlayHandlers()
         print(moviePlayer?.totalDuration)
         print(Float(moviePlayer!.totalDuration / 1000))
         playerView.duration = Float(moviePlayer!.totalDuration / 1000)
        
       
         //VideoTrackDecoder.delegate = self
-        
+        NotificationCenter.default.addObserver(self, selector: #selector(didReceiveSeekValue(_:)), name: NSNotification.Name(rawValue: "trackValueChangedToSeek"), object: nil)
+       
       
         // Do any additional setup after loading the view.
     }
 
+ 
+    @objc func didReceiveSeekValue(_ notification: Notification)
+    {
+    
+        guard let seekValue = notification.userInfo?["value"] as? Float else {return}
+        let value = Double(seekValue)
+        moviePlayer?.seek(to: value)
+        
+    }
    
     private func setUpViews() {
+        view.backgroundColor = .black
         view.addSubview(playerView)
         playerView.topAnchor.constraint(
             equalTo: view.safeAreaLayoutGuide.topAnchor).isActive = true
@@ -87,7 +98,7 @@ class PlayerViewContoller: UIViewController {
         
     }
     
-    private func setPlayButtonHandler() {
+    private func setPlayHandlers() {
         playerView.playHandler = { [weak self] in
             guard let self = self else { return nil}
             self.playerView.playButton.isSelected = !self.playerView.playButton.isSelected
@@ -99,6 +110,14 @@ class PlayerViewContoller: UIViewController {
                 self.playerView.playButton.setImage(#imageLiteral(resourceName: "playButtonImage"), for: .normal)
                 self.moviePlayer?.pause()
             }
+            
+            return nil
+        }
+        
+        playerView.sliderInterupter = { [weak self] in
+            guard let self = self else { return nil}
+            self.playerView.playButton.isSelected = !self.playerView.playButton.isSelected
+            self.moviePlayer?.pause()
             
             return nil
         }

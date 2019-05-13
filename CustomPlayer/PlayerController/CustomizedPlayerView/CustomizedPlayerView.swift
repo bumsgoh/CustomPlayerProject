@@ -29,6 +29,8 @@ class CustomizedPlayerView: UIView {
     
     var playHandler: (() -> Void?)? = nil
     
+    var sliderInterupter: (() -> Void?)? = nil
+    
     private lazy var playTrackSlider: UISlider = {
         let slider = UISlider(frame: .zero)
         slider.translatesAutoresizingMaskIntoConstraints = false
@@ -84,7 +86,18 @@ class CustomizedPlayerView: UIView {
             equalTo: self.bottomAnchor).isActive = true
        /* playBarStackView.heightAnchor.constraint(
             equalToConstant: 16).isActive = true*/
+        playTrackSlider.addTarget(self, action: #selector(didDragToSeek), for: .valueChanged)
+        playTrackSlider.isContinuous = false
+    }
+    
+    func setNotifications() {
         
+    }
+    
+    @objc func didDragToSeek() {
+        sliderInterupter?()
+    
+        NotificationCenter.default.post(name: Notification.Name("trackValueChangedToSeek"), object: nil, userInfo: ["value": playTrackSlider.value])
     }
     
     override func layoutSubviews() {
@@ -120,9 +133,9 @@ class CustomizedPlayerView: UIView {
     }
     
     func displayFrame(_ sample: CMSampleBuffer) {
-        self.videoPlayerLayer.enqueue(sample)
+     //   self.videoPlayerLayer.enqueue(sample)
        // print(playTrackSlider.maximumValue)
-        playTrackSlider.setValue(Float(sample.presentationTimeStamp.seconds), animated: true)
+       // playTrackSlider.setValue(Float(sample.presentationTimeStamp.seconds), animated: true)
     }
 
     
