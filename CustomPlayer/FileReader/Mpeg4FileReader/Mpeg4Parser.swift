@@ -195,7 +195,7 @@ class Mpeg4Parser: MediaFileReadable {
             }
             
             
-            trackItem.duration = trak.mdia.mdhd.duration
+            trackItem.duration = trak.tkhd.duration
             trackItem.timescale = trak.mdia.mdhd.timeScale
             
             if trak.mdia.hdlr.handlerType == "vide" {

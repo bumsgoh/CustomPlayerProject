@@ -41,7 +41,7 @@
 		CEF94BCE227AD2E0006B7528 /* AAC_ADTSDecoder.swift in Sources */ = {isa = PBXBuildFile; fileRef = CEF94BCD227AD2E0006B7528 /* AAC_ADTSDecoder.swift */; };
 		CEF94BD2227ADED5006B7528 /* ma.mp4 in Resources */ = {isa = PBXBuildFile; fileRef = CEF94BD1227ADED5006B7528 /* ma.mp4 */; };
 		CEF94BD7227AEDD4006B7528 /* CustomizedPlayerLayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = CEF94BD6227AEDD4006B7528 /* CustomizedPlayerLayer.swift */; };
-		CEF94BD9227AEE9C006B7528 /* CustomizedPlayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = CEF94BD8227AEE9C006B7528 /* CustomizedPlayer.swift */; };
+		CEF94BD9227AEE9C006B7528 /* CustomizedPlayerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CEF94BD8227AEE9C006B7528 /* CustomizedPlayerView.swift */; };
 		CEF94BDB227BCC66006B7528 /* TrackDecodable.swift in Sources */ = {isa = PBXBuildFile; fileRef = CEF94BDA227BCC66006B7528 /* TrackDecodable.swift */; };
 		CEF94BDF227BCD38006B7528 /* DecodeModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = CEF94BDE227BCD38006B7528 /* DecodeModels.swift */; };
 /* End PBXBuildFile section */
@@ -84,7 +84,7 @@
 		CEF94BCD227AD2E0006B7528 /* AAC_ADTSDecoder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AAC_ADTSDecoder.swift; sourceTree = "<group>"; };
 		CEF94BD1227ADED5006B7528 /* ma.mp4 */ = {isa = PBXFileReference; lastKnownFileType = file; path = ma.mp4; sourceTree = "<group>"; };
 		CEF94BD6227AEDD4006B7528 /* CustomizedPlayerLayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CustomizedPlayerLayer.swift; sourceTree = "<group>"; };
-		CEF94BD8227AEE9C006B7528 /* CustomizedPlayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CustomizedPlayer.swift; sourceTree = "<group>"; };
+		CEF94BD8227AEE9C006B7528 /* CustomizedPlayerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CustomizedPlayerView.swift; sourceTree = "<group>"; };
 		CEF94BDA227BCC66006B7528 /* TrackDecodable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackDecodable.swift; sourceTree = "<group>"; };
 		CEF94BDE227BCD38006B7528 /* DecodeModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DecodeModels.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -272,12 +272,12 @@
 			path = AudioFrameDecoder;
 			sourceTree = "<group>";
 		};
-		CEF94BD3227AED5D006B7528 /* CustomizedPlayer */ = {
+		CEF94BD3227AED5D006B7528 /* CustomizedPlayerView */ = {
 			isa = PBXGroup;
 			children = (
-				CEF94BD8227AEE9C006B7528 /* CustomizedPlayer.swift */,
+				CEF94BD8227AEE9C006B7528 /* CustomizedPlayerView.swift */,
 			);
-			path = CustomizedPlayer;
+			path = CustomizedPlayerView;
 			sourceTree = "<group>";
 		};
 		CEF94BD4227AEDAB006B7528 /* PlayerController */ = {
@@ -285,7 +285,7 @@
 			children = (
 				C91E442E2286815800435465 /* StreamPlayerView */,
 				CEF94BD5227AEDBC006B7528 /* CustomizedPlayerLayer */,
-				CEF94BD3227AED5D006B7528 /* CustomizedPlayer */,
+				CEF94BD3227AED5D006B7528 /* CustomizedPlayerView */,
 			);
 			path = PlayerController;
 			sourceTree = "<group>";
@@ -405,7 +405,7 @@
 				CEF94BD7227AEDD4006B7528 /* CustomizedPlayerLayer.swift in Sources */,
 				C9A8A2072272ECEC00EB3FBC /* ContainerPool.swift in Sources */,
 				C9A8A21A2277DF1400EB3FBC /* Mpeg4Parser.swift in Sources */,
-				CEF94BD9227AEE9C006B7528 /* CustomizedPlayer.swift in Sources */,
+				CEF94BD9227AEE9C006B7528 /* CustomizedPlayerView.swift in Sources */,
 				CE2D62C22282BF120078D2C5 /* Mpeg4File.swift in Sources */,
 				CE2D62CD2282D4BC0078D2C5 /* MediaPlayable.swift in Sources */,
 				C91E44342286B95000435465 /* DisplayLinkedQueue.swift in Sources */,

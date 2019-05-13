@@ -27,7 +27,7 @@ final class DisplayLinkedQueue: NSObject {
             oldValue?.invalidate()
             guard let displayLink: CADisplayLink = displayLink else { return }
             displayLink.preferredFramesPerSecond = 30
-            displayLink.add(to: .main, forMode: RunLoop.Mode.common)
+            displayLink.add(to: .main, forMode: .common)
         }
     }
     private let lockQueue = DispatchQueue(label: "com.bumslap.DisplayLinkedQueue.lock")

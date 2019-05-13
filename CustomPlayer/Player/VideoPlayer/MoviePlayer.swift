@@ -32,6 +32,7 @@ class MoviePlayer: NSObject {
     var isPlayable: Bool {
         return isVideoReady && isAudioReady
     }
+    var totalDuration = 0
     lazy var queue: DisplayLinkedQueue = {
         let queue: DisplayLinkedQueue = DisplayLinkedQueue()
         queue.delegate = self
@@ -59,7 +60,7 @@ class MoviePlayer: NSObject {
             
             mediaFileReader.decodeMediaData()
             let tracks = mediaFileReader.makeTracks()
-            
+            totalDuration = tracks[0].duration
             for track in tracks {
                 var sizeArray: [Int] = []
                 var rawFrames: [Data] = []
