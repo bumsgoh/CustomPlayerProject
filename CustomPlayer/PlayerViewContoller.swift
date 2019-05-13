@@ -56,7 +56,11 @@ class PlayerViewContoller: UIViewController {
     
     override func viewDidLoad() {
         super.viewDidLoad()
-
+        //videoDecoder.layer = self.videoPlayerLayer
+        // renderSynchronizer.addRenderer(audioRenderer)
+       // setUpLayer()
+        setUpViews()
+        setPlayButtonHandler()
         print(moviePlayer?.totalDuration)
         print(Float(moviePlayer!.totalDuration / 1000))
         playerView.duration = Float(moviePlayer!.totalDuration / 1000)
@@ -82,9 +86,24 @@ class PlayerViewContoller: UIViewController {
             multiplier: 0.33).isActive = true
         
     }
-
     
-
+    private func setPlayButtonHandler() {
+        playerView.playHandler = { [weak self] in
+            guard let self = self else { return nil}
+            self.playerView.playButton.isSelected = !self.playerView.playButton.isSelected
+            
+            if self.playerView.playButton.isSelected {
+                self.playerView.playButton.setImage(#imageLiteral(resourceName: "pauseButtonImage"), for: .normal)
+                self.moviePlayer?.play()
+            } else {
+                self.playerView.playButton.setImage(#imageLiteral(resourceName: "playButtonImage"), for: .normal)
+                self.moviePlayer?.pause()
+            }
+            
+            return nil
+        }
+    }
+    
 
 }
 
@@ -93,7 +112,8 @@ extension PlayerViewContoller: VideoQueueDelegate {
     func displayQueue(with buffers: CMSampleBuffer) {
         DispatchQueue.main.async {
             self.playerView.displayFrame(buffers)
-        }
+           // self.playerView.setNeedsDisplay()
+     }
     }
 }
 
