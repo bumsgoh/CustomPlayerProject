@@ -1,5 +1,5 @@
-# H264Player
+# MP4 local / HLS Streaming player
 
 # 참고 
-ref : https://github.com/zerdzhong/SwfitH264Demo
+h.264 에 관한 ref : https://github.com/zerdzhong/SwfitH264Demo
 https://github.com/evernoteHW/AudioRecordDemo
