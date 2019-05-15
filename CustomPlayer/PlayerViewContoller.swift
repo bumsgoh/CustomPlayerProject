@@ -108,7 +108,8 @@ class PlayerViewContoller: UIViewController {
                 //self.moviePlayer?.play()
                 
                 let task = URLSession.shared.dataTask(with: URL(string: "https://devstreaming-cdn.apple.com/videos/streaming/examples/img_bipbop_adv_example_ts/v2/fileSequence1.ts")!, completionHandler: { (data, res, err) in
-                    print(data)
+                   let decoder = TSDecoder(target: data!)
+                    decoder.decode()
                 }).resume()
                 
             } else {
