@@ -104,11 +104,16 @@ class PlayerViewContoller: UIViewController {
             self.playerView.playButton.isSelected = !self.playerView.playButton.isSelected
             
             if self.playerView.playButton.isSelected {
-                self.playerView.playButton.setImage(#imageLiteral(resourceName: "pauseButtonImage"), for: .normal)
-                self.moviePlayer?.play()
+              //  self.playerView.playButton.setImage(#imageLiteral(resourceName: "pauseButtonImage"), for: .normal)
+                //self.moviePlayer?.play()
+                
+                let task = URLSession.shared.dataTask(with: URL(string: "https://devstreaming-cdn.apple.com/videos/streaming/examples/img_bipbop_adv_example_ts/v2/fileSequence1.ts")!, completionHandler: { (data, res, err) in
+                    print(data)
+                }).resume()
+                
             } else {
-                self.playerView.playButton.setImage(#imageLiteral(resourceName: "playButtonImage"), for: .normal)
-                self.moviePlayer?.pause()
+               // self.playerView.playButton.setImage(#imageLiteral(resourceName: "playButtonImage"), for: .normal)
+               // self.moviePlayer?.pause()
             }
             
             return nil

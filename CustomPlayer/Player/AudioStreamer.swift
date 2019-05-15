@@ -280,7 +280,7 @@ class AudioStreamPlayback {
     }
 }
 
-extension AudioStreamPlayback: Runnable {
+extension AudioStreamPlayback {
     // MARK: Runnable
     func startRunning() {
         lockQueue.async {

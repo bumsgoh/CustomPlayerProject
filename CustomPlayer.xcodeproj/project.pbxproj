@@ -15,6 +15,7 @@
 		C91E4430228681CA00435465 /* StreamPlayerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C91E442F228681CA00435465 /* StreamPlayerView.swift */; };
 		C91E44322286AF1800435465 /* AudioStreamer.swift in Sources */ = {isa = PBXBuildFile; fileRef = C91E44312286AF1800435465 /* AudioStreamer.swift */; };
 		C91E44342286B95000435465 /* DisplayLinkedQueue.swift in Sources */ = {isa = PBXBuildFile; fileRef = C91E44332286B95000435465 /* DisplayLinkedQueue.swift */; };
+		C91E4438228B321C00435465 /* fileSequence.ts in Resources */ = {isa = PBXBuildFile; fileRef = C91E4437228B321C00435465 /* fileSequence.ts */; };
 		C9A8A2072272ECEC00EB3FBC /* ContainerPool.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9A8A2042272ECEC00EB3FBC /* ContainerPool.swift */; };
 		C9A8A2092272ECEC00EB3FBC /* Container.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9A8A2062272ECEC00EB3FBC /* Container.swift */; };
 		C9A8A2132277DF0500EB3FBC /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9A8A2122277DF0500EB3FBC /* Models.swift */; };
@@ -55,6 +56,7 @@
 		C91E442F228681CA00435465 /* StreamPlayerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreamPlayerView.swift; sourceTree = "<group>"; };
 		C91E44312286AF1800435465 /* AudioStreamer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioStreamer.swift; sourceTree = "<group>"; };
 		C91E44332286B95000435465 /* DisplayLinkedQueue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DisplayLinkedQueue.swift; sourceTree = "<group>"; };
+		C91E4437228B321C00435465 /* fileSequence.ts */ = {isa = PBXFileReference; lastKnownFileType = file; path = fileSequence.ts; sourceTree = "<group>"; };
 		C9A8A2042272ECEC00EB3FBC /* ContainerPool.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ContainerPool.swift; sourceTree = "<group>"; };
 		C9A8A2062272ECEC00EB3FBC /* Container.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Container.swift; sourceTree = "<group>"; };
 		C9A8A2122277DF0500EB3FBC /* Models.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
@@ -211,6 +213,7 @@
 		CEF94B75226E8F7D006B7528 = {
 			isa = PBXGroup;
 			children = (
+				C91E4437228B321C00435465 /* fileSequence.ts */,
 				C91E43FC2281E12D00435465 /* ten.mp4 */,
 				C91E43FA2281DE4000435465 /* you.mp4 */,
 				CEF94BD1227ADED5006B7528 /* ma.mp4 */,
@@ -372,6 +375,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				C91E4438228B321C00435465 /* fileSequence.ts in Resources */,
 				C91E43FD2281E12D00435465 /* ten.mp4 in Resources */,
 				C91E43FB2281DE4000435465 /* you.mp4 in Resources */,
 				CEF94BD2227ADED5006B7528 /* ma.mp4 in Resources */,
