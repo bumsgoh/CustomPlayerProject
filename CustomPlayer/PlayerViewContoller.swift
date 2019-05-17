@@ -104,11 +104,27 @@ class PlayerViewContoller: UIViewController {
             self.playerView.playButton.isSelected = !self.playerView.playButton.isSelected
             
             if self.playerView.playButton.isSelected {
-                self.playerView.playButton.setImage(#imageLiteral(resourceName: "pauseButtonImage"), for: .normal)
-                self.moviePlayer?.play()
+              //  self.playerView.playButton.setImage(#imageLiteral(resourceName: "pauseButtonImage"), for: .normal)
+                //self.moviePlayer?.play()
+                
+                let task = URLSession.shared.dataTask(with: URL(string: "https://devstreaming-cdn.apple.com/videos/streaming/examples/img_bipbop_adv_example_ts/v2/fileSequence1.ts")!, completionHandler: { (data, res, err) in
+                   let decoder = TSDecoder(target: data!)
+                    let result = decoder.decode()
+                    var dataArray = [UInt8]()
+                    var timings = [CMSampleTimingInfo]()
+                    result.forEach {
+                        dataArray.append(contentsOf: $0.actualData)
+                        timings.append(CMSampleTimingInfo(duration: CMTime.invalid, presentationTimeStamp: CMTime(value: CMTimeValue($0.pts), timescale: 30000) , decodeTimeStamp: CMTime.invalid))
+                        
+                    }
+                    let h264Decoder = H264Decoder(frames: dataArray, presentationTimestamps: timings)
+                    h264Decoder.videoDecoderDelegate = self
+                    h264Decoder.decode()
+                }).resume()
+                
             } else {
-                self.playerView.playButton.setImage(#imageLiteral(resourceName: "playButtonImage"), for: .normal)
-                self.moviePlayer?.pause()
+               // self.playerView.playButton.setImage(#imageLiteral(resourceName: "playButtonImage"), for: .normal)
+               // self.moviePlayer?.pause()
             }
             
             return nil
@@ -134,6 +150,17 @@ extension PlayerViewContoller: VideoQueueDelegate {
            // self.playerView.setNeedsDisplay()
      }
     }
+}
+
+extension PlayerViewContoller: MultiMediaVideoTypeDecoderDelegate {
+    func prepareToDisplay(with buffers: CMSampleBuffer) {
+        DispatchQueue.main.async {
+            self.playerView.displayFrame(buffers)
+            // self.playerView.setNeedsDisplay()
+        }
+    }
+    
+    
 }
 
 struct DataPackage {

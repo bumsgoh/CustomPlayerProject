@@ -1,5 +1,5 @@
 //
-//  VideoFrameReader.swift
+//  VideoFrameDecoder.swift
 //  H264Player
 //
 //  Created by USER on 23/04/2019.
@@ -7,88 +7,259 @@
 //
 
 import Foundation
+import VideoToolbox
 
-class H264Decoder: VideoFrameReadable {
-    var streamBuffer: [UInt8] = []
+class H264Decoder {
     
-    var fileStream: InputStream?
+    private let lockQueue = DispatchQueue(label: "com.bumslap.h264DecoderLock")
     
-    func open(url: URL) {
-        fileStream = InputStream(url: url)
-        fileStream?.open()
+    private var formatDescription: CMVideoFormatDescription?
+    private var decompressionSession: VTDecompressionSession?
+    
+    private var spsSize: Int = 0
+    private var ppsSize: Int = 0
+    
+    private var sps: [UInt8]?
+    private var pps: [UInt8]?
+    
+    private var pictureCount = 0
+    weak var videoDecoderDelegate: MultiMediaVideoTypeDecoderDelegate?
+    
+    private var frames: [UInt8]
+    private var presentationTimestamps: [CMSampleTimingInfo]
+    
+    private var callback: VTDecompressionOutputCallback = {(
+        decompressionOutputRefCon: UnsafeMutableRawPointer?,
+        sourceFrameRefCon: UnsafeMutableRawPointer?,
+        status: OSStatus,
+        infoFlags: VTDecodeInfoFlags,
+        imageBuffer: CVBuffer?,
+        presentationTimeStamp: CMTime,
+        duration: CMTime) in
+        
+        let decoder: H264Decoder = unsafeBitCast(decompressionOutputRefCon,
+                                                 to: H264Decoder.self)
+        guard let decodedBuffer = imageBuffer else { return }
+        
+        var timingInfo:CMSampleTimingInfo = CMSampleTimingInfo(
+            duration: duration,
+            presentationTimeStamp: presentationTimeStamp,
+            decodeTimeStamp: CMTime.invalid
+        )
+        
+        var formatDescription: CMVideoFormatDescription? = nil
+        CMVideoFormatDescriptionCreateForImageBuffer(
+            allocator: kCFAllocatorDefault,
+            imageBuffer: decodedBuffer,
+            formatDescriptionOut: &formatDescription
+        )
+        
+        var decodedSampleBuffer: CMSampleBuffer?
+        CMSampleBufferCreateForImageBuffer(
+            allocator: kCFAllocatorDefault,
+            imageBuffer: decodedBuffer,
+            dataReady: true,
+            makeDataReadyCallback: nil,
+            refcon: nil,
+            formatDescription: formatDescription!,
+            sampleTiming: &timingInfo,
+            sampleBufferOut: &decodedSampleBuffer
+        )
+        
+        decoder.videoDecoderDelegate?.prepareToDisplay(with: decodedSampleBuffer!)
+    }
+  
+
+    init(frames: [UInt8], presentationTimestamps: [CMSampleTimingInfo]) {
+        self.frames = frames
+        self.presentationTimestamps = presentationTimestamps
     }
     
-    func extractFrame() -> [UInt8]? {
-        var startIndex = 4
+    func decode() {
         
-        if streamBuffer.isEmpty && readStream() == 0 {
+        while var packet = copyNextPacket() {
+            analyzeNALAndDecode(packet: &packet)
+        }
+    }
+    
+    private func analyzeNALAndDecode(packet: inout [UInt8]) {
+        //   print(videoPacket)
+        var lengthOfNAL = CFSwapInt32HostToBig((UInt32(packet.count - 4)))
+
+        memcpy(&packet, &lengthOfNAL, 4)
+        // change to Avcc format
+      //  print(packet)
+        
+        let typeOfNAL = packet[4] & 0x1F
+        
+        switch typeOfNAL {
+        case TypeOfNAL.idr.rawValue:
+            if buildDecompressionSession() {
+                let timingInfo = presentationTimestamps[pictureCount]
+                pictureCount += 1
+                decodeVideoPacket(packet: packet, timingInfos: timingInfo)
+            }
+        case TypeOfNAL.sps.rawValue:
+            spsSize = packet.count - 4
+            sps = Array(packet[4..<packet.count])
+        case TypeOfNAL.pps.rawValue:
+            ppsSize = packet.count - 4
+            pps = Array(packet[4..<packet.count])
+        default:
+            let timingInfo = presentationTimestamps[pictureCount]
+            
+            decodeVideoPacket(packet: packet, timingInfos: timingInfo)
+            break
+        }
+    }
+    
+    
+    private func decodeVideoPacket(packet:[UInt8], timingInfos: CMSampleTimingInfo) {
+        let bufferPointer = UnsafeMutablePointer<UInt8>(mutating: packet)
+        var blockBuffer: CMBlockBuffer?
+
+        guard CMBlockBufferCreateWithMemoryBlock(
+            allocator: kCFAllocatorDefault,
+            memoryBlock: bufferPointer,
+            blockLength: packet.count,
+            blockAllocator: kCFAllocatorNull,
+            customBlockSource: nil,
+            offsetToData: 0,
+            dataLength: packet.count,
+            flags: 0,
+            blockBufferOut: &blockBuffer) == kCMBlockBufferNoErr else {
+                return
+                
+        }
+        
+        
+        var sampleBuffer: CMSampleBuffer?
+        
+        guard CMSampleBufferCreateReady(
+            allocator: kCFAllocatorDefault,
+            dataBuffer: blockBuffer,
+            formatDescription: formatDescription,
+            sampleCount: 1,
+            sampleTimingEntryCount: 1,
+            sampleTimingArray: [timingInfos],
+            sampleSizeEntryCount: 1,
+            sampleSizeArray: [packet.count],
+            sampleBufferOut: &sampleBuffer) == kCMBlockBufferNoErr,
+            let derivedSampleBuffer = sampleBuffer else {
+                return
+        }
+        guard let session = decompressionSession else {
+            print("failed to fetch session")
+            return
+        }
+         self.videoDecoderDelegate?.prepareToDisplay(with: sampleBuffer!)
+        var flag = VTDecodeInfoFlags()
+        
+        guard VTDecompressionSessionDecodeFrame(
+            session,
+            sampleBuffer: derivedSampleBuffer,
+            flags: [._EnableAsynchronousDecompression],
+            frameRefcon: nil,
+            infoFlagsOut: &flag) == 0 else { return }
+        
+    }
+    
+    
+    private func buildDecompressionSession() -> Bool {
+        formatDescription = nil
+        
+        guard let spsData = sps, let ppsData =  pps else {
+            print("param fail")
+            return false
+        }
+
+        let spsPointer = UnsafePointer<UInt8>(Array(spsData))
+        let ppsPointer = UnsafePointer<UInt8>(Array(ppsData))
+        
+        let parameters = [spsPointer, ppsPointer]
+        let parameterSetPointers = UnsafePointer<UnsafePointer<UInt8>>(parameters)
+        
+        //let sizeOfParameters = [spsData.count, ppsData.count]
+        // let sizeOfparameterSet = UnsafePointer<Int>(sizeOfParameters)
+        
+        
+        let sizeParamArray = [spsData.count, ppsData.count]
+        //CMVideoFormatDescriptionRef
+        let parameterSetSizes = UnsafePointer<Int>(sizeParamArray)
+        let status = CMVideoFormatDescriptionCreateFromH264ParameterSets(allocator: kCFAllocatorDefault,
+                                                                         parameterSetCount: 2,
+                                                                         parameterSetPointers: parameterSetPointers,
+                                                                         parameterSetSizes: parameterSetSizes,
+                                                                         nalUnitHeaderLength: 4,
+                                                                         formatDescriptionOut: &formatDescription)
+        guard let formatDescription = self.formatDescription,
+            status == noErr
+            else {
+                print("desc fail\(status)")
+                return false
+        }
+        if let session = decompressionSession {
+            VTDecompressionSessionInvalidate(session)
+            decompressionSession = nil
+        }
+        var localSession: VTDecompressionSession?
+        
+        let decoderParameters = NSMutableDictionary()
+        let decoderPixelBufferAttributes = NSMutableDictionary()
+        decoderPixelBufferAttributes.setValue(NSNumber(value: kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange as UInt32), forKey: kCVPixelBufferPixelFormatTypeKey as String)
+        
+        var didSessionCreate:VTDecompressionOutputCallbackRecord = VTDecompressionOutputCallbackRecord(
+            decompressionOutputCallback: callback,
+            decompressionOutputRefCon: unsafeBitCast(self, to: UnsafeMutableRawPointer.self)
+        )
+        
+        let sessionStatus = VTDecompressionSessionCreate(allocator: kCFAllocatorDefault,
+                                                         formatDescription: formatDescription,
+                                                         decoderSpecification: decoderParameters,
+                                                         imageBufferAttributes: decoderPixelBufferAttributes,
+                                                         outputCallback: &didSessionCreate,
+                                                         decompressionSessionOut: &localSession)
+        if sessionStatus != noErr {
+            assertionFailure("decomp Error")
+        }
+        decompressionSession = localSession
+        return true
+        
+        
+    }
+    
+    func copyNextPacket() -> [UInt8]? {
+        
+        if frames.count == 0  {
+            return nil
+        }
+
+        if frames.count < 4 || Array(frames[0...2]) != VideoCodingConstant.startCode {
             return nil
         }
         
-        if streamBuffer.count < 5 || Array(streamBuffer[0...3]) != VideoCodingConstant.startCode {
-            return nil
-        }
-        
+        //find second start code , so startIndex = 4
+        var startIndex = 3
         while true {
-            while (startIndex + 3) < streamBuffer.count {
-                if Array(streamBuffer[startIndex...startIndex + 3]) == VideoCodingConstant.startCode {
-                    let packet = Array(streamBuffer[0..<startIndex])
-                    streamBuffer.removeSubrange(0..<startIndex)
+            
+            while ((startIndex + 3) < frames.count) {
+                if Array(frames[startIndex...startIndex + 2]) ==  VideoCodingConstant.startCode {
+                    
+                    var packet = Array(frames[0..<startIndex])
+                    packet.insert(0, at: 0)
+                  //  print(packet)
+                    frames.removeSubrange(0..<startIndex)
+                    
                     return packet
                 }
                 startIndex += 1
             }
-            
-            if readStream() == 0 {
-                return nil
-            }
-        }
-        
-    }
-    
-    func readStream() -> Int {
-        guard let stream = fileStream, stream.hasBytesAvailable else {
-            return 0
-        }
-        
-        var tempBuffer = [UInt8].init(repeating: 0,
-                                      count: VideoCodingConstant.bufferCapacity)
-        let bytes = stream.read(&tempBuffer,
-                                maxLength: VideoCodingConstant.bufferCapacity)
-        if bytes > 0 {
-            streamBuffer.append(contentsOf: Array(tempBuffer[0..<bytes]))
-            return bytes
-        }
-        
-        return 0
-    }
-    
-    /*
-      private func analyzeNALAndDecode(videoPacket: inout [UInt8]) {
-        
-        var lengthOfNAL = CFSwapInt32HostToBig((UInt32(videoPacket.count - 4)))
-        
-        memcpy(&videoPacket, &lengthOfNAL, 4)
-        let typeOfNAL = videoPacket[4] & 0x1F
-        
-        switch typeOfNAL {
-        case TypeOfNAL.idr.rawValue:
-            buildDecompressionSession()
-            //      decodeVideoPacket(videoPacket: videoPacket)
-            
-        case TypeOfNAL.sps.rawValue:
-            spsSize = videoPacket.count - 4
-            sps = Array(videoPacket[4..<videoPacket.count])
-        case TypeOfNAL.pps.rawValue:
-            ppsSize = videoPacket.count - 4
-            pps = Array(videoPacket[4..<videoPacket.count])
-        default:
-            //   decodeVideoPacket(videoPacket: videoPacket)
-            break
         }
     }
-}*/
 }
+
+
+
 enum TypeOfNAL: UInt8 {
     case idr = 0x05
     case sps = 0x07

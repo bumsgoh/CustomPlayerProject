@@ -26,6 +26,6 @@ enum VideoCodec {
 
 struct VideoCodingConstant {
     
-    static let startCode: [UInt8] = [0,0,0,1]
+    static let startCode: [UInt8] = [0,0,1]
     static let bufferCapacity = 1280 * 720
 }
