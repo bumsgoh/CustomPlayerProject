@@ -68,34 +68,22 @@ class TSDecoder {
             if header.payloadUnitStartIndicator {
                 switch timeCodeFlag {
                 case 2:
-                    let pts = UInt32((byteConvertedPacket[pesStartIndex + 9] & 0x0E)) << 29
-                        | UInt32(byteConvertedPacket[pesStartIndex + 10]) << 22
-                        | UInt32((byteConvertedPacket[pesStartIndex + 11] & 0xFE)) << 14
-                        | UInt32(byteConvertedPacket[pesStartIndex + 12]) << 7
-                        | UInt32(byteConvertedPacket[pesStartIndex + 13]) >> 1
-                    tsStream.pts = Int(pts)
+                    let high = ((UInt16(byteConvertedPacket[pesStartIndex + 10]) << 8) | UInt16(byteConvertedPacket[pesStartIndex + 11])) >> 1
+                    let low = ((UInt16(byteConvertedPacket[pesStartIndex + 12]) << 8) | UInt16(byteConvertedPacket[pesStartIndex + 13])) >> 1
+                    tsStream.pts = Int(UInt32(high) << 15 | UInt32(low))
                 case 3:
-                    let pts = UInt32((byteConvertedPacket[pesStartIndex + 9] & 0x0E) << 29)
-                        | UInt32(byteConvertedPacket[pesStartIndex + 10] << 22)
-                        | UInt32((byteConvertedPacket[pesStartIndex + 11] & 0xFE) << 14)
-                        | UInt32(byteConvertedPacket[pesStartIndex + 12] << 7)
-                        | UInt32(byteConvertedPacket[pesStartIndex + 13] >> 1)
+                    let high = ((UInt16(byteConvertedPacket[pesStartIndex + 10]) << 8) | UInt16(byteConvertedPacket[pesStartIndex + 11])) >> 1
+                    let low = ((UInt16(byteConvertedPacket[pesStartIndex + 12]) << 8) | UInt16(byteConvertedPacket[pesStartIndex + 13])) >> 1
+                    tsStream.pts = Int(UInt32(high) << 15 | UInt32(low))
                     
-                    let dts =
-                        UInt32((byteConvertedPacket[pesStartIndex + 14] & 0x0E) << 29)
-                            | UInt32(byteConvertedPacket[pesStartIndex + 15] << 22)
-                            | UInt32((byteConvertedPacket[pesStartIndex + 16] & 0xFE) << 14)
-                            | UInt32(byteConvertedPacket[pesStartIndex + 17] << 7)
-                            | UInt32(byteConvertedPacket[pesStartIndex + 18] >> 1)
-                    tsStream.pts = Int(pts)
-                    tsStream.dts = Int(dts)
+                    let dtsHigh = ((UInt16(byteConvertedPacket[pesStartIndex + 15]) << 8) | UInt16(byteConvertedPacket[pesStartIndex + 16])) >> 1
+                    let dtsLow = ((UInt16(byteConvertedPacket[pesStartIndex + 17]) << 8) | UInt16(byteConvertedPacket[pesStartIndex + 18])) >> 1
+                    tsStream.dts = Int(UInt32(dtsHigh) << 15 | UInt32(dtsLow))
+                  //  print("pts: \(tsStream.pts)")
                 default:
                     assertionFailure("fail")
                 }
             }
-            
-            
-            
             
             if header.payloadUnitStartIndicator {
                 if streamId != 0xE0 { continue }
@@ -103,10 +91,7 @@ class TSDecoder {
                 let actualData = Array(byteConvertedPacket[actualDataIndex...])
                 currentLeadingPacket = tsStream
                 tsStream.actualData = actualData
-                //   print("pid is\(header.pid)")
                 streams.append(tsStream)
-                
-                
             } else {
                 let actualData = Array(byteConvertedPacket[4...])
                 
@@ -187,9 +172,4 @@ struct TS {
     
 }
 
-struct Packet {
-    var header: TSHeader
-    var PES: Data
-    
-}
 
