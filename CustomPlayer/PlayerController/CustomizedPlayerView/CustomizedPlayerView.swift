@@ -59,8 +59,9 @@ class CustomizedPlayerView: UIView {
         setUpLayout()
         playButton.addTarget(self, action: #selector(executePlayButtonHandler), for: .touchUpInside)
         initializeVideoLayer()
+        setTimebase()
         playTrackSlider.maximumValue = 101
-        print("is..\(duration)")
+        //print("is..\(duration)")
         playTrackSlider.minimumValue = 0
     }
     
@@ -133,7 +134,7 @@ class CustomizedPlayerView: UIView {
     }
     
     func displayFrame(_ sample: CMSampleBuffer) {
-      //  print(sample)
+       print(sample)
         self.videoPlayerLayer.enqueue(sample)
        // print(playTrackSlider.maximumValue)
        // playTrackSlider.setValue(Float(sample.presentationTimeStamp.seconds), animated: true)

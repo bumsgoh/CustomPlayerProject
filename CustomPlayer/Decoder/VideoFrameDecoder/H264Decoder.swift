@@ -93,22 +93,25 @@ class H264Decoder {
         let typeOfNAL = packet[4] & 0x1F
         
         switch typeOfNAL {
-        case TypeOfNAL.idr.rawValue:
-            if buildDecompressionSession() {
+        case TypeOfNAL.idr.rawValue, TypeOfNAL.bpFrame.rawValue:
+           // if  {
                 let timingInfo = presentationTimestamps[pictureCount]
                 pictureCount += 1
+             //   print(pictureCount)
                 decodeVideoPacket(packet: packet, timingInfos: timingInfo)
-            }
+          //  }
         case TypeOfNAL.sps.rawValue:
             spsSize = packet.count - 4
             sps = Array(packet[4..<packet.count])
+            buildDecompressionSession()
         case TypeOfNAL.pps.rawValue:
             ppsSize = packet.count - 4
             pps = Array(packet[4..<packet.count])
+            buildDecompressionSession()
         default:
-            let timingInfo = presentationTimestamps[pictureCount]
+         //   let timingInfo = presentationTimestamps[pictureCount]
             
-            decodeVideoPacket(packet: packet, timingInfos: timingInfo)
+          //  decodeVideoPacket(packet: packet, timingInfos: timingInfo)
             break
         }
     }
@@ -152,7 +155,7 @@ class H264Decoder {
             print("failed to fetch session")
             return
         }
-         self.videoDecoderDelegate?.prepareToDisplay(with: sampleBuffer!)
+        // self.videoDecoderDelegate?.prepareToDisplay(with: sampleBuffer!)
         var flag = VTDecodeInfoFlags()
         
         guard VTDecompressionSessionDecodeFrame(
@@ -160,7 +163,9 @@ class H264Decoder {
             sampleBuffer: derivedSampleBuffer,
             flags: [._EnableAsynchronousDecompression],
             frameRefcon: nil,
-            infoFlagsOut: &flag) == 0 else { return }
+            infoFlagsOut: &flag) == 0 else {
+                assertionFailure("fail decom")
+                return }
         
     }
     
@@ -264,5 +269,5 @@ enum TypeOfNAL: UInt8 {
     case idr = 0x05
     case sps = 0x07
     case pps = 0x08
-    case bpFrame
+    case bpFrame = 0x01
 }

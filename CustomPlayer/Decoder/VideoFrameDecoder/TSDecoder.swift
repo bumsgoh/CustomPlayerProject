@@ -99,6 +99,7 @@ class TSDecoder {
             }
             
         }
+        streams.sort()
         return streams
     }
 }

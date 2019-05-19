@@ -55,44 +55,60 @@ class MoviePlayer: NSObject {
     func prepareToPlay() {
         jobQueue.async { [weak self] in
             guard let self = self else { return }
-            
-            guard let fileReader = FileReader(url: self.url) else { return }
-            let mediaFileReader = Mpeg4Parser(fileReader: fileReader)
-            
-            mediaFileReader.decodeMediaData()
-            let tracks = mediaFileReader.makeTracks()
-            self.totalDuration = tracks[0].duration
-            for track in tracks {
-                var sizeArray: [Int] = []
-                var rawFrames: [Data] = []
-                var presentationTimestamp: [Int] = []
+            if self.isFileBasedPlayer {
+                guard let fileReader = FileReader(url: self.url) else { return }
+                let mediaFileReader = Mpeg4Parser(fileReader: fileReader)
                 
-                for sample in track.samples {
+                mediaFileReader.decodeMediaData()
+                let tracks = mediaFileReader.makeTracks()
+                self.totalDuration = tracks[0].duration
+                for track in tracks {
+                    var sizeArray: [Int] = []
+                    var rawFrames: [Data] = []
+                    var presentationTimestamp: [Int] = []
                     
-                    mediaFileReader.fileReader.seek(offset: UInt64(sample.offset))
-                    mediaFileReader.fileReader.read(length: sample.size) { (data) in
-                        rawFrames.append(data)
-                        sizeArray.append(data.count)
+                    for sample in track.samples {
+                        
+                        mediaFileReader.fileReader.seek(offset: UInt64(sample.offset))
+                        mediaFileReader.fileReader.read(length: sample.size) { (data) in
+                            rawFrames.append(data)
+                            sizeArray.append(data.count)
+                        }
+                    }
+                    presentationTimestamp = track.samples.map {
+                        $0.startTime
+                    }
+                    let dataPackage = DataPackage(presentationTimestamp: presentationTimestamp,
+                                                  dataStorage: rawFrames)
+                    
+                    switch track.mediaType {
+                    case .audio:
+                        self.audioDecoder = AAC_ADTSDecoder(track: track, dataPackage: dataPackage)
+                        self.audioDecoder?.audioDelegate = self
+                        self.audioDecoder?.decodeTrack(timeScale: track.timescale)
+                    case .video:
+                        self.videoDecoder  = AvccDecoder(track: track, dataPackage: dataPackage)
+                        self.videoDecoder?.videoDelegate = self
+                        self.videoDecoder?.decodeTrack(timeScale: 30000)
+                    case .unknown:
+                        assertionFailure("player init failed")
                     }
                 }
-                presentationTimestamp = track.samples.map {
-                    $0.startTime
-                }
-                let dataPackage = DataPackage(presentationTimestamp: presentationTimestamp,
-                                              dataStorage: rawFrames)
+            } else {
                 
-                switch track.mediaType {
-                case .audio:
-                    self.audioDecoder = AAC_ADTSDecoder(track: track, dataPackage: dataPackage)
-                    self.audioDecoder?.audioDelegate = self
-                    self.audioDecoder?.decodeTrack(timeScale: track.timescale)
-                case .video:
-                    self.videoDecoder  = AvccDecoder(track: track, dataPackage: dataPackage)
-                    self.videoDecoder?.videoDelegate = self
-                    self.videoDecoder?.decodeTrack(timeScale: 30000)
-                case .unknown:
-                    assertionFailure("player init failed")
-                }
+                let task = URLSession.shared.dataTask(with: self.url, completionHandler: { (data, res, err) in
+                    let decoder = TSDecoder(target: data!)
+                    let result = decoder.decode()
+                    var dataArray = [UInt8]()
+                    var timings = [CMSampleTimingInfo]()
+                    result.forEach {
+                        dataArray.append(contentsOf: $0.actualData)
+                        timings.append(CMSampleTimingInfo(duration: CMTime(value: 3000, timescale: 30000), presentationTimeStamp: CMTime(value: CMTimeValue($0.pts), timescale: 30000) , decodeTimeStamp: CMTime(value: CMTimeValue($0.dts), timescale: 30000) ))
+                    }
+                    let h264Decoder = H264Decoder(frames: dataArray, presentationTimestamps: timings)
+                    h264Decoder.videoDecoderDelegate = self
+                    h264Decoder.decode()
+                }).resume()
             }
         }
     }
@@ -140,7 +156,7 @@ extension MoviePlayer: DisplayLinkedQueueDelegate {
     func queue(_ buffer: CMSampleBuffer) {
         if playing == false {
             playing = true
-            self.audioPlayer?.playIfNeeded()
+           // self.audioPlayer?.playIfNeeded()
         }
         delegate?.displayQueue(with: buffer)
     }
