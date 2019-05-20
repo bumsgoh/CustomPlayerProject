@@ -17,8 +17,7 @@ class HTTPConnetion {
         self.session = URLSession.shared
     }
     
-    public func dispatch(url: URL?,
-                         completion: @escaping (Result<Data, Error>, URLResponse?) -> ()) {
+    public func request(completion: @escaping (Result<Data, Error>, URLResponse?) -> ()) {
     
         guard let url = url else {
             completion(.failure(APIError.urlFailure), nil)

@@ -34,11 +34,13 @@ class PlayerViewContoller: UIViewController {
     
     
     private lazy var moviePlayer: MoviePlayer? = {
-        guard let filePath = Bundle.main.path(forResource: "you", ofType: "mp4") else { return nil }
-        let url = URL(fileURLWithPath: filePath)
+        guard let url = URL(string: "https://devstreaming-cdn.apple.com/videos/streaming/examples/img_bipbop_adv_example_ts/master.m3u8") else {
+            return nil
+        }
+       // guard let filePath = Bundle.main.path(forResource: "you", ofType: "mp4") else { return nil }
+        //let url = URL(fileURLWithPath: filePath)
         let player: MoviePlayer = MoviePlayer(url: url)
         player.delegate = self
-        player.prepareToPlay()
         return player
     }()
     
@@ -110,14 +112,16 @@ class PlayerViewContoller: UIViewController {
                 guard let url = URL(string: "https://devstreaming-cdn.apple.com/videos/streaming/examples/img_bipbop_adv_example_ts/master.m3u8") else {
                     return nil
                 }
-                let task = URLSession.shared.dataTask(with: url, completionHandler: { (data, res, err) in
-                    let m3u8Player = M3U8Decoder(rawData: data!, url: url.absoluteString)
-                    let masterPlaylist = m3u8Player.parseMasterPlaylist()
-                    m3u8Player.parseMediaPlaylist(list: masterPlaylist?.mediaPlaylists[0] ?? MediaPlaylist())
+                self.moviePlayer?.loadPlayerAsynchronously(completion: { [weak self] (result) in
                     
-                    
-                }).resume()
-                
+                    switch result {
+                    case .failure(let error):
+                        print(error.localizedDescription)
+                    case .success(let data):
+                        print(data)
+                    }
+                })
+
                 
                 
             } else {

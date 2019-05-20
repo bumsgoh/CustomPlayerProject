@@ -10,6 +10,14 @@ import Foundation
 
 class M3U8Decoder {
     
+    private let url: String
+    private let rawData: Data
+    
+    private var redableData: String {
+        get {
+            return rawData.convertToString
+        }
+    }
     private var baseURL: String {
         get {
             var splitedURL = url.split(separator: "/")
@@ -18,25 +26,16 @@ class M3U8Decoder {
             return newURL
         }
     }
-    private let url: String
-    private let rawData: Data
-    private var redableData: String {
-        get {
-            return rawData.convertToString
-        }
-    }
     
     init(rawData: Data, url: String) {
         self.url = url
         self.rawData = rawData
-        for line in redableData.split(separator: "\n") {
-            print(line)
-            print("")
-        }
     }
     
     func parseMasterPlaylist() -> MasterPlaylist? {
-        let splitedData = redableData.split(separator: "\n").map {
+        let splitedData = redableData
+            .split(separator: "\n")
+            .map {
             String($0)
         }
         let masterPlaylist = MasterPlaylist()
@@ -50,16 +49,20 @@ class M3U8Decoder {
                 masterPlaylist.mediaPlaylists.append(mediaPlaylist)
                 hasStreamInfo = false
             }
-            guard !line.isEmpty || !line.hasPrefix("#EXTM3U") else { return nil }
+            
+            guard !line.isEmpty || !line.hasPrefix("#EXTM3U") else { continue }
             
             if line.hasPrefix("#EXT-X-VERSION") {
-               masterPlaylist.version = Int(String(line.split(separator: ":")[1]))!
+                guard let version = Int(String(line.split(separator: ":")[1])) else { continue }
+                masterPlaylist.version = version
+                
             } else if line.hasPrefix("#EXT-X-STREAM-INF") {
                 hasStreamInfo = true
                 let mediaplaylist = MediaPlaylist()
-                let value = String(line.split(separator: ":")[1])
-                mediaplaylist.parseMediaInfo(target: value)
+                let attributes = String(line.split(separator: ":")[1])
+                mediaplaylist.parseMediaInfo(target: attributes)
                 currentMedialist = mediaplaylist
+                
             } else if line.hasPrefix("#EXT-X-I-FRAME-STREAM-INF") {
                 // URI - must be
             } else{
@@ -72,52 +75,57 @@ class M3U8Decoder {
     
     func parseMediaPlaylist(list: MediaPlaylist) {
         guard let stringURL = list.path, let url = URL(string: stringURL) else { return }
-        URLSession.shared.dataTask(with: url) { (data, response, error) in
-            if error != nil {
-                return
-            }
-            guard let data = data else { return }
-            let splitedData = data
-                .convertToString
-                .split(separator: "\n").map {
-                String($0)
-            }
-          
-            var hasStreamInfo = false
-            var currentMediaSegment: MediaSegment?
-            
-            for line in splitedData {
-                if hasStreamInfo {
-                    guard let mediaSegment = currentMediaSegment else { return }
-                    var splitedURL = list.path!.split(separator: "/")
-                    splitedURL.remove(at: (splitedURL.count - 1))
-                    let newURL = String(splitedURL.joined(separator: "/"))
-                    mediaSegment.path = newURL + "/\(line)"
-                    list.mediaSegments.append(mediaSegment)
-                    hasStreamInfo = false
+        let httpConnection = HTTPConnetion(url: url)
+        httpConnection.request { (result, response) in
+            switch result {
+            case .failure:
+                print("")
+            case .success(let data):
+                let splitedData = data
+                    .convertToString
+                    .split(separator: "\n").map {
+                        String($0)
                 }
-                guard !line.isEmpty || !line.hasPrefix("#EXTM3U") else { return }
                 
-                if line.hasPrefix("#EXT-X-VERSION") {
-                    list.version = Int(String(line.split(separator: ":")[1]))!
-                } else if line.hasPrefix("#EXT-X-TARGETDURATION"){
-                    list.targetDuration = Int(String(line.split(separator: ":")[1]))!
-                } else if line.hasPrefix("#EXTINF") {
-                   
-                    let mediaSegment = MediaSegment()
-                    let value = String(line.split(separator: ":")[1])
-                    mediaSegment.duration = Float(value)
-                    currentMediaSegment = mediaSegment
-                } else if line.hasPrefix("#EXT-X-BITRATE") {
-                    hasStreamInfo = true
-                   // let value = String(line.split(separator: ":")[1])
-                   // currentMediaSegment = Float(value)
-                } else if line.hasPrefix("#EXT-X-MEDIA-SEQUENCE") {
-                    // URI - must be
-                } else{
-                    //TODO: process another tag
+                var hasStreamInfo = false
+                var currentMediaSegment: MediaSegment?
+                
+                for line in splitedData {
+                    if hasStreamInfo {
+                        guard let mediaSegment = currentMediaSegment else { return }
+                        var splitedURL = list.path!.split(separator: "/")
+                        splitedURL.remove(at: (splitedURL.count - 1))
+                        let newURL = String(splitedURL.joined(separator: "/"))
+                        mediaSegment.path = newURL + "/\(line)"
+                        list.mediaSegments.append(mediaSegment)
+                        hasStreamInfo = false
+                    }
+                    guard !line.isEmpty || !line.hasPrefix("#EXTM3U") else { continue }
+                    
+                    if line.hasPrefix("#EXT-X-VERSION") {
+                        guard let version = Int(String(line.split(separator: ":")[1])) else { continue }
+                        list.version = version
+                        
+                    } else if line.hasPrefix("#EXT-X-TARGETDURATION"){
+                        guard let duration = Int(String(line.split(separator: ":")[1])) else { continue }
+                        list.targetDuration = duration
+                        
+                    } else if line.hasPrefix("#EXTINF") {
+                        let mediaSegment = MediaSegment()
+                        let value = String(line.split(separator: ":")[1])
+                        mediaSegment.duration = Float(value)
+                        currentMediaSegment = mediaSegment
+                        
+                    } else if line.hasPrefix("#EXT-X-BITRATE") {
+                        hasStreamInfo = true
+                        
+                    } else if line.hasPrefix("#EXT-X-MEDIA-SEQUENCE") {
+                        // URI - must be
+                    } else{
+                        //TODO: process another tag
+                    }
                 }
             }
-        }.resume()
+        }
     }
 }
