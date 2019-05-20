@@ -49,6 +49,9 @@
 		CEF94BD9227AEE9C006B7528 /* CustomizedPlayerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CEF94BD8227AEE9C006B7528 /* CustomizedPlayerView.swift */; };
 		CEF94BDB227BCC66006B7528 /* TrackDecodable.swift in Sources */ = {isa = PBXBuildFile; fileRef = CEF94BDA227BCC66006B7528 /* TrackDecodable.swift */; };
 		CEF94BDF227BCD38006B7528 /* DecodeModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = CEF94BDE227BCD38006B7528 /* DecodeModels.swift */; };
+		CEFE47C42292416E006D6AFE /* HTTPConnetion.swift in Sources */ = {isa = PBXBuildFile; fileRef = CEFE47C32292416E006D6AFE /* HTTPConnetion.swift */; };
+		CEFE47C6229242B3006D6AFE /* URLResponse+.swift in Sources */ = {isa = PBXBuildFile; fileRef = CEFE47C5229242B3006D6AFE /* URLResponse+.swift */; };
+		CEFE47C8229242EB006D6AFE /* NetworkError.swift in Sources */ = {isa = PBXBuildFile; fileRef = CEFE47C7229242EB006D6AFE /* NetworkError.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -97,6 +100,9 @@
 		CEF94BD8227AEE9C006B7528 /* CustomizedPlayerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CustomizedPlayerView.swift; sourceTree = "<group>"; };
 		CEF94BDA227BCC66006B7528 /* TrackDecodable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackDecodable.swift; sourceTree = "<group>"; };
 		CEF94BDE227BCD38006B7528 /* DecodeModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DecodeModels.swift; sourceTree = "<group>"; };
+		CEFE47C32292416E006D6AFE /* HTTPConnetion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HTTPConnetion.swift; sourceTree = "<group>"; };
+		CEFE47C5229242B3006D6AFE /* URLResponse+.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "URLResponse+.swift"; sourceTree = "<group>"; };
+		CEFE47C7229242EB006D6AFE /* NetworkError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkError.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -258,6 +264,7 @@
 		CEF94B80226E8F7D006B7528 /* CustomPlayer */ = {
 			isa = PBXGroup;
 			children = (
+				CEFE47C222923E1E006D6AFE /* Network */,
 				CE2D62C92282D4820078D2C5 /* Player */,
 				CE2D62C02282BEEA0078D2C5 /* Playable */,
 				CEF94BD4227AEDAB006B7528 /* PlayerController */,
@@ -335,6 +342,16 @@
 				CEF94BDE227BCD38006B7528 /* DecodeModels.swift */,
 			);
 			path = Models;
+			sourceTree = "<group>";
+		};
+		CEFE47C222923E1E006D6AFE /* Network */ = {
+			isa = PBXGroup;
+			children = (
+				CEFE47C32292416E006D6AFE /* HTTPConnetion.swift */,
+				CEFE47C5229242B3006D6AFE /* URLResponse+.swift */,
+				CEFE47C7229242EB006D6AFE /* NetworkError.swift */,
+			);
+			path = Network;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -419,11 +436,13 @@
 				C9A8A2132277DF0500EB3FBC /* Models.swift in Sources */,
 				C91E44322286AF1800435465 /* AudioStreamer.swift in Sources */,
 				C97E79532291C5B2002E081C /* MediaSegment.swift in Sources */,
+				CEFE47C6229242B3006D6AFE /* URLResponse+.swift in Sources */,
 				C9C28ECF22915D3200337CC7 /* M3U8Decoder.swift in Sources */,
 				CEF94B84226E8F7D006B7528 /* PlayerViewContoller.swift in Sources */,
 				C9A8A21B2277DF1400EB3FBC /* FileReader.swift in Sources */,
 				CEF94B94226E9E84006B7528 /* VideoFrameReadable.swift in Sources */,
 				C9A8A2192277DF1400EB3FBC /* FileStreamReadable.swift in Sources */,
+				CEFE47C42292416E006D6AFE /* HTTPConnetion.swift in Sources */,
 				C9C28ED222915DA900337CC7 /* MasterPlaylist.swift in Sources */,
 				C91E441122833A7600435465 /* AudioPlayer.swift in Sources */,
 				CEF94B9A226ED513006B7528 /* AvccDecoder.swift in Sources */,
@@ -445,6 +464,7 @@
 				C91E4430228681CA00435465 /* StreamPlayerView.swift in Sources */,
 				CEF94BDF227BCD38006B7528 /* DecodeModels.swift in Sources */,
 				CEF94BDB227BCC66006B7528 /* TrackDecodable.swift in Sources */,
+				CEFE47C8229242EB006D6AFE /* NetworkError.swift in Sources */,
 				CEF94B96226EB7D9006B7528 /* H264Decoder.swift in Sources */,
 				CEF94B82226E8F7D006B7528 /* AppDelegate.swift in Sources */,
 			);

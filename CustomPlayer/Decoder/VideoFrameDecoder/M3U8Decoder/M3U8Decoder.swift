@@ -72,7 +72,6 @@ class M3U8Decoder {
     
     func parseMediaPlaylist(list: MediaPlaylist) {
         guard let stringURL = list.path, let url = URL(string: stringURL) else { return }
-        print("url is\(url)")
         URLSession.shared.dataTask(with: url) { (data, response, error) in
             if error != nil {
                 return
@@ -83,7 +82,6 @@ class M3U8Decoder {
                 .split(separator: "\n").map {
                 String($0)
             }
-            print(splitedData)
           
             var hasStreamInfo = false
             var currentMediaSegment: MediaSegment?
@@ -105,18 +103,21 @@ class M3U8Decoder {
                 } else if line.hasPrefix("#EXT-X-TARGETDURATION"){
                     list.targetDuration = Int(String(line.split(separator: ":")[1]))!
                 } else if line.hasPrefix("#EXTINF") {
-                    hasStreamInfo = true
+                   
                     let mediaSegment = MediaSegment()
                     let value = String(line.split(separator: ":")[1])
                     mediaSegment.duration = Float(value)
                     currentMediaSegment = mediaSegment
+                } else if line.hasPrefix("#EXT-X-BITRATE") {
+                    hasStreamInfo = true
+                   // let value = String(line.split(separator: ":")[1])
+                   // currentMediaSegment = Float(value)
                 } else if line.hasPrefix("#EXT-X-MEDIA-SEQUENCE") {
                     // URI - must be
                 } else{
                     //TODO: process another tag
                 }
             }
-           
         }.resume()
     }
 }

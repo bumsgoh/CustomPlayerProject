@@ -106,12 +106,13 @@ class PlayerViewContoller: UIViewController {
             if self.playerView.playButton.isSelected {
                // self.playerView.playButton.setImage(#imageLiteral(resourceName: "pauseButtonImage"), for: .normal)
                // self.moviePlayer?.play()
+                //https://devstreaming-cdn.apple.com/videos/streaming/examples/img_bipbop_adv_example_ts/master.m3u8
                 guard let url = URL(string: "https://devstreaming-cdn.apple.com/videos/streaming/examples/img_bipbop_adv_example_ts/master.m3u8") else {
                     return nil
                 }
                 let task = URLSession.shared.dataTask(with: url, completionHandler: { (data, res, err) in
                     let m3u8Player = M3U8Decoder(rawData: data!, url: url.absoluteString)
-                   let masterPlaylist = m3u8Player.parseMasterPlaylist()
+                    let masterPlaylist = m3u8Player.parseMasterPlaylist()
                     m3u8Player.parseMediaPlaylist(list: masterPlaylist?.mediaPlaylists[0] ?? MediaPlaylist())
                     
                     

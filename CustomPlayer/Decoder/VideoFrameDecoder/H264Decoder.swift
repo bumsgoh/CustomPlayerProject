@@ -211,7 +211,7 @@ class H264Decoder {
         
         let decoderParameters = NSMutableDictionary()
         let decoderPixelBufferAttributes = NSMutableDictionary()
-        decoderPixelBufferAttributes.setValue(NSNumber(value: kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange as UInt32), forKey: kCVPixelBufferPixelFormatTypeKey as String)
+        decoderPixelBufferAttributes.setValue(NSNumber(value: kCVPixelFormatType_32BGRA as UInt32), forKey: kCVPixelBufferPixelFormatTypeKey as String)
         
         var didSessionCreate:VTDecompressionOutputCallbackRecord = VTDecompressionOutputCallbackRecord(
             decompressionOutputCallback: callback,
