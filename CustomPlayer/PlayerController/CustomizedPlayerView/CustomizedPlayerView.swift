@@ -135,7 +135,7 @@ class CustomizedPlayerView: UIView {
     }
     
     func displayFrame(_ sample: CMSampleBuffer) {
-       print(sample)
+    
         self.videoPlayerLayer.enqueue(sample)
        // print(playTrackSlider.maximumValue)
        // playTrackSlider.setValue(Float(sample.presentationTimeStamp.seconds), animated: true)

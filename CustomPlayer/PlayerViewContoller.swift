@@ -37,8 +37,8 @@ class PlayerViewContoller: UIViewController {
         guard let url = URL(string: "https://devstreaming-cdn.apple.com/videos/streaming/examples/img_bipbop_adv_example_ts/master.m3u8") else {
             return nil
         }
-       // guard let filePath = Bundle.main.path(forResource: "you", ofType: "mp4") else { return nil }
-        //let url = URL(fileURLWithPath: filePath)
+      //  guard let filePath = Bundle.main.path(forResource: "you", ofType: "mp4") else { return nil }
+       // let url = URL(fileURLWithPath: filePath)
         let player: MoviePlayer = MoviePlayer(url: url)
         player.delegate = self
         return player
@@ -106,12 +106,12 @@ class PlayerViewContoller: UIViewController {
             self.playerView.playButton.isSelected = !self.playerView.playButton.isSelected
             
             if self.playerView.playButton.isSelected {
-               // self.playerView.playButton.setImage(#imageLiteral(resourceName: "pauseButtonImage"), for: .normal)
-               // self.moviePlayer?.play()
+                self.playerView.playButton.setImage(#imageLiteral(resourceName: "pauseButtonImage"), for: .normal)
+                self.moviePlayer?.play()
                 //https://devstreaming-cdn.apple.com/videos/streaming/examples/img_bipbop_adv_example_ts/master.m3u8
-                guard let url = URL(string: "https://devstreaming-cdn.apple.com/videos/streaming/examples/img_bipbop_adv_example_ts/master.m3u8") else {
+               /* guard let url = URL(string: "https://devstreaming-cdn.apple.com/videos/streaming/examples/img_bipbop_adv_example_ts/master.m3u8") else {
                     return nil
-                }
+                }*/
                 self.moviePlayer?.loadPlayerAsynchronously(completion: { [weak self] (result) in
                     
                     switch result {

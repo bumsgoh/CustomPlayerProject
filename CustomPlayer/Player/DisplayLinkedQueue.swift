@@ -14,13 +14,18 @@ protocol DisplayLinkedQueueDelegate: class {
 }
 
 final class DisplayLinkedQueue: NSObject {
+    
+    private let lockQueue = DispatchQueue(label: "com.bumslap.DisplayLinkedQueue.lock")
+    
     var running: Bool = false
     var bufferTime: TimeInterval = 1 // sec
-    weak var delegate: DisplayLinkedQueueDelegate?
-    private(set) var duration: TimeInterval = 0
     
-    private var isReady: Bool = false
+    @objc dynamic var bufferCount = 0
+    weak var delegate: DisplayLinkedQueueDelegate?
+    
+    private(set) var duration: TimeInterval = 0
     private var buffers: [CMSampleBuffer] = []
+    private var isReady: Bool = false
     private var mediaTime: CFTimeInterval = 0
     private var displayLink: CADisplayLink? {
         didSet {
@@ -30,12 +35,13 @@ final class DisplayLinkedQueue: NSObject {
             displayLink.add(to: .main, forMode: .common)
         }
     }
-    private let lockQueue = DispatchQueue(label: "com.bumslap.DisplayLinkedQueue.lock")
+   
     
     func enqueue(_ buffer: CMSampleBuffer) {
         lockQueue.async {
             self.duration += buffer.duration.seconds
             self.buffers.append(buffer)
+            self.bufferCount += 1
             if !self.isReady {
                 self.isReady = self.duration <= self.bufferTime
             }
@@ -49,7 +55,9 @@ final class DisplayLinkedQueue: NSObject {
         }
         if first.presentationTimeStamp.seconds <= displayLink.timestamp {
             lockQueue.async {
+                if self.buffers.isEmpty { return }
                 self.buffers.removeFirst()
+                self.bufferCount -= 1
             }
             delegate?.queue(first)
         }

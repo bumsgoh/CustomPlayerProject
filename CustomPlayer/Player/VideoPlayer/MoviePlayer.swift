@@ -17,6 +17,21 @@ class MoviePlayer: NSObject {
     private let url: URL
     private let httpConnection: HTTPConnetion
     
+    var playerItemContext = 1
+    private var pastBufferCounts: [Int] = [] {
+        didSet {
+            if pastBufferCounts.count > 10 {
+                let average = pastBufferCounts.reduce(0, {$0 + $1}) / 10
+                guard let newValue = pastBufferCounts.last else { return }
+                if newValue < average {
+                    fetchNextItem()
+                }
+                pastBufferCounts.remove(at: 0)
+            }
+        }
+    }
+    
+    private var currentPlayingItemIndex: ListIndex?
     private var state: MediaStatus = .stopped
     private var audioDecoder: AudioTrackDecodable?
     private var videoDecoder: VideoTrackDecodable?
@@ -29,6 +44,9 @@ class MoviePlayer: NSObject {
     private var isAudioReady: Bool = false
     
     private var masterPlaylist: MasterPlaylist?
+    
+    private var keyValueObservations = [NSKeyValueObservation]()
+    
     var totalDuration = 0
     
     weak var delegate: VideoQueueDelegate?
@@ -51,6 +69,33 @@ class MoviePlayer: NSObject {
         } else {
             self.isFileBasedPlayer = false
         }
+        super.init()
+        setObservers()
+    }
+    
+    deinit {
+        for keyValueObservation in self.keyValueObservations {
+            keyValueObservation.invalidate()
+        }
+        self.keyValueObservations.removeAll()
+    }
+    
+    func setObservers() {
+       queue.addObserver(self, forKeyPath: "bufferCount", options: .new, context: &playerItemContext)
+    }
+    
+    override func observeValue(forKeyPath keyPath: String?, of object: Any?, change: [NSKeyValueChangeKey : Any]?, context: UnsafeMutableRawPointer?) {
+        
+        guard context == &playerItemContext else {
+            super.observeValue(forKeyPath: keyPath, of: object, change: change, context: context)
+            return
+        }
+        
+        if keyPath == #keyPath(DisplayLinkedQueue.bufferCount) {
+            guard let count = change?[.newKey] as? Int else { return }
+            pastBufferCounts.append(count)
+        }
+        
     }
     
     func loadPlayerAsynchronously(completion: @escaping (Result<MoviePlayer, Error>) -> Void) {
@@ -115,31 +160,73 @@ class MoviePlayer: NSObject {
                         let length  = CGFloat(expectedLength) / 1000000.0
                         let elapsed = CGFloat( Date().timeIntervalSince(startTime))
                         let currentNetworkSpeed = length/elapsed
-                        if currentNetworkSpeed < 1 {
-                             m3u8Player.parseMediaPlaylist(list: masterPlaylist.mediaPlaylists[0])
-                        } else {
-                             m3u8Player.parseMediaPlaylist(list: masterPlaylist.mediaPlaylists[3])
+//                        if currentNetworkSpeed < 1 {
+//                            m3u8Player.parseMediaPlaylist(list: masterPlaylist.mediaPlaylists[0]) {
+//                                self.currentPlayingItemIndex = ListIndex(gear: 0, index: 0)
+//                            }
+//
+//                        } else {
+//                            m3u8Player.parseMediaPlaylist(list: masterPlaylist.mediaPlaylists[3]) {
+//                                 self.currentPlayingItemIndex = ListIndex(gear: 3, index: 0)
+//                            }
+//                        }
+                        
+                        m3u8Player.parseMediaPlaylist(list: masterPlaylist.mediaPlaylists[3]) {
+                            self.currentPlayingItemIndex = ListIndex(gear: 3, index: 0)
+                            self.masterPlaylist = masterPlaylist
+                            guard let currentPlaylist = self.currentPlayingItemIndex else { return }
+                            let tempPlaylistPath = masterPlaylist
+                                .mediaPlaylists[currentPlaylist.gear]
+                                .mediaSegments[currentPlaylist.index].path
+                            guard let url = URL(string: tempPlaylistPath!) else { return }
+                            
+                            let task = URLSession.shared.dataTask(with: url, completionHandler: { (data, res, err) in
+                                let decoder = TSDecoder(target: data!)
+                                let result = decoder.decode()
+                                var dataArray = [UInt8]()
+                                var timings = [CMSampleTimingInfo]()
+                                result.forEach {
+                                    dataArray.append(contentsOf: $0.actualData)
+                                    timings.append(CMSampleTimingInfo(duration: CMTime(value: 3000, timescale: 30000), presentationTimeStamp: CMTime(value: CMTimeValue($0.pts), timescale: 30000) , decodeTimeStamp: CMTime(value: CMTimeValue($0.dts), timescale: 30000) ))
+                                }
+                                let h264Decoder = H264Decoder(frames: dataArray, presentationTimestamps: timings)
+                                h264Decoder.videoDecoderDelegate = self
+                                h264Decoder.decode()
+                            }).resume()
                         }
-                        self.masterPlaylist = masterPlaylist
-                        
-                        
                     }
                 }
-                let task = URLSession.shared.dataTask(with: self.url, completionHandler: { (data, res, err) in
-                    let decoder = TSDecoder(target: data!)
-                    let result = decoder.decode()
-                    var dataArray = [UInt8]()
-                    var timings = [CMSampleTimingInfo]()
-                    result.forEach {
-                        dataArray.append(contentsOf: $0.actualData)
-                        timings.append(CMSampleTimingInfo(duration: CMTime(value: 3000, timescale: 30000), presentationTimeStamp: CMTime(value: CMTimeValue($0.pts), timescale: 30000) , decodeTimeStamp: CMTime(value: CMTimeValue($0.dts), timescale: 30000) ))
-                    }
-                    let h264Decoder = H264Decoder(frames: dataArray, presentationTimestamps: timings)
-                    h264Decoder.videoDecoderDelegate = self
-                    h264Decoder.decode()
-                })
             }
         }
+    }
+    
+    private func fetchNextItem() {
+        guard let masterPlaylist = masterPlaylist, let currentIndex = currentPlayingItemIndex else { return }
+        if currentIndex.index > 98 {return}
+        let nextIndex = ListIndex(gear: currentIndex.gear, index: currentIndex.index + 1)
+        currentPlayingItemIndex = nextIndex
+        guard let stringPath = masterPlaylist.mediaPlaylists[nextIndex.gear].mediaSegments[nextIndex.index].path else { return }
+        print(stringPath)
+        HTTPConnetion(url: URL(string: stringPath)).request { (result, response) in
+            switch result {
+            case .failure:
+                assertionFailure("failed to fetch")
+            case .success(let data):
+                let decoder = TSDecoder(target: data)
+                let result = decoder.decode()
+                var dataArray = [UInt8]()
+                var timings = [CMSampleTimingInfo]()
+                result.forEach {
+                    dataArray.append(contentsOf: $0.actualData)
+                    timings.append(CMSampleTimingInfo(duration: CMTime(value: 3000, timescale: 30000), presentationTimeStamp: CMTime(value: CMTimeValue($0.pts), timescale: 30000) , decodeTimeStamp: CMTime(value: CMTimeValue($0.dts), timescale: 30000) ))
+                }
+                let h264Decoder = H264Decoder(frames: dataArray, presentationTimestamps: timings)
+                h264Decoder.videoDecoderDelegate = self
+                h264Decoder.decode()
+            }
+            
+        }
+       
     }
     
     func play() {
@@ -189,4 +276,9 @@ extension MoviePlayer: DisplayLinkedQueueDelegate {
         }
         delegate?.displayQueue(with: buffer)
     }
+}
+
+struct ListIndex {
+    var gear: Int
+    var index: Int
 }

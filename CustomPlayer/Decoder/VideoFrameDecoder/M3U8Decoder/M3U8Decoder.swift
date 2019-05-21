@@ -73,7 +73,7 @@ class M3U8Decoder {
         return masterPlaylist
     }
     
-    func parseMediaPlaylist(list: MediaPlaylist) {
+    func parseMediaPlaylist(list: MediaPlaylist, completion: @escaping () -> Void) {
         guard let stringURL = list.path, let url = URL(string: stringURL) else { return }
         let httpConnection = HTTPConnetion(url: url)
         httpConnection.request { (result, response) in
@@ -125,6 +125,7 @@ class M3U8Decoder {
                         //TODO: process another tag
                     }
                 }
+                completion() 
             }
         }
     }
