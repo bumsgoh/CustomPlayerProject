@@ -45,7 +45,12 @@ class M3U8Decoder {
         for line in splitedData {
             if hasStreamInfo {
                 guard let mediaPlaylist = currentMedialist else { return nil }
-                mediaPlaylist.path = baseURL + "/\(line)"
+                if line.hasPrefix("http") {
+                     mediaPlaylist.path = line
+                } else {
+                     mediaPlaylist.path = baseURL + "/\(line)"
+                }
+               
                 masterPlaylist.mediaPlaylists.append(mediaPlaylist)
                 hasStreamInfo = false
             }
@@ -117,7 +122,7 @@ class M3U8Decoder {
                         currentMediaSegment = mediaSegment
                         
                     } else if line.hasPrefix("#EXT-X-BITRATE") {
-                        hasStreamInfo = true
+                      hasStreamInfo = true
                         
                     } else if line.hasPrefix("#EXT-X-MEDIA-SEQUENCE") {
                         // URI - must be

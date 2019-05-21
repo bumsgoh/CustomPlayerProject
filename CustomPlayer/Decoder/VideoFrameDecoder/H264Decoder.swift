@@ -26,7 +26,10 @@ class H264Decoder {
     weak var videoDecoderDelegate: MultiMediaVideoTypeDecoderDelegate?
     
     private var frames: [UInt8]
+
     private var presentationTimestamps: [CMSampleTimingInfo]
+    
+    private lazy var startCode: [UInt8] = []
     
     private var callback: VTDecompressionOutputCallback = {(
         decompressionOutputRefCon: UnsafeMutableRawPointer?,
@@ -73,11 +76,21 @@ class H264Decoder {
     init(frames: [UInt8], presentationTimestamps: [CMSampleTimingInfo]) {
         self.frames = frames
         self.presentationTimestamps = presentationTimestamps
+        
+        
+        if Array(frames[0...3]) == VideoCodingConstant.startCodeAType {
+            self.startCode = VideoCodingConstant.startCodeAType
+        } else if Array(frames[0...2]) == VideoCodingConstant.startCodeBType {
+            self.startCode = VideoCodingConstant.startCodeBType
+        } else {
+            return
+        }
     }
     
     func decode() {
         
         while var packet = copyNextPacket() {
+          //  if packet == [0,0,0,1,9,240] {continue}
             analyzeNALAndDecode(packet: &packet)
         }
     }
@@ -85,21 +98,18 @@ class H264Decoder {
     private func analyzeNALAndDecode(packet: inout [UInt8]) {
         //   print(videoPacket)
         var lengthOfNAL = CFSwapInt32HostToBig((UInt32(packet.count - 4)))
-
+//print("pack is: \(packet.tohexNumbers)")
         memcpy(&packet, &lengthOfNAL, 4)
         // change to Avcc format
-      //  print(packet)
         
+    //    print("avcc is: \(packet.tohexNumbers)")
         let typeOfNAL = packet[4] & 0x1F
         
         switch typeOfNAL {
         case TypeOfNAL.idr.rawValue, TypeOfNAL.bpFrame.rawValue:
-           // if  {
-                let timingInfo = presentationTimestamps[pictureCount]
-                pictureCount += 1
-             //   print(pictureCount)
-                decodeVideoPacket(packet: packet, timingInfos: timingInfo)
-          //  }
+            let timingInfo = presentationTimestamps[pictureCount]
+            pictureCount += 1
+            decodeVideoPacket(packet: packet, timingInfos: timingInfo)
         case TypeOfNAL.sps.rawValue:
             spsSize = packet.count - 4
             sps = Array(packet[4..<packet.count])
@@ -137,7 +147,7 @@ class H264Decoder {
         
         
         var sampleBuffer: CMSampleBuffer?
-        
+       
         guard CMSampleBufferCreateReady(
             allocator: kCFAllocatorDefault,
             dataBuffer: blockBuffer,
@@ -151,17 +161,17 @@ class H264Decoder {
             let derivedSampleBuffer = sampleBuffer else {
                 return
         }
+        
         guard let session = decompressionSession else {
             print("failed to fetch session")
             return
         }
-        // self.videoDecoderDelegate?.prepareToDisplay(with: sampleBuffer!)
         var flag = VTDecodeInfoFlags()
-        
+        print(sampleBuffer)
         guard VTDecompressionSessionDecodeFrame(
             session,
             sampleBuffer: derivedSampleBuffer,
-            flags: [._EnableAsynchronousDecompression],
+            flags: [._EnableAsynchronousDecompression, ._EnableTemporalProcessing],
             frameRefcon: nil,
             infoFlagsOut: &flag) == 0 else {
                 assertionFailure("fail decom")
@@ -211,7 +221,7 @@ class H264Decoder {
         
         let decoderParameters = NSMutableDictionary()
         let decoderPixelBufferAttributes = NSMutableDictionary()
-        decoderPixelBufferAttributes.setValue(NSNumber(value: kCVPixelFormatType_32BGRA as UInt32), forKey: kCVPixelBufferPixelFormatTypeKey as String)
+        decoderPixelBufferAttributes.setValue(NSNumber(value: kCVPixelFormatType_420YpCbCr8BiPlanarFullRange as UInt32), forKey: kCVPixelBufferPixelFormatTypeKey as String)
         
         var didSessionCreate:VTDecompressionOutputCallbackRecord = VTDecompressionOutputCallbackRecord(
             decompressionOutputCallback: callback,
@@ -235,24 +245,27 @@ class H264Decoder {
     
     func copyNextPacket() -> [UInt8]? {
         
-        if frames.count == 0  {
-            return nil
-        }
-
-        if frames.count < 4 || Array(frames[0...2]) != VideoCodingConstant.startCode {
+        let startCodeSize = self.startCode.count
+        var startIndex = startCodeSize
+        
+        if frames.isEmpty  {
             return nil
         }
         
-        //find second start code , so startIndex = 4
-        var startIndex = 3
+        if frames.count < startCodeSize + 1 || Array(frames[0..<startCode.count]) != self.startCode {
+            return nil
+        }
+
         while true {
             
-            while ((startIndex + 3) < frames.count) {
-                if Array(frames[startIndex...startIndex + 2]) ==  VideoCodingConstant.startCode {
+            while ((startIndex + startCodeSize - 1) < frames.count) {
+                if Array(frames[startIndex..<(startIndex + startCodeSize)]) ==  self.startCode {
                     
                     var packet = Array(frames[0..<startIndex])
-                    packet.insert(0, at: 0)
-                  //  print(packet)
+                    if startCode == VideoCodingConstant.startCodeBType {
+                        packet.insert(0, at: 0)
+                    }
+                    
                     frames.removeSubrange(0..<startIndex)
                     
                     return packet
@@ -263,6 +276,12 @@ class H264Decoder {
     }
 }
 
+struct VideoCodingConstant {
+    
+    static let startCodeAType: [UInt8] = [0,0,0,1]
+    static let startCodeBType: [UInt8] = [0,0,1]
+    
+}
 
 
 enum TypeOfNAL: UInt8 {

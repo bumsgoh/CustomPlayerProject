@@ -24,7 +24,7 @@ class MoviePlayer: NSObject {
                 let average = pastBufferCounts.reduce(0, {$0 + $1}) / 10
                 guard let newValue = pastBufferCounts.last else { return }
                 if newValue < average {
-                    fetchNextItem()
+                 //   fetchNextItem()
                 }
                 pastBufferCounts.remove(at: 0)
             }
@@ -93,7 +93,10 @@ class MoviePlayer: NSObject {
         
         if keyPath == #keyPath(DisplayLinkedQueue.bufferCount) {
             guard let count = change?[.newKey] as? Int else { return }
-            pastBufferCounts.append(count)
+            if count == 0 {
+              //  fetchNextItem()
+            }
+           // pastBufferCounts.append(count)
         }
         
     }
@@ -171,24 +174,32 @@ class MoviePlayer: NSObject {
 //                            }
 //                        }
                         
-                        m3u8Player.parseMediaPlaylist(list: masterPlaylist.mediaPlaylists[3]) {
-                            self.currentPlayingItemIndex = ListIndex(gear: 3, index: 0)
+                        m3u8Player.parseMediaPlaylist(list: masterPlaylist.mediaPlaylists[0]) {
+                            self.currentPlayingItemIndex = ListIndex(gear: 0, index: 0)
                             self.masterPlaylist = masterPlaylist
                             guard let currentPlaylist = self.currentPlayingItemIndex else { return }
                             let tempPlaylistPath = masterPlaylist
                                 .mediaPlaylists[currentPlaylist.gear]
                                 .mediaSegments[currentPlaylist.index].path
-                            guard let url = URL(string: tempPlaylistPath!) else { return }
-                            
+                          
+                           guard let url = URL(string: tempPlaylistPath!) else { return }
+                            print(url)
+                           // guard let filePath = Bundle.main.path(forResource: "animation", ofType: "h264") else { return  }
+                          //  let fileurl = URL(fileURLWithPath: filePath)
                             let task = URLSession.shared.dataTask(with: url, completionHandler: { (data, res, err) in
-                                let decoder = TSDecoder(target: data!)
+//!
+                               let decoder = TSDecoder(target: data!)
                                 let result = decoder.decode()
+                             
                                 var dataArray = [UInt8]()
+                               
                                 var timings = [CMSampleTimingInfo]()
+                               
                                 result.forEach {
                                     dataArray.append(contentsOf: $0.actualData)
-                                    timings.append(CMSampleTimingInfo(duration: CMTime(value: 3000, timescale: 30000), presentationTimeStamp: CMTime(value: CMTimeValue($0.pts), timescale: 30000) , decodeTimeStamp: CMTime(value: CMTimeValue($0.dts), timescale: 30000) ))
+                                    timings.append(CMSampleTimingInfo(duration: CMTime(value: 3000, timescale: 30000), presentationTimeStamp: CMTime(value: CMTimeValue($0.pts), timescale: 30000) , decodeTimeStamp: CMTime(value: CMTimeValue($0.dts), timescale: 30000)))
                                 }
+
                                 let h264Decoder = H264Decoder(frames: dataArray, presentationTimestamps: timings)
                                 h264Decoder.videoDecoderDelegate = self
                                 h264Decoder.decode()
@@ -218,11 +229,12 @@ class MoviePlayer: NSObject {
                 var timings = [CMSampleTimingInfo]()
                 result.forEach {
                     dataArray.append(contentsOf: $0.actualData)
-                    timings.append(CMSampleTimingInfo(duration: CMTime(value: 3000, timescale: 30000), presentationTimeStamp: CMTime(value: CMTimeValue($0.pts), timescale: 30000) , decodeTimeStamp: CMTime(value: CMTimeValue($0.dts), timescale: 30000) ))
+                    timings.append(CMSampleTimingInfo(duration: CMTime(value: 3000, timescale: 30000), presentationTimeStamp: CMTime(value: CMTimeValue($0.pts), timescale: 30000) , decodeTimeStamp: CMTime.invalid)) //CMTime(value: CMTimeValue($0.dts), timescale: 30000) ))
                 }
                 let h264Decoder = H264Decoder(frames: dataArray, presentationTimestamps: timings)
                 h264Decoder.videoDecoderDelegate = self
                 h264Decoder.decode()
+               
             }
             
         }
@@ -232,6 +244,7 @@ class MoviePlayer: NSObject {
     func play() {
         queue.startRunning()
         audioPlayer?.playIfNeeded()
+        playing = true
     }
     
     func pause() {
@@ -256,8 +269,9 @@ extension MoviePlayer: MultiMediaAudioTypeDecoderDelegate {
 
 extension MoviePlayer: MultiMediaVideoTypeDecoderDelegate {
     func prepareToDisplay(with buffers: CMSampleBuffer) {
-
+       
          queue.enqueue(buffers)
+       
     }
     
 }
@@ -270,10 +284,14 @@ protocol VideoQueueDelegate: class {
 extension MoviePlayer: DisplayLinkedQueueDelegate {
     // MARK: DisplayLinkedQueue
     func queue(_ buffer: CMSampleBuffer) {
-        if playing == false {
-            playing = true
-           // self.audioPlayer?.playIfNeeded()
-        }
+//        if playing {
+//            play()
+//           //
+//        } else {
+//            playing = true
+//            self.audioPlayer?.playIfNeeded()
+//        }
+        //print(buffer)
         delegate?.displayQueue(with: buffer)
     }
 }
@@ -282,3 +300,4 @@ struct ListIndex {
     var gear: Int
     var index: Int
 }
+
