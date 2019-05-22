@@ -80,8 +80,8 @@ class M3U8Decoder {
     
     func parseMediaPlaylist(list: MediaPlaylist, completion: @escaping () -> Void) {
         guard let stringURL = list.path, let url = URL(string: stringURL) else { return }
-        let httpConnection = HTTPConnetion(url: url)
-        httpConnection.request { (result, response) in
+        let httpConnection = HTTPConnetion()
+        httpConnection.request(url: url) { (result, response) in
             switch result {
             case .failure:
                 print("")
@@ -120,10 +120,14 @@ class M3U8Decoder {
                         let value = String(line.split(separator: ":")[1])
                         mediaSegment.duration = Float(value)
                         currentMediaSegment = mediaSegment
+                        hasStreamInfo = true
                         
                     } else if line.hasPrefix("#EXT-X-BITRATE") {
                       hasStreamInfo = true
-                        
+                      
+                    } else if line.hasPrefix("#EXT-X-BYTERANGE") {
+                        hasStreamInfo = true
+                       
                     } else if line.hasPrefix("#EXT-X-MEDIA-SEQUENCE") {
                         // URI - must be
                     } else{

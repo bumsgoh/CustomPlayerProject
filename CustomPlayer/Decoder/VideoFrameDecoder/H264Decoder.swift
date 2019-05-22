@@ -88,24 +88,34 @@ class H264Decoder {
     }
     
     func decode() {
-        let nalu = makeNALUnits()
-        nalu?.forEach {
-            var packet = $0
-            if packet != [0, 0, 0, 1, 9, 240] { analyzeNALAndDecode(packet: &packet) }
+        guard let nalu = makeNALUnits() else { return }
+        
+        
+        for nal in nalu {
+            var packet = nal
+           // ["00", "00", "00", "01", "09, 240"00", "00", "00", "01", "06", "05", "11", "03", "87", "F4", "4E", "CD", "0A", "4B", "DC", "A1", "94", "3A", "C3", "D4", "9B", "17", "1F", "00", "80", "00",
+            if Array(packet[0..<6]) == [0, 0, 0, 1, 9, 240] {
+                packet = stripAUD(packet: packet)
+                if packet.count < 2 { continue }
+            }
+            analyzeNALAndDecode(packet: &packet)
             
         }
     }
+
     
     private func analyzeNALAndDecode(packet: inout [UInt8]) {
         //   print(videoPacket)
+ //print(packet)
         var lengthOfNAL = CFSwapInt32HostToBig((UInt32(packet.count - 4)))
-//print("pack is: \(packet.tohexNumbers)")
+print("pack is: \(packet.tohexNumbers)")
         memcpy(&packet, &lengthOfNAL, 4)
         // change to Avcc format
         
-    //    print("avcc is: \(packet.tohexNumbers)")
+  //      print("avcc is: \(packet.tohexNumbers)")
         let typeOfNAL = packet[4] & 0x1F
-        
+       print("packet number \(packet[4].toHexNumber)")
+        print("t nal: \(typeOfNAL)")
         switch typeOfNAL {
         case TypeOfNAL.idr.rawValue, TypeOfNAL.bpFrame.rawValue:
             let timingInfo = presentationTimestamps[pictureCount]
@@ -115,19 +125,25 @@ class H264Decoder {
         case TypeOfNAL.sps.rawValue:
             spsSize = packet.count - 4
             sps = Array(packet[4..<packet.count])
-            buildDecompressionSession()
+            updateDecompressionSession()
         case TypeOfNAL.pps.rawValue:
             ppsSize = packet.count - 4
             pps = Array(packet[4..<packet.count])
-            buildDecompressionSession()
+            updateDecompressionSession()
         default:
-         //   let timingInfo = presentationTimestamps[pictureCount]
-            
-          //  decodeVideoPacket(packet: packet, timingInfos: timingInfo)
+          
             break
         }
+        print(pictureCount)
+        
     }
     
+    private func stripAUD(packet: [UInt8]) -> [UInt8]{
+        var mutablePacket = packet
+        mutablePacket.removeSubrange(0..<6)
+        mutablePacket.insert(0, at: 0)
+        return mutablePacket
+    }
     
     private func decodeVideoPacket(packet:[UInt8], timingInfos: CMSampleTimingInfo) {
         let bufferPointer = UnsafeMutablePointer<UInt8>(mutating: packet)
@@ -183,15 +199,15 @@ class H264Decoder {
     }
     
     
-    private func buildDecompressionSession() -> Bool {
+    private func updateDecompressionSession() {
         formatDescription = nil
         
         guard let spsData = sps, let ppsData =  pps else {
             print("param fail")
-            return false
+            return
         }
-        print(spsData)
-        print(ppsData)
+     //   print(spsData)
+       // print(ppsData)
         let spsPointer = UnsafePointer<UInt8>(Array(spsData))
         let ppsPointer = UnsafePointer<UInt8>(Array(ppsData))
         
@@ -215,7 +231,7 @@ class H264Decoder {
             status == noErr
             else {
                 print("desc fail\(status)")
-                return false
+                return
         }
         if let session = decompressionSession {
             VTDecompressionSessionInvalidate(session)
@@ -242,7 +258,6 @@ class H264Decoder {
             assertionFailure("decomp Error")
         }
         decompressionSession = localSession
-        return true
         
         
     }

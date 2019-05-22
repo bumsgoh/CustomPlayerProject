@@ -9,15 +9,14 @@
 import Foundation
 
 class HTTPConnetion {
-    public var url: URL?
     public var session: URLSession
     
-    public init(url: URL?) {
-        self.url = url
+    public init() {
         self.session = URLSession.shared
     }
     
-    public func request(completion: @escaping (Result<Data, Error>, URLResponse?) -> ()) {
+    public func request(url: URL?,
+                        completion: @escaping (Result<Data, Error>, URLResponse?) -> ()) {
     
         guard let url = url else {
             completion(.failure(APIError.urlFailure), nil)

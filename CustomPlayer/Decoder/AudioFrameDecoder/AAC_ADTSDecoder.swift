@@ -30,9 +30,13 @@ class AAC_ADTSDecoder: AudioTrackDecodable {
         var mergedData = Data()
         
         dataPackage.dataStorage.forEach {
-            mergedData.append($0.addADTS)
+            
+            
+            mergedData.append($0)
         }
         
         audioDelegate?.prepareToPlay(with: mergedData)
     }
+    
+    
 }

@@ -34,9 +34,10 @@ class PlayerViewContoller: UIViewController {
     
     
     private lazy var moviePlayer: MoviePlayer? = {
-        guard let url = URL(string: "https://devstreaming-cdn.apple.com/videos/streaming/examples/img_bipbop_adv_example_ts/master.m3u8") else {
+        guard let url = URL(string: "https://devstreaming-cdn.apple.com/videos/streaming/examples/bipbop_4x3/bipbop_4x3_variant.m3u8") else {
             return nil
         }
+        //https://devstreaming-cdn.apple.com/videos/streaming/examples/bipbop_16x9/bipbop_16x9_variant.m3u8
         //https://devstreaming-cdn.apple.com/videos/streaming/examples/bipbop_4x3/bipbop_4x3_variant.m3u8
         //https://video-dev.github.io/streams/test_001/stream.m3u8
         //https://devstreaming-cdn.apple.com/videos/streaming/examples/img_bipbop_adv_example_ts/master.m3u8
@@ -69,8 +70,6 @@ class PlayerViewContoller: UIViewController {
         print(moviePlayer?.totalDuration)
         print(Float(moviePlayer!.totalDuration / 1000))
         playerView.duration = Float(moviePlayer!.totalDuration / 1000)
-       
-      
         //VideoTrackDecoder.delegate = self
         NotificationCenter.default.addObserver(self, selector: #selector(didReceiveSeekValue(_:)), name: NSNotification.Name(rawValue: "trackValueChangedToSeek"), object: nil)
        
@@ -101,7 +100,10 @@ class PlayerViewContoller: UIViewController {
             equalTo: view.heightAnchor,
             multiplier: 0.33).isActive = true
         
+       
+        
     }
+    
     
     private func setPlayHandlers() {
         playerView.playHandler = { [weak self] in
@@ -160,8 +162,8 @@ extension PlayerViewContoller: VideoQueueDelegate {
 extension PlayerViewContoller: MultiMediaVideoTypeDecoderDelegate {
     func prepareToDisplay(with buffers: CMSampleBuffer) {
         DispatchQueue.main.async {
-            self.playerView.displayFrame(buffers)
-            // self.playerView.setNeedsDisplay()
+           self.playerView.displayFrame(buffers)
+          //   self.playerView.setNeedsDisplay()
         }
     }
     
@@ -172,3 +174,5 @@ struct DataPackage {
     let presentationTimestamp: [Int]
     var dataStorage: [Data]
 }
+
+
