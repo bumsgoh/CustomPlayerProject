@@ -37,6 +37,7 @@ class TSDecoder {
         var streams: [TSStream] = []
         var currentLeadingPacket: TSStream?
         for packet in packets {
+            
             let byteConvertedPacket = Array(packet)
             
             let sync = byteConvertedPacket[0]
@@ -47,58 +48,66 @@ class TSDecoder {
             let flag = byteConvertedPacket[3]
             var header = TSHeader(syncBits: sync, pid: pid, flag: flag)
             header.parse()
-            // print(header)
+          
             if header.error
                 || !header.hasPayloadData
                 || header.pid == 0x1fff
+                || header.pid == 4096
                 || header.pid == 0
-                || header.pid == 1
+                || header.pid == 258
                 || header.pid == 256 { continue } // pid 1fff null packet
+           // print(header)
+           // print(byteConvertedPacket.tohexNumbers)
+            if !header.payloadUnitStartIndicator {
+                let actualData = Array(byteConvertedPacket[4...])
+                currentLeadingPacket?.actualData.append(contentsOf: actualData)
+                continue
+            } else {
+                let tsStream = TSStream()
+                currentLeadingPacket = tsStream
+              
+            }
             
             let pesStartIndex: Int = header.hasAfField ? Int(byteConvertedPacket[4]) + 4 + 1 : 5
+            //if pesStartIndex > 1 { continue }
             
-            let tsStream = TSStream()
             
             let streamId = byteConvertedPacket[(pesStartIndex + 3)]
             
             let streamLength = (UInt16(byteConvertedPacket[pesStartIndex + 4]) << 8) | UInt16(byteConvertedPacket[pesStartIndex + 5])
             let timeCodeFlag = (byteConvertedPacket[pesStartIndex + 7] >> 6) & 0x03
             let pesHeaderLength = byteConvertedPacket[pesStartIndex + 8]
-            
+            print("time is =>  \(timeCodeFlag)")
             if header.payloadUnitStartIndicator {
                 switch timeCodeFlag {
                 case 2:
                     let high = ((UInt16(byteConvertedPacket[pesStartIndex + 10]) << 8) | UInt16(byteConvertedPacket[pesStartIndex + 11])) >> 1
                     let low = ((UInt16(byteConvertedPacket[pesStartIndex + 12]) << 8) | UInt16(byteConvertedPacket[pesStartIndex + 13])) >> 1
-                    tsStream.pts = Int(UInt32(high) << 15 | UInt32(low))
+                    currentLeadingPacket?.pts = Int(UInt32(high) << 15 | UInt32(low))
                 case 3:
                     let high = ((UInt16(byteConvertedPacket[pesStartIndex + 10]) << 8) | UInt16(byteConvertedPacket[pesStartIndex + 11])) >> 1
                     let low = ((UInt16(byteConvertedPacket[pesStartIndex + 12]) << 8) | UInt16(byteConvertedPacket[pesStartIndex + 13])) >> 1
-                    tsStream.pts = Int(UInt32(high) << 15 | UInt32(low))
+                    currentLeadingPacket?.pts = Int(UInt32(high) << 15 | UInt32(low))
                     
                     let dtsHigh = ((UInt16(byteConvertedPacket[pesStartIndex + 15]) << 8) | UInt16(byteConvertedPacket[pesStartIndex + 16])) >> 1
                     let dtsLow = ((UInt16(byteConvertedPacket[pesStartIndex + 17]) << 8) | UInt16(byteConvertedPacket[pesStartIndex + 18])) >> 1
-                    tsStream.dts = Int(UInt32(dtsHigh) << 15 | UInt32(dtsLow))
+                    currentLeadingPacket?.dts = Int(UInt32(dtsHigh) << 15 | UInt32(dtsLow))
                   //  print("pts: \(tsStream.pts)")
+                case 0:
+                    currentLeadingPacket?.pts = 0
+                    currentLeadingPacket?.dts = 0
                 default:
                     assertionFailure("fail")
                 }
             }
-            
-            if header.payloadUnitStartIndicator {
-                if streamId != 0xE0 { continue }
-                let actualDataIndex = Int(pesStartIndex) + 8 + Int(pesHeaderLength) + 1
-                let actualData = Array(byteConvertedPacket[actualDataIndex...])
-                currentLeadingPacket = tsStream
-                tsStream.actualData = actualData
-                streams.append(tsStream)
-            } else {
-                let actualData = Array(byteConvertedPacket[4...])
-                
-                currentLeadingPacket?.actualData.append(contentsOf: actualData)
-            }
-            
+             print("time is =>  \(currentLeadingPacket?.pts) , \(currentLeadingPacket?.dts)")
+            if streamId != 0xE0 { continue }
+            let actualDataIndex = Int(pesStartIndex) + 8 + Int(pesHeaderLength) + 1
+            let actualData = Array(byteConvertedPacket[actualDataIndex...])
+            currentLeadingPacket?.actualData = actualData
+            streams.append(currentLeadingPacket!)
         }
+        //streams.sort()
         return streams
     }
 }

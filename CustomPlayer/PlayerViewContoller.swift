@@ -34,11 +34,16 @@ class PlayerViewContoller: UIViewController {
     
     
     private lazy var moviePlayer: MoviePlayer? = {
-        guard let filePath = Bundle.main.path(forResource: "you", ofType: "mp4") else { return nil }
-        let url = URL(fileURLWithPath: filePath)
+        guard let url = URL(string: "https://devstreaming-cdn.apple.com/videos/streaming/examples/img_bipbop_adv_example_ts/master.m3u8") else {
+            return nil
+        }
+        //https://devstreaming-cdn.apple.com/videos/streaming/examples/bipbop_4x3/bipbop_4x3_variant.m3u8
+        //https://video-dev.github.io/streams/test_001/stream.m3u8
+        //https://devstreaming-cdn.apple.com/videos/streaming/examples/img_bipbop_adv_example_ts/master.m3u8
+      //  guard let filePath = Bundle.main.path(forResource: "you", ofType: "mp4") else { return nil }
+       // let url = URL(fileURLWithPath: filePath)
         let player: MoviePlayer = MoviePlayer(url: url)
         player.delegate = self
-        player.prepareToPlay()
         return player
     }()
     
@@ -104,27 +109,27 @@ class PlayerViewContoller: UIViewController {
             self.playerView.playButton.isSelected = !self.playerView.playButton.isSelected
             
             if self.playerView.playButton.isSelected {
-              //  self.playerView.playButton.setImage(#imageLiteral(resourceName: "pauseButtonImage"), for: .normal)
-                //self.moviePlayer?.play()
-                
-                let task = URLSession.shared.dataTask(with: URL(string: "https://devstreaming-cdn.apple.com/videos/streaming/examples/img_bipbop_adv_example_ts/v2/fileSequence1.ts")!, completionHandler: { (data, res, err) in
-                   let decoder = TSDecoder(target: data!)
-                    let result = decoder.decode()
-                    var dataArray = [UInt8]()
-                    var timings = [CMSampleTimingInfo]()
-                    result.forEach {
-                        dataArray.append(contentsOf: $0.actualData)
-                        timings.append(CMSampleTimingInfo(duration: CMTime.invalid, presentationTimeStamp: CMTime(value: CMTimeValue($0.pts), timescale: 30000) , decodeTimeStamp: CMTime.invalid))
-                        
+                self.playerView.playButton.setImage(#imageLiteral(resourceName: "pauseButtonImage"), for: .normal)
+                self.moviePlayer?.play()
+                //https://devstreaming-cdn.apple.com/videos/streaming/examples/img_bipbop_adv_example_ts/master.m3u8
+               /* guard let url = URL(string: "https://devstreaming-cdn.apple.com/videos/streaming/examples/img_bipbop_adv_example_ts/master.m3u8") else {
+                    return nil
+                }*/
+                self.moviePlayer?.loadPlayerAsynchronously(completion: { [weak self] (result) in
+                    
+                    switch result {
+                    case .failure(let error):
+                        print(error.localizedDescription)
+                    case .success(let data):
+                        print(data)
                     }
-                    let h264Decoder = H264Decoder(frames: dataArray, presentationTimestamps: timings)
-                    h264Decoder.videoDecoderDelegate = self
-                    h264Decoder.decode()
-                }).resume()
+                })
+
+                
                 
             } else {
-               // self.playerView.playButton.setImage(#imageLiteral(resourceName: "playButtonImage"), for: .normal)
-               // self.moviePlayer?.pause()
+                self.playerView.playButton.setImage(#imageLiteral(resourceName: "playButtonImage"), for: .normal)
+                self.moviePlayer?.pause()
             }
             
             return nil

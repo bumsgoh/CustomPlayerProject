@@ -10,96 +10,241 @@ import Foundation
 import VideoToolbox
 
 class MoviePlayer: NSObject {
-    typealias T = CMSampleBuffer
-    var state: MediaStatus = .stopped
-    let jobQueue: DispatchQueue = DispatchQueue(label: "decodeQueue")
-    let lockQueue: DispatchQueue = DispatchQueue(label: "com.lockQueue", qos: .userInitiated, attributes: .concurrent, autoreleaseFrequency: .workItem, target: nil)
-    let isFileBasedPlayer: Bool
-    let url: URL
-    var videoPacketBuffer: [CMSampleBuffer] = []
-    var audioPacketBuffer: Data = Data()
-    weak var delegate: VideoQueueDelegate?
-    let audioQueue = DispatchQueue(label: "audioPlayQueue")
-    let syncSemaphore: DispatchSemaphore = DispatchSemaphore(value: 0)
+
+    private let jobQueue: DispatchQueue = DispatchQueue(label: "decodeQueue")
+    private let lockQueue: DispatchQueue = DispatchQueue(label: "com.lockQueue", qos: .userInitiated, attributes: .concurrent, autoreleaseFrequency: .workItem, target: nil)
+    private let isFileBasedPlayer: Bool
+    private let url: URL
+    private let httpConnection: HTTPConnetion
+    
+    var playerItemContext = 1
+    private var pastBufferCounts: [Int] = [] {
+        didSet {
+            if pastBufferCounts.count > 10 {
+                let average = pastBufferCounts.reduce(0, {$0 + $1}) / 10
+                guard let newValue = pastBufferCounts.last else { return }
+                if newValue < average {
+                 //   fetchNextItem()
+                }
+                pastBufferCounts.remove(at: 0)
+            }
+        }
+    }
+    
+    private var currentPlayingItemIndex: ListIndex?
+    private var state: MediaStatus = .stopped
     private var audioDecoder: AudioTrackDecodable?
     private var videoDecoder: VideoTrackDecodable?
-    var audioPlayer: AudioPlayer?
-     private var isReady: Bool = false
-    var bufferTime: TimeInterval = 10 // sec
-    private(set) var duration: TimeInterval = 0
-    var playing = false
-    var isThumNailSet: Bool = false
+    private var audioPlayer: AudioPlayer?
+    
+    private var dataFromDecoder = Data()
+    
+    private var playing = false
+    private var isVideoReady: Bool = false
+    private var isAudioReady: Bool = false
+    
+    private var masterPlaylist: MasterPlaylist?
+    
+    private var keyValueObservations = [NSKeyValueObservation]()
+    
+    var totalDuration = 0
+    
+    weak var delegate: VideoQueueDelegate?
+    
     var isPlayable: Bool {
         return isVideoReady && isAudioReady
     }
-    var totalDuration = 0
-    lazy var queue: DisplayLinkedQueue = {
+   
+    private lazy var queue: DisplayLinkedQueue = {
         let queue: DisplayLinkedQueue = DisplayLinkedQueue()
         queue.delegate = self
         return queue
     }()
-    var dataFromDecoder = Data()
-    
-    private var isVideoReady: Bool = false
-    private var isAudioReady: Bool = false
-    
+  
     init(url: URL) {
+        self.httpConnection = HTTPConnetion(url: url)
         self.url = url
         if url.isFileURL {
             self.isFileBasedPlayer = true
         } else {
             self.isFileBasedPlayer = false
         }
+        super.init()
+        setObservers()
     }
     
-    func prepareToPlay() {
+    deinit {
+        for keyValueObservation in self.keyValueObservations {
+            keyValueObservation.invalidate()
+        }
+        self.keyValueObservations.removeAll()
+    }
+    
+    func setObservers() {
+       queue.addObserver(self, forKeyPath: "bufferCount", options: .new, context: &playerItemContext)
+    }
+    
+    override func observeValue(forKeyPath keyPath: String?, of object: Any?, change: [NSKeyValueChangeKey : Any]?, context: UnsafeMutableRawPointer?) {
+        
+        guard context == &playerItemContext else {
+            super.observeValue(forKeyPath: keyPath, of: object, change: change, context: context)
+            return
+        }
+        
+        if keyPath == #keyPath(DisplayLinkedQueue.bufferCount) {
+            guard let count = change?[.newKey] as? Int else { return }
+            if count == 0 {
+              //  fetchNextItem()
+            }
+           // pastBufferCounts.append(count)
+        }
+        
+    }
+    
+    func loadPlayerAsynchronously(completion: @escaping (Result<MoviePlayer, Error>) -> Void) {
         jobQueue.async { [weak self] in
             guard let self = self else { return }
-            
-            guard let fileReader = FileReader(url: self.url) else { return }
-            let mediaFileReader = Mpeg4Parser(fileReader: fileReader)
-            
-            mediaFileReader.decodeMediaData()
-            let tracks = mediaFileReader.makeTracks()
-            self.totalDuration = tracks[0].duration
-            for track in tracks {
-                var sizeArray: [Int] = []
-                var rawFrames: [Data] = []
-                var presentationTimestamp: [Int] = []
+            if self.isFileBasedPlayer {
+                guard let fileReader = FileReader(url: self.url) else { return }
+                let mediaFileReader = Mpeg4Parser(fileReader: fileReader)
                 
-                for sample in track.samples {
+                mediaFileReader.decodeMediaData()
+                let tracks = mediaFileReader.makeTracks()
+                self.totalDuration = tracks[0].duration
+                for track in tracks {
+                    var sizeArray: [Int] = []
+                    var rawFrames: [Data] = []
+                    var presentationTimestamp: [Int] = []
                     
-                    mediaFileReader.fileReader.seek(offset: UInt64(sample.offset))
-                    mediaFileReader.fileReader.read(length: sample.size) { (data) in
-                        rawFrames.append(data)
-                        sizeArray.append(data.count)
+                    for sample in track.samples {
+                        
+                        mediaFileReader.fileReader.seek(offset: UInt64(sample.offset))
+                        mediaFileReader.fileReader.read(length: sample.size) { (data) in
+                            rawFrames.append(data)
+                            sizeArray.append(data.count)
+                        }
+                    }
+                    presentationTimestamp = track.samples.map {
+                        $0.startTime
+                    }
+                    let dataPackage = DataPackage(presentationTimestamp: presentationTimestamp,
+                                                  dataStorage: rawFrames)
+                    
+                    switch track.mediaType {
+                    case .audio:
+                        self.audioDecoder = AAC_ADTSDecoder(track: track, dataPackage: dataPackage)
+                        self.audioDecoder?.audioDelegate = self
+                        self.audioDecoder?.decodeTrack(timeScale: track.timescale)
+                    case .video:
+                        self.videoDecoder = AvccDecoder(track: track, dataPackage: dataPackage)
+                        self.videoDecoder?.videoDelegate = self
+                        self.videoDecoder?.decodeTrack(timeScale: track.timescale)
+                    case .unknown:
+                        completion(.failure(NSError(domain: "fail to decode track", code: -1, userInfo: nil)))
+                        return
                     }
                 }
-                presentationTimestamp = track.samples.map {
-                    $0.startTime
-                }
-                let dataPackage = DataPackage(presentationTimestamp: presentationTimestamp,
-                                              dataStorage: rawFrames)
-                
-                switch track.mediaType {
-                case .audio:
-                    self.audioDecoder = AAC_ADTSDecoder(track: track, dataPackage: dataPackage)
-                    self.audioDecoder?.audioDelegate = self
-                    self.audioDecoder?.decodeTrack(timeScale: track.timescale)
-                case .video:
-                    self.videoDecoder  = AvccDecoder(track: track, dataPackage: dataPackage)
-                    self.videoDecoder?.videoDelegate = self
-                    self.videoDecoder?.decodeTrack(timeScale: 30000)
-                case .unknown:
-                    assertionFailure("player init failed")
+                completion(.success(self))
+            } else {
+               
+                self.httpConnection.request() { (result, response) in
+                    let startTime = Date()
+                    switch result {
+                    case .failure:
+                        completion(.failure(APIError.requestFailed))
+                    case .success(let data):
+                        let m3u8Player = M3U8Decoder(rawData: data, url: self.url.absoluteString)
+                        guard let masterPlaylist = m3u8Player.parseMasterPlaylist() else {
+                            completion(.failure(APIError.invalidData))
+                            return
+                        }
+                        //TODO: initial ts file 설정하기
+                        guard let expectedLength = response?.expectedContentLength else { return }
+                        let length  = CGFloat(expectedLength) / 1000000.0
+                        let elapsed = CGFloat( Date().timeIntervalSince(startTime))
+                        let currentNetworkSpeed = length/elapsed
+//                        if currentNetworkSpeed < 1 {
+//                            m3u8Player.parseMediaPlaylist(list: masterPlaylist.mediaPlaylists[0]) {
+//                                self.currentPlayingItemIndex = ListIndex(gear: 0, index: 0)
+//                            }
+//
+//                        } else {
+//                            m3u8Player.parseMediaPlaylist(list: masterPlaylist.mediaPlaylists[3]) {
+//                                 self.currentPlayingItemIndex = ListIndex(gear: 3, index: 0)
+//                            }
+//                        }
+                        
+                        m3u8Player.parseMediaPlaylist(list: masterPlaylist.mediaPlaylists[0]) {
+                            self.currentPlayingItemIndex = ListIndex(gear: 0, index: 0)
+                            self.masterPlaylist = masterPlaylist
+                            guard let currentPlaylist = self.currentPlayingItemIndex else { return }
+                            let tempPlaylistPath = masterPlaylist
+                                .mediaPlaylists[currentPlaylist.gear]
+                                .mediaSegments[currentPlaylist.index].path
+                          
+                           guard let url = URL(string: tempPlaylistPath!) else { return }
+                            print(url)
+                           // guard let filePath = Bundle.main.path(forResource: "animation", ofType: "h264") else { return  }
+                          //  let fileurl = URL(fileURLWithPath: filePath)
+                            let task = URLSession.shared.dataTask(with: url, completionHandler: { (data, res, err) in
+//!
+                               let decoder = TSDecoder(target: data!)
+                                let result = decoder.decode()
+                             
+                                var dataArray = [UInt8]()
+                               
+                                var timings = [CMSampleTimingInfo]()
+                               
+                                result.forEach {
+                                    dataArray.append(contentsOf: $0.actualData)
+                                    timings.append(CMSampleTimingInfo(duration: CMTime(value: 6000, timescale: 60000), presentationTimeStamp: CMTime(value: CMTimeValue($0.pts), timescale: 60000) , decodeTimeStamp: CMTime(value: CMTimeValue($0.dts), timescale: 60000)))
+                                }
+
+                                let h264Decoder = H264Decoder(frames: dataArray, presentationTimestamps: timings)
+                                h264Decoder.videoDecoderDelegate = self
+                                h264Decoder.decode()
+                            }).resume()
+                        }
+                    }
                 }
             }
         }
     }
     
+    private func fetchNextItem() {
+        guard let masterPlaylist = masterPlaylist, let currentIndex = currentPlayingItemIndex else { return }
+        if currentIndex.index > 98 {return}
+        let nextIndex = ListIndex(gear: currentIndex.gear, index: currentIndex.index + 1)
+        currentPlayingItemIndex = nextIndex
+        guard let stringPath = masterPlaylist.mediaPlaylists[nextIndex.gear].mediaSegments[nextIndex.index].path else { return }
+        print(stringPath)
+        HTTPConnetion(url: URL(string: stringPath)).request { (result, response) in
+            switch result {
+            case .failure:
+                assertionFailure("failed to fetch")
+            case .success(let data):
+                let decoder = TSDecoder(target: data)
+                let result = decoder.decode()
+                var dataArray = [UInt8]()
+                var timings = [CMSampleTimingInfo]()
+                result.forEach {
+                    dataArray.append(contentsOf: $0.actualData)
+                    timings.append(CMSampleTimingInfo(duration: CMTime(value: 3000, timescale: 30000), presentationTimeStamp: CMTime(value: CMTimeValue($0.pts), timescale: 30000) , decodeTimeStamp: CMTime.invalid)) //CMTime(value: CMTimeValue($0.dts), timescale: 30000) ))
+                }
+                let h264Decoder = H264Decoder(frames: dataArray, presentationTimestamps: timings)
+                h264Decoder.videoDecoderDelegate = self
+                h264Decoder.decode()
+               
+            }
+            
+        }
+       
+    }
+    
     func play() {
         queue.startRunning()
         audioPlayer?.playIfNeeded()
+        playing = true
     }
     
     func pause() {
@@ -124,8 +269,9 @@ extension MoviePlayer: MultiMediaAudioTypeDecoderDelegate {
 
 extension MoviePlayer: MultiMediaVideoTypeDecoderDelegate {
     func prepareToDisplay(with buffers: CMSampleBuffer) {
-
+       
          queue.enqueue(buffers)
+       
     }
     
 }
@@ -138,10 +284,20 @@ protocol VideoQueueDelegate: class {
 extension MoviePlayer: DisplayLinkedQueueDelegate {
     // MARK: DisplayLinkedQueue
     func queue(_ buffer: CMSampleBuffer) {
-        if playing == false {
-            playing = true
-            self.audioPlayer?.playIfNeeded()
-        }
+//        if playing {
+//            play()
+//           //
+//        } else {
+//            playing = true
+//            self.audioPlayer?.playIfNeeded()
+//        }
+        //print(buffer)
         delegate?.displayQueue(with: buffer)
     }
 }
+
+struct ListIndex {
+    var gear: Int
+    var index: Int
+}
+

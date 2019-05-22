@@ -19,7 +19,7 @@ class CustomizedPlayerView: UIView {
     }()
     
     let playButton: UIButton = {
-        let button = UIButton(type: .system)
+        let button = UIButton(type: .custom)
         button.translatesAutoresizingMaskIntoConstraints = false
         button.setImage(#imageLiteral(resourceName: "playButtonImage"), for: .normal)
         button.tintColor = .white
@@ -36,6 +36,7 @@ class CustomizedPlayerView: UIView {
         slider.translatesAutoresizingMaskIntoConstraints = false
         slider.transform = CGAffineTransform(scaleX: 0.85, y: 0.85)
         slider.setThumbImage(#imageLiteral(resourceName: "thumb"), for: .normal)
+        slider.minimumTrackTintColor = #colorLiteral(red: 0.3284769654, green: 0.9679732919, blue: 0.9985066056, alpha: 1)
        
         return slider
     }()
@@ -59,8 +60,9 @@ class CustomizedPlayerView: UIView {
         setUpLayout()
         playButton.addTarget(self, action: #selector(executePlayButtonHandler), for: .touchUpInside)
         initializeVideoLayer()
+        setTimebase()
         playTrackSlider.maximumValue = 101
-        print("is..\(duration)")
+        //print("is..\(duration)")
         playTrackSlider.minimumValue = 0
     }
     
@@ -133,8 +135,9 @@ class CustomizedPlayerView: UIView {
     }
     
     func displayFrame(_ sample: CMSampleBuffer) {
-      //  print(sample)
+    
         self.videoPlayerLayer.enqueue(sample)
+        videoPlayerLayer.setNeedsDisplay()
        // print(playTrackSlider.maximumValue)
        // playTrackSlider.setValue(Float(sample.presentationTimeStamp.seconds), animated: true)
     }
