@@ -37,6 +37,7 @@ class PlayerViewContoller: UIViewController {
         guard let url = URL(string: "https://devstreaming-cdn.apple.com/videos/streaming/examples/img_bipbop_adv_example_ts/master.m3u8") else {
             return nil
         }
+        //https://devstreaming-cdn.apple.com/videos/streaming/examples/bipbop_4x3/bipbop_4x3_variant.m3u8
         //https://video-dev.github.io/streams/test_001/stream.m3u8
         //https://devstreaming-cdn.apple.com/videos/streaming/examples/img_bipbop_adv_example_ts/master.m3u8
       //  guard let filePath = Bundle.main.path(forResource: "you", ofType: "mp4") else { return nil }

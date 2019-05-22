@@ -88,10 +88,11 @@ class H264Decoder {
     }
     
     func decode() {
-        
-        while var packet = copyNextPacket() {
-          //  if packet == [0,0,0,1,9,240] {continue}
-            analyzeNALAndDecode(packet: &packet)
+        let nalu = makeNALUnits()
+        nalu?.forEach {
+            var packet = $0
+            if packet != [0, 0, 0, 1, 9, 240] { analyzeNALAndDecode(packet: &packet) }
+            
         }
     }
     
@@ -108,6 +109,7 @@ class H264Decoder {
         switch typeOfNAL {
         case TypeOfNAL.idr.rawValue, TypeOfNAL.bpFrame.rawValue:
             let timingInfo = presentationTimestamps[pictureCount]
+            //print(timingInfo)
             pictureCount += 1
             decodeVideoPacket(packet: packet, timingInfos: timingInfo)
         case TypeOfNAL.sps.rawValue:
@@ -167,7 +169,7 @@ class H264Decoder {
             return
         }
         var flag = VTDecodeInfoFlags()
-        print(sampleBuffer)
+       // print(sampleBuffer)
         guard VTDecompressionSessionDecodeFrame(
             session,
             sampleBuffer: derivedSampleBuffer,
@@ -176,6 +178,7 @@ class H264Decoder {
             infoFlagsOut: &flag) == 0 else {
                 assertionFailure("fail decom")
                 return }
+        
         
     }
     
@@ -187,7 +190,8 @@ class H264Decoder {
             print("param fail")
             return false
         }
-
+        print(spsData)
+        print(ppsData)
         let spsPointer = UnsafePointer<UInt8>(Array(spsData))
         let ppsPointer = UnsafePointer<UInt8>(Array(ppsData))
         
@@ -243,36 +247,40 @@ class H264Decoder {
         
     }
     
-    func copyNextPacket() -> [UInt8]? {
+    func makeNALUnits() -> [[UInt8]]? {
+        
+        var mutableFrames = frames
+        var nalu: [[UInt8]] = []
         
         let startCodeSize = self.startCode.count
         var startIndex = startCodeSize
         
-        if frames.isEmpty  {
+        if mutableFrames.isEmpty  {
             return nil
         }
         
-        if frames.count < startCodeSize + 1 || Array(frames[0..<startCode.count]) != self.startCode {
+        if mutableFrames.count < startCodeSize + 1 || Array(mutableFrames[0..<startCode.count]) != self.startCode {
             return nil
         }
 
-        while true {
-            
-            while ((startIndex + startCodeSize - 1) < frames.count) {
-                if Array(frames[startIndex..<(startIndex + startCodeSize)]) ==  self.startCode {
+        //while true {
+            print("count: \(mutableFrames.count)")
+            while ((startIndex + startCodeSize - 1) < mutableFrames.count) {
+                if Array(mutableFrames[startIndex..<(startIndex + startCodeSize)]) ==  self.startCode {
                     
-                    var packet = Array(frames[0..<startIndex])
+                    var packet = Array(mutableFrames[0..<startIndex])
                     if startCode == VideoCodingConstant.startCodeBType {
                         packet.insert(0, at: 0)
                     }
                     
-                    frames.removeSubrange(0..<startIndex)
-                    
-                    return packet
+                    mutableFrames.removeSubrange(0..<startIndex)
+                    startIndex = startCodeSize
+                    nalu.append(packet)
                 }
                 startIndex += 1
-            }
+         //   }
         }
+        return nalu
     }
 }
 

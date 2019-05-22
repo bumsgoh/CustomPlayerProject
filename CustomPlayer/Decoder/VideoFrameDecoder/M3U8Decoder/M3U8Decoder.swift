@@ -120,9 +120,9 @@ class M3U8Decoder {
                         let value = String(line.split(separator: ":")[1])
                         mediaSegment.duration = Float(value)
                         currentMediaSegment = mediaSegment
-                        
+                        hasStreamInfo = true
                     } else if line.hasPrefix("#EXT-X-BITRATE") {
-                      hasStreamInfo = true
+                      
                         
                     } else if line.hasPrefix("#EXT-X-MEDIA-SEQUENCE") {
                         // URI - must be

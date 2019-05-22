@@ -197,7 +197,7 @@ class MoviePlayer: NSObject {
                                
                                 result.forEach {
                                     dataArray.append(contentsOf: $0.actualData)
-                                    timings.append(CMSampleTimingInfo(duration: CMTime(value: 3000, timescale: 30000), presentationTimeStamp: CMTime(value: CMTimeValue($0.pts), timescale: 30000) , decodeTimeStamp: CMTime(value: CMTimeValue($0.dts), timescale: 30000)))
+                                    timings.append(CMSampleTimingInfo(duration: CMTime(value: 6000, timescale: 60000), presentationTimeStamp: CMTime(value: CMTimeValue($0.pts), timescale: 60000) , decodeTimeStamp: CMTime(value: CMTimeValue($0.dts), timescale: 60000)))
                                 }
 
                                 let h264Decoder = H264Decoder(frames: dataArray, presentationTimestamps: timings)
