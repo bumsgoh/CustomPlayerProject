@@ -31,7 +31,7 @@ final class DisplayLinkedQueue: NSObject {
         didSet {
             oldValue?.invalidate()
             guard let displayLink: CADisplayLink = displayLink else { return }
-            displayLink.preferredFramesPerSecond = 60
+            displayLink.preferredFramesPerSecond = 30
             displayLink.add(to: .main, forMode: .common)
         }
     }

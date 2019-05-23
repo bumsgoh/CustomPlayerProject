@@ -171,8 +171,8 @@ class MoviePlayer: NSObject {
 //                            }
 //                        }
                         
-                        m3u8Player.parseMediaPlaylist(list: masterPlaylist.mediaPlaylists[1]) {
-                            self.currentPlayingItemIndex = ListIndex(gear: 1, index: 0)
+                        m3u8Player.parseMediaPlaylist(list: masterPlaylist.mediaPlaylists[0]) {
+                            self.currentPlayingItemIndex = ListIndex(gear: 0, index: 0)
                             self.masterPlaylist = masterPlaylist
                             guard let currentPlaylist = self.currentPlayingItemIndex else { return }
                             guard let tempPlaylistPath = masterPlaylist
@@ -188,7 +188,7 @@ class MoviePlayer: NSObject {
                                 completion(.failure(APIError.requestFailed))
                             case .success(let data):
                                 let decoder = TSDecoder(target: data)
-                                let tsStreams = decoder.decode()
+                                var tsStreams = decoder.decode()
                                 
                                 var videoDataArray = [UInt8]()
                                 var audioDataArray = [UInt8]()
@@ -201,27 +201,29 @@ class MoviePlayer: NSObject {
 //                                    print(i.type)
 //                                    print(i.actualData.tohexNumbers)
 //                                }
+                               // tsStreams.sort()
                                 tsStreams.forEach {
                                     switch $0.type {
                                     case .video:
+                                       // print($0.pts)
                                         videoDataArray.append(contentsOf: $0.actualData)
-                                        count += 1
-                                        videoTimings.append(CMSampleTimingInfo(duration: CMTime(value: 6000, timescale: 60000),
-                                                                               presentationTimeStamp: CMTime(value: CMTimeValue($0.pts), timescale: 60000),
-                                                                               decodeTimeStamp: CMTime(value: CMTimeValue($0.dts), timescale: 60000)))
+                                        videoTimings.append(CMSampleTimingInfo(duration: CMTime(value: 3000, timescale: 30000),
+                                                                               presentationTimeStamp: CMTime(value: CMTimeValue($0.pts), timescale: 30000),
+                                                                               decodeTimeStamp: CMTime.invalid))
                                       
                                     case .audio:
                                         pts.append($0.pts)
                                         datas.append(Data($0.actualData))
-                                        print(datas.count)
+                                     //   print(datas.count)
                                         audioDataArray.append(contentsOf: $0.actualData)
-                                        audioTimings.append(CMSampleTimingInfo(duration: CMTime(value: 6000, timescale: 60000),
-                                                                                presentationTimeStamp: CMTime(value: CMTimeValue($0.pts), timescale: 60000),
-                                                                                decodeTimeStamp: CMTime(value: CMTimeValue($0.dts), timescale: 60000)))
+                                        audioTimings.append(CMSampleTimingInfo(duration: CMTime(value: 3000, timescale: 30000),
+                                                                                presentationTimeStamp: CMTime(value: CMTimeValue($0.pts), timescale: 30000),
+                                                                                decodeTimeStamp: CMTime(value: CMTimeValue($0.dts), timescale: 30000)))
                                     case .unknown:
                                         return
                                     }
                                 }
+                                
                                 let h264Decoder = H264Decoder(frames: videoDataArray, presentationTimestamps: videoTimings)
                                 h264Decoder.videoDecoderDelegate = self
                                 h264Decoder.decode()
@@ -327,9 +329,10 @@ extension MoviePlayer: DisplayLinkedQueueDelegate {
 //           //
 //        } else {
 //            playing = true
-//            self.audioPlayer?.playIfNeeded()
+//
 //        }
         //print(buffer)
+        self.audioPlayer?.playIfNeeded()
         delegate?.displayQueue(with: buffer)
     }
 }
