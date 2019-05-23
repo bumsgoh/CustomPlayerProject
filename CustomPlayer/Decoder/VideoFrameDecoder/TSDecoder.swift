@@ -113,7 +113,7 @@ class TSDecoder {
                         assertionFailure("fail")
                     }
                     
-                    let actualDataIndex = Int(pesStartIndex) + 8 + Int(pesHeaderLength) + 1 + 6
+                    let actualDataIndex = Int(pesStartIndex) + 8 + Int(pesHeaderLength) + 1 
                     let actualData = Array(byteConvertedPacket[actualDataIndex...])
                    //print("actual is\(actualData.tohexNumbers)")
                     currentLeadingVideoPacket?.actualData = actualData

@@ -139,7 +139,7 @@ class CustomizedPlayerView: UIView {
         self.videoPlayerLayer.enqueue(sample)
         videoPlayerLayer.setNeedsDisplay()
        // print(playTrackSlider.maximumValue)
-       // playTrackSlider.setValue(Float(sample.presentationTimeStamp.seconds), animated: true)
+        playTrackSlider.setValue(Float(sample.presentationTimeStamp.seconds), animated: true)
     }
 
     

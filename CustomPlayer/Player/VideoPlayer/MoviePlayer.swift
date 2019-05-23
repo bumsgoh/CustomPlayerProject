@@ -171,8 +171,8 @@ class MoviePlayer: NSObject {
 //                            }
 //                        }
                         
-                        m3u8Player.parseMediaPlaylist(list: masterPlaylist.mediaPlaylists[0]) {
-                            self.currentPlayingItemIndex = ListIndex(gear: 0, index: 0)
+                        m3u8Player.parseMediaPlaylist(list: masterPlaylist.mediaPlaylists[1]) {
+                            self.currentPlayingItemIndex = ListIndex(gear: 1, index: 4)
                             self.masterPlaylist = masterPlaylist
                             guard let currentPlaylist = self.currentPlayingItemIndex else { return }
                             guard let tempPlaylistPath = masterPlaylist
@@ -209,7 +209,7 @@ class MoviePlayer: NSObject {
                                         videoDataArray.append(contentsOf: $0.actualData)
                                         videoTimings.append(CMSampleTimingInfo(duration: CMTime(value: 3000, timescale: 30000),
                                                                                presentationTimeStamp: CMTime(value: CMTimeValue($0.pts), timescale: 30000),
-                                                                               decodeTimeStamp: CMTime.invalid))
+                                                                               decodeTimeStamp: CMTime(value: CMTimeValue($0.dts), timescale: 30000)))
                                       
                                     case .audio:
                                         pts.append($0.pts)
@@ -282,7 +282,7 @@ class MoviePlayer: NSObject {
     
     func play() {
         queue.startRunning()
-        audioPlayer?.playIfNeeded()
+    //    audioPlayer?.playIfNeeded()
         playing = true
     }
     
@@ -332,7 +332,9 @@ extension MoviePlayer: DisplayLinkedQueueDelegate {
 //
 //        }
         //print(buffer)
-        self.audioPlayer?.playIfNeeded()
+        if playing {
+            self.audioPlayer?.playIfNeeded()
+        }
         delegate?.displayQueue(with: buffer)
     }
 }

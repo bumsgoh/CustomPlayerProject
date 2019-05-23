@@ -96,10 +96,11 @@ class H264Decoder {
             var packet = nal
           //  print(packet)
            // ["00", "00", "00", "01", "09, 240"00", "00", "00", "01", "06", "05", "11", "03", "87", "F4", "4E", "CD", "0A", "4B", "DC", "A1", "94", "3A", "C3", "D4", "9B", "17", "1F", "00", "80", "00",
-           // if Array(packet[0..<6]) == [0, 0, 0, 1, 9, 240] {
-             //   packet = stripAUD(packet: packet)
-               // if packet.count < 2 { continue }
-           // }
+            if Array(packet[0..<6]) == [0, 0, 0, 1, 9, 240] {
+                packet = stripAUD(packet: packet)
+                if packet.count < 2 { continue }
+            }
+         //   print(packet)
             analyzeNALAndDecode(packet: &packet)
             
         }
@@ -111,7 +112,7 @@ class H264Decoder {
  //print(packet)
         let preservedPacket = packet
         var lengthOfNAL = CFSwapInt32HostToBig((UInt32(packet.count - 4)))
-//print("pack is: \(packet.tohexNumbers)")
+print("pack is: \(packet.tohexNumbers)")
         memcpy(&packet, &lengthOfNAL, 4)
         // change to Avcc format
         
@@ -122,7 +123,7 @@ class H264Decoder {
         switch typeOfNAL {
         case TypeOfNAL.idr.rawValue, TypeOfNAL.bpFrame.rawValue:
             let timingInfo = presentationTimestamps[pictureCount]
-            //print(timingInfo)
+            print(timingInfo)
             pictureCount += 1
             decodeVideoPacket(packet: packet, timingInfos: timingInfo)
         case TypeOfNAL.sps.rawValue:
@@ -154,7 +155,13 @@ class H264Decoder {
     private func stripAUD(packet: [UInt8]) -> [UInt8]{
         var mutablePacket = packet
         mutablePacket.removeSubrange(0..<6)
-        mutablePacket.insert(0, at: 0)
+  //      print(mutablePacket)
+        if mutablePacket.isEmpty { return [] }
+       // print(mutablePacket[0..<3])
+        if Array(mutablePacket[0..<3]) == VideoCodingConstant.startCodeBType {
+             mutablePacket.insert(0, at: 0)
+        }
+    //    print(mutablePacket)
         return mutablePacket
     }
     
