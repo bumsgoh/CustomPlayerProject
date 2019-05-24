@@ -87,7 +87,7 @@ class TSDecoder {
                 
                 switch streamId {
                 case 224:
-                    print(header.pid)
+                    
                     currentLeadingVideoPacket = TSStream()
                     currentLeadingVideoPacket?.type = .video
                     videoPid = header.pid
@@ -113,7 +113,7 @@ class TSDecoder {
                         assertionFailure("fail")
                     }
                     
-                    let actualDataIndex = Int(pesStartIndex) + 8 + Int(pesHeaderLength) + 1 
+                    let actualDataIndex = Int(pesStartIndex) + 8 + Int(pesHeaderLength) + 1
                     let actualData = Array(byteConvertedPacket[actualDataIndex...])
                    //print("actual is\(actualData.tohexNumbers)")
                     currentLeadingVideoPacket?.actualData = actualData

@@ -34,7 +34,7 @@ class PlayerViewContoller: UIViewController {
     
     
     private lazy var moviePlayer: MoviePlayer? = {
-        guard let url = URL(string: "https://video-dev.github.io/streams/x36xhzz/x36xhzz.m3u8") else {
+        guard let url = URL(string: "https://devstreaming-cdn.apple.com/videos/streaming/examples/img_bipbop_adv_example_ts/master.m3u8") else {
             return nil
         }
         //https://video-dev.github.io/streams/x36xhzz/x36xhzz.m3u8

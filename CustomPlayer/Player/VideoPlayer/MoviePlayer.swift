@@ -171,8 +171,8 @@ class MoviePlayer: NSObject {
 //                            }
 //                        }
                         
-                        m3u8Player.parseMediaPlaylist(list: masterPlaylist.mediaPlaylists[1]) {
-                            self.currentPlayingItemIndex = ListIndex(gear: 1, index: 4)
+                        m3u8Player.parseMediaPlaylist(list: masterPlaylist.mediaPlaylists[0]) {
+                            self.currentPlayingItemIndex = ListIndex(gear: 0, index: 0)
                             self.masterPlaylist = masterPlaylist
                             guard let currentPlaylist = self.currentPlayingItemIndex else { return }
                             guard let tempPlaylistPath = masterPlaylist
