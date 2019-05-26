@@ -15,7 +15,7 @@ protocol Playable {
     var tracks: [Track] { get }
 }
 
-enum MediaStatus {
+@objc enum MediaStatus: Int {
     case stopped
     case paused
     case prepared

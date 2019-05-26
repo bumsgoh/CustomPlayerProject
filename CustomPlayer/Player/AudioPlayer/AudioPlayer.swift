@@ -15,7 +15,8 @@ class AudioPlayer: NSObject {
     private var streamDescription: AudioStreamBasicDescription?
     private var isRunning: UInt32 = 0
     private var isPlaying: Bool = false
-    private var state: MediaStatus = .stopped
+    @objc dynamic var isReady: Bool = false
+    @objc dynamic var state: MediaStatus = .stopped
    // private var passedData: Data
     
     
@@ -72,9 +73,6 @@ class AudioPlayer: NSObject {
     }
     
     
-    
-    
-    
    private var packetInformationListner: AudioFileStream_PacketsProc = { (clientData,
         numberBytes,
         numberPackets,
@@ -95,7 +93,7 @@ class AudioPlayer: NSObject {
                                 audioQueuebuffer!,
                                 numberPackets,
                                 packetDescriptions)
-        audioPlayerSelfPointer.state = .prepared
+        audioPlayerSelfPointer.isReady = true
         AudioQueuePrime(audioQueue, 0, nil)
 
         }
@@ -129,7 +127,7 @@ class AudioPlayer: NSObject {
         AudioQueueFreeBuffer(audioQueue, buffer)
     }
     
-    var volume: Float = 3.0 {
+    var volume: Float = 1.0 {
         didSet {
             if let audioQueue = audioQueue {
                 assertDependOnMultiMediaValueStatus(
@@ -167,7 +165,7 @@ class AudioPlayer: NSObject {
         
         guard let audioQueue = audioQueue, !isPlaying else { return }
         isPlaying = true
-        
+        state = .playing
         AudioQueuePrime(audioQueue, 5, nil)
         AudioQueueStart(audioQueue,nil)
     }
@@ -175,6 +173,7 @@ class AudioPlayer: NSObject {
     func pause() {
        guard let audioQueue = audioQueue else { return }
         isPlaying = false
+        state = .paused
         assertDependOnMultiMediaValueStatus(
             AudioQueuePause(audioQueue)
         )

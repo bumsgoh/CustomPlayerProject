@@ -11,6 +11,9 @@ import VideoToolbox
 
 class H264Decoder {
     
+    private var buffers: [CMSampleBuffer] = []
+    private var minimumGroupOfPictures: Int = 12
+    
     private let lockQueue = DispatchQueue(label: "com.bumslap.h264DecoderLock")
     
     private var formatDescription: CMVideoFormatDescription?
@@ -18,7 +21,8 @@ class H264Decoder {
     
     private var spsSize: Int = 0
     private var ppsSize: Int = 0
-    
+    var frameSlices = [UInt8]()
+    var sizeArray: [Int] = []
     private var sps: [UInt8]?
     private var pps: [UInt8]?
     
@@ -68,8 +72,11 @@ class H264Decoder {
             sampleTiming: &timingInfo,
             sampleBufferOut: &decodedSampleBuffer
         )
+       
+            decoder.videoDecoderDelegate?.prepareToDisplay(with: decodedSampleBuffer!)
+           // delegate?.sampleOutput(video: buffers.removeFirst())
         
-        decoder.videoDecoderDelegate?.prepareToDisplay(with: decodedSampleBuffer!)
+       
     }
   
 
@@ -89,21 +96,25 @@ class H264Decoder {
     
     func decode() {
         guard let nalu = makeNALUnits() else { return }
-        
+       // print("is cout:\(presentationTimestamps.count)")
         
         for nal in nalu {
             //print("nalu: \(nal)")
             var packet = nal
-          //  print(packet)
+         //  print(packet.tohexNumbers)
            // ["00", "00", "00", "01", "09, 240"00", "00", "00", "01", "06", "05", "11", "03", "87", "F4", "4E", "CD", "0A", "4B", "DC", "A1", "94", "3A", "C3", "D4", "9B", "17", "1F", "00", "80", "00",
-            //if Array(packet[0..<6]) == [0, 0, 0, 1, 9, 240] {
-              //  packet = stripAUD(packet: packet)
-             //   if packet.count < 2 { continue }
-          //  }
+            if packet.count > 5 && Array(packet[0..<6]) == [0, 0, 0, 1, 9, 240]   {
+                packet = stripAUD(packet: packet)
+                if packet.count < 2 { continue }
+            }
+           //  print(packet.tohexNumbers)
          //   print(packet)
             analyzeNALAndDecode(packet: &packet)
             
         }
+        
+        decodeVideoPacket(packet: frameSlices, timingInfos: presentationTimestamps)
+        
     }
 
     
@@ -112,7 +123,7 @@ class H264Decoder {
  //print(packet)
         let preservedPacket = packet
         var lengthOfNAL = CFSwapInt32HostToBig((UInt32(packet.count - 4)))
-print("pack is: \(packet.tohexNumbers)")
+//print("pack is: \(packet.tohexNumbers)")
         memcpy(&packet, &lengthOfNAL, 4)
         // change to Avcc format
         
@@ -123,30 +134,30 @@ print("pack is: \(packet.tohexNumbers)")
         switch typeOfNAL {
         case TypeOfNAL.idr.rawValue, TypeOfNAL.bpFrame.rawValue:
             let timingInfo = presentationTimestamps[pictureCount]
-            print(timingInfo)
-            pictureCount += 1
-            decodeVideoPacket(packet: packet, timingInfos: timingInfo)
+            frameSlices.append(contentsOf: packet)
+            sizeArray.append(packet.count)
+           // print(timingInfo)
+        //    print(pictureCount)
+//            if decompressionSession != nil {
+//                pictureCount += 1
+//                decodeVideoPacket(packet: packet, timingInfos: timingInfo)
+//            }
         case TypeOfNAL.sps.rawValue:
             spsSize = packet.count - 4
             sps = Array(packet[4..<packet.count])
-          ///  updateDecompressionSession()
+            updateDecompressionSession()
         case TypeOfNAL.pps.rawValue:
             ppsSize = packet.count - 4
             pps = Array(packet[4..<packet.count])
             updateDecompressionSession()
-//        case TypeOfNAL.sei.rawValue:
-//            let listOfNal = parseSEI(packet: preservedPacket)
-//            guard let nalu = listOfNal else { break }
-//            nalu.forEach {
-//               // print($0.tohexNumbers)
-//                var mutableData = $0
-//                analyzeNALAndDecode(packet: &mutableData)
-//            }
-//
-//
-        default:
-          
+        case 0x09:
             break
+        case 0x06:
+            break
+        default:
+            break
+       //  decodeVideoPacket(packet: packet, timingInfos: CMSampleTimingInfo.invalid)
+
         }
      //   print(pictureCount)
         
@@ -165,7 +176,7 @@ print("pack is: \(packet.tohexNumbers)")
         return mutablePacket
     }
     
-    private func decodeVideoPacket(packet:[UInt8], timingInfos: CMSampleTimingInfo) {
+    private func decodeVideoPacket(packet:[UInt8], timingInfos: [CMSampleTimingInfo]) {
         let bufferPointer = UnsafeMutablePointer<UInt8>(mutating: packet)
         var blockBuffer: CMBlockBuffer?
 
@@ -185,18 +196,20 @@ print("pack is: \(packet.tohexNumbers)")
         
         
         var sampleBuffer: CMSampleBuffer?
-       
+         var timings = timingInfos
+        timings.removeLast()
         guard CMSampleBufferCreateReady(
             allocator: kCFAllocatorDefault,
             dataBuffer: blockBuffer,
             formatDescription: formatDescription,
-            sampleCount: 1,
-            sampleTimingEntryCount: 1,
-            sampleTimingArray: [timingInfos],
-            sampleSizeEntryCount: 1,
-            sampleSizeArray: [packet.count],
+            sampleCount: sizeArray.count,
+            sampleTimingEntryCount: timings.count,
+            sampleTimingArray: timings,
+            sampleSizeEntryCount: sizeArray.count,
+            sampleSizeArray: sizeArray,
             sampleBufferOut: &sampleBuffer) == kCMBlockBufferNoErr,
             let derivedSampleBuffer = sampleBuffer else {
+                print("fail")
                 return
         }
         
@@ -261,7 +274,13 @@ print("pack is: \(packet.tohexNumbers)")
         
         let decoderParameters = NSMutableDictionary()
         let decoderPixelBufferAttributes = NSMutableDictionary()
-        decoderPixelBufferAttributes.setValue(NSNumber(value: kCVPixelFormatType_420YpCbCr8BiPlanarFullRange as UInt32), forKey: kCVPixelBufferPixelFormatTypeKey as String)
+        decoderPixelBufferAttributes.setValue(NSNumber(value: kCVPixelFormatType_32BGRA as UInt32), forKey: kCVPixelBufferPixelFormatTypeKey as String)
+        
+       let attributes = [
+            kCVPixelBufferPixelFormatTypeKey: NSNumber(value: kCVPixelFormatType_32BGRA),
+            kCVPixelBufferIOSurfacePropertiesKey: [:] as AnyObject,
+            kCVPixelBufferOpenGLESCompatibilityKey: NSNumber(booleanLiteral: true)
+        ]
         
         var didSessionCreate:VTDecompressionOutputCallbackRecord = VTDecompressionOutputCallbackRecord(
             decompressionOutputCallback: callback,
@@ -270,7 +289,7 @@ print("pack is: \(packet.tohexNumbers)")
         
         let sessionStatus = VTDecompressionSessionCreate(allocator: kCFAllocatorDefault,
                                                          formatDescription: formatDescription,
-                                                         decoderSpecification: decoderParameters,
+                                                         decoderSpecification: attributes as CFDictionary?,
                                                          imageBufferAttributes: decoderPixelBufferAttributes,
                                                          outputCallback: &didSessionCreate,
                                                          decompressionSessionOut: &localSession)

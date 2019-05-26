@@ -39,7 +39,6 @@ class TSDecoder {
         var currentLeadingAudioPacket: TSStream?
         var videoPid: UInt16 = 0
         var audioPid: UInt16 = 0
-
         for packet in packets {
             
             let byteConvertedPacket = Array(packet)
@@ -64,9 +63,6 @@ class TSDecoder {
             if pesStartIndex > 184 {continue}
             let streamId = byteConvertedPacket[(pesStartIndex + 3)]
             
-            
-            
-            
             if !header.payloadUnitStartIndicator {
                 if header.pid == videoPid {
                     let actualData = Array(byteConvertedPacket[4...])
@@ -87,7 +83,7 @@ class TSDecoder {
                 
                 switch streamId {
                 case 224:
-                    
+                    currentLeadingAudioPacket = nil
                     currentLeadingVideoPacket = TSStream()
                     currentLeadingVideoPacket?.type = .video
                     videoPid = header.pid
@@ -115,7 +111,7 @@ class TSDecoder {
                     
                     let actualDataIndex = Int(pesStartIndex) + 8 + Int(pesHeaderLength) + 1
                     let actualData = Array(byteConvertedPacket[actualDataIndex...])
-                   //print("actual is\(actualData.tohexNumbers)")
+                    
                     currentLeadingVideoPacket?.actualData = actualData
                     streams.append(currentLeadingVideoPacket!)
                     
@@ -153,10 +149,9 @@ class TSDecoder {
                     continue
                     
                 }
+                
             }
-           
         }
-        
         return streams
     }
 }

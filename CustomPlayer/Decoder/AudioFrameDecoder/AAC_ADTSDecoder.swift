@@ -13,6 +13,7 @@ class AAC_ADTSDecoder: AudioTrackDecodable {
     
     var audioDelegate: MultiMediaAudioTypeDecoderDelegate?
     
+    var isAdts = true
     private(set) var track: Track
 
     private var derivedData: Data = Data()
@@ -32,7 +33,12 @@ class AAC_ADTSDecoder: AudioTrackDecodable {
         dataPackage.dataStorage.forEach {
             
             
-            mergedData.append($0.addADTS)
+            if isAdts{
+                mergedData.append($0.addADTS)
+                
+            } else {
+                mergedData.append($0)
+            }
         }
         
         audioDelegate?.prepareToPlay(with: mergedData)

@@ -102,7 +102,17 @@ class M3U8Decoder {
                         splitedURL.remove(at: (splitedURL.count - 1))
                         let newURL = String(splitedURL.joined(separator: "/"))
                         mediaSegment.path = newURL + "/\(line)"
-                        list.mediaSegments.append(mediaSegment)
+                        
+                        splitedURL.remove(at: (splitedURL.count - 1))
+                        let audioNewURL = String(splitedURL.joined(separator: "/")) + "/a1/"
+                        let audioFileType = String(line.split(separator: ".")[0]) + ".aac"
+                        
+                        let audioURL = audioNewURL + audioFileType
+                        let audioSeg = MediaSegment()
+                        audioSeg.path = audioURL
+                        list.videoMediaSegments.append(mediaSegment)
+                        if line.hasPrefix("#EXT-X-BITRATE") { continue }
+                        list.audioMediaSegments.append(audioSeg)
                         hasStreamInfo = false
                     }
                     guard !line.isEmpty || !line.hasPrefix("#EXTM3U") else { continue }

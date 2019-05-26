@@ -17,7 +17,8 @@ class MoviePlayer: NSObject {
     private let url: URL
     private let httpConnection: HTTPConnetion
     
-    var playerItemContext = 1
+    var playContext = 1
+    
     private var pastBufferCounts: [Int] = [] {
         didSet {
             if pastBufferCounts.count > 10 {
@@ -35,7 +36,7 @@ class MoviePlayer: NSObject {
     private var state: MediaStatus = .stopped
     private var audioDecoder: AudioTrackDecodable?
     private var videoDecoder: VideoTrackDecodable?
-    private var audioPlayer: AudioPlayer?
+    private var audioPlayer: AudioPlayer = AudioPlayer()
     
     private var dataFromDecoder = Data()
     
@@ -48,12 +49,19 @@ class MoviePlayer: NSObject {
     private var keyValueObservations = [NSKeyValueObservation]()
     
     var totalDuration = 0
+    var volume: Float {
+        get {
+            return audioPlayer.volume
+        }
+        
+        set {
+            audioPlayer.volume = newValue
+        }
+    }
     
     weak var delegate: VideoQueueDelegate?
     
-    var isPlayable: Bool {
-        return isVideoReady && isAudioReady
-    }
+   @objc dynamic var isPlayable: Bool = false
    
     private lazy var queue: DisplayLinkedQueue = {
         let queue: DisplayLinkedQueue = DisplayLinkedQueue()
@@ -74,31 +82,49 @@ class MoviePlayer: NSObject {
     }
     
     deinit {
-        queue.removeObserver(self, forKeyPath: "bufferCount")
+        queue.removeObserver(self, forKeyPath: "isReady")
+        audioPlayer.removeObserver(self, forKeyPath: "isReady")
     }
     
     func setObservers() {
-       queue.addObserver(self, forKeyPath: "bufferCount", options: .new, context: &playerItemContext)
+        queue.addObserver(self, forKeyPath: "isReady", options: .new, context: &playContext)
+        audioPlayer.addObserver(self, forKeyPath: "isReady", options: .new, context: &playContext)
     }
     
     override func observeValue(forKeyPath keyPath: String?, of object: Any?, change: [NSKeyValueChangeKey : Any]?, context: UnsafeMutableRawPointer?) {
         
-        guard context == &playerItemContext else {
+        guard context == &playContext else {
             super.observeValue(forKeyPath: keyPath, of: object, change: change, context: context)
             return
         }
         
-        if keyPath == #keyPath(DisplayLinkedQueue.bufferCount) {
-            guard let count = change?[.newKey] as? Int else { return }
-            if count == 0 {
-              //  fetchNextItem()
-            }
-           // pastBufferCounts.append(count)
+        guard context == &playContext else {
+            super.observeValue(forKeyPath: keyPath, of: object, change: change, context: context)
+            return
         }
+        
+        if keyPath == #keyPath(DisplayLinkedQueue.isReady) {
+            guard let isPlayable = change?[.newKey] as? Int else { return }
+            if isPlayable == 1 {
+                isVideoReady = true
+            }
+        }
+        
+        if keyPath == #keyPath(AudioPlayer.state) {
+            guard let state = change?[.newKey] as? Int else { return }
+            print(state)
+            if state == 1 {
+                isAudioReady = true
+            }
+        }
+        print(isAudioReady)
+        print(isVideoReady)
+        isPlayable = isAudioReady && isVideoReady
+        if isPlayable { queue.startRunning() }
         
     }
     
-    func loadPlayerAsynchronously(completion: @escaping (Result<MoviePlayer, Error>) -> Void) {
+    func loadPlayerAsynchronously(completion: @escaping (Result<Bool, Error>) -> Void) {
         jobQueue.async { [weak self] in
             guard let self = self else { return }
             if self.isFileBasedPlayer {
@@ -141,7 +167,7 @@ class MoviePlayer: NSObject {
                         return
                     }
                 }
-                completion(.success(self))
+                completion(.success(true))
             } else {
                
                 self.httpConnection.request(url: self.url) { (result, response) in
@@ -177,44 +203,56 @@ class MoviePlayer: NSObject {
                             guard let currentPlaylist = self.currentPlayingItemIndex else { return }
                             guard let tempPlaylistPath = masterPlaylist
                                 .mediaPlaylists[currentPlaylist.gear]
-                                .mediaSegments[currentPlaylist.index].path else { return }
+                                .videoMediaSegments[currentPlaylist.index].path else { return }
                           
                            guard let url = URL(string: tempPlaylistPath) else { return }
                             print(url)
-                  
+                            guard let audioURLString = masterPlaylist.mediaPlaylists[currentPlaylist.gear].audioMediaSegments[currentPlaylist.gear].path else { return }
+                            let audioURL = URL(string: audioURLString)
+                            
+                            
+                            self.totalDuration = 5960
+                            self.httpConnection.request(url: audioURL) { (result, response) in
+                                switch result {
+                                case .failure:
+                                    completion(.failure(APIError.requestFailed))
+                                case .success(let data):
+                                    var datas = [Data]()
+                                    datas.append(data)
+                                    
+                                    let dataPackage = DataPackage(presentationTimestamp: [Int](), dataStorage: datas)
+                                    self.audioDecoder = AAC_ADTSDecoder(track: Track(type: .audio), dataPackage: dataPackage)
+                                    self.audioDecoder?.isAdts = false
+                                    self.audioDecoder?.audioDelegate = self
+                                    self.audioDecoder?.decodeTrack(timeScale: 44100)
+                                }
+                            }
+     
                             self.httpConnection.request(url: url) { (result, response) in
                             switch result {
                             case .failure:
                                 completion(.failure(APIError.requestFailed))
                             case .success(let data):
                                 let decoder = TSDecoder(target: data)
-                                var tsStreams = decoder.decode()
+                                let tsStreams = decoder.decode()
                                 
                                 var videoDataArray = [UInt8]()
                                 var audioDataArray = [UInt8]()
                                 var videoTimings = [CMSampleTimingInfo]()
                                 var audioTimings = [CMSampleTimingInfo]()
                                 var pts: [Int] = []
-                                var count = 0
                                 var datas = [Data]()
-//                                for i in tsStreams {
-//                                    print(i.type)
-//                                    print(i.actualData.tohexNumbers)
-//                                }
-                               // tsStreams.sort()
                                 tsStreams.forEach {
                                     switch $0.type {
                                     case .video:
-                                       // print($0.pts)
                                         videoDataArray.append(contentsOf: $0.actualData)
-                                        videoTimings.append(CMSampleTimingInfo(duration: CMTime(value: 3000, timescale: 30000),
-                                                                               presentationTimeStamp: CMTime(value: CMTimeValue($0.pts), timescale: 30000),
-                                                                               decodeTimeStamp: CMTime(value: CMTimeValue($0.dts), timescale: 30000)))
+                                        videoTimings.append(CMSampleTimingInfo(duration: CMTime(value: 24, timescale: 1000),
+                                                                               presentationTimeStamp: CMTime(value: CMTimeValue($0.pts), timescale: 1000),
+                                                                               decodeTimeStamp: CMTime(value: CMTimeValue($0.dts), timescale: 1000)))
                                       
                                     case .audio:
                                         pts.append($0.pts)
                                         datas.append(Data($0.actualData))
-                                     //   print(datas.count)
                                         audioDataArray.append(contentsOf: $0.actualData)
                                         audioTimings.append(CMSampleTimingInfo(duration: CMTime(value: 3000, timescale: 30000),
                                                                                 presentationTimeStamp: CMTime(value: CMTimeValue($0.pts), timescale: 30000),
@@ -223,34 +261,32 @@ class MoviePlayer: NSObject {
                                         return
                                     }
                                 }
-                                
                                 let h264Decoder = H264Decoder(frames: videoDataArray, presentationTimestamps: videoTimings)
                                 h264Decoder.videoDecoderDelegate = self
                                 h264Decoder.decode()
                                 
-                              
-                                let dataPackage = DataPackage(presentationTimestamp: pts, dataStorage: datas)
-                                self.audioDecoder = AAC_ADTSDecoder(track: Track(type: .audio), dataPackage: dataPackage)
-                                self.audioDecoder?.audioDelegate = self
-                                self.audioDecoder?.decodeTrack(timeScale: 44100)
-                              //  print(videoTimings.count)
-                                
+                                if !audioDataArray.isEmpty {
+                                    let dataPackage = DataPackage(presentationTimestamp: pts, dataStorage: datas)
+                                    self.audioDecoder = AAC_ADTSDecoder(track: Track(type: .audio), dataPackage: dataPackage)
+                                    self.audioDecoder?.audioDelegate = self
+                                    self.audioDecoder?.decodeTrack(timeScale: 44100)
                                 }
-                        }// requ
+                                 completion(.success(true))
+                            }
+                        }
                     }
                 }
             }
         }
     }
-        
-    }
+}
     
     private func fetchNextItem() {
         guard let masterPlaylist = masterPlaylist, let currentIndex = currentPlayingItemIndex else { return }
         if currentIndex.index > 98 {return}
         let nextIndex = ListIndex(gear: currentIndex.gear, index: currentIndex.index + 1)
         currentPlayingItemIndex = nextIndex
-        guard let stringPath = masterPlaylist.mediaPlaylists[nextIndex.gear].mediaSegments[nextIndex.index].path else { return }
+        guard let stringPath = masterPlaylist.mediaPlaylists[nextIndex.gear].videoMediaSegments[nextIndex.index].path else { return }
         print(stringPath)
         httpConnection.request(url: URL(string: stringPath)) { (result, response) in
             switch result {
@@ -263,17 +299,16 @@ class MoviePlayer: NSObject {
                 var timings = [CMSampleTimingInfo]()
                 result.forEach {
                     dataArray.append(contentsOf: $0.actualData)
+                    let pts = $0.pts % 10 == 0 ? $0.pts : $0.pts + 1
+                    let dts = $0.dts % 10 == 0 ? $0.dts : $0.dts + 1
                     timings.append(CMSampleTimingInfo(duration: CMTime(value: 3000, timescale: 30000),
-                                                      presentationTimeStamp: CMTime(value: CMTimeValue($0.pts), timescale: 30000),
+                                                      presentationTimeStamp: CMTime(value: CMTimeValue(pts), timescale: 30000),
                                                       decodeTimeStamp: CMTime.invalid)) //CMTime(value: CMTimeValue($0.dts), timescale: 30000) ))
                 }
                 let h264Decoder = H264Decoder(frames: dataArray,
                                               presentationTimestamps: timings)
                 h264Decoder.videoDecoderDelegate = self
                 h264Decoder.decode()
-                
-                
-               
             }
             
         }
@@ -281,28 +316,32 @@ class MoviePlayer: NSObject {
     }
     
     func play() {
-        queue.startRunning()
-    //    audioPlayer?.playIfNeeded()
+        if isPlayable { queue.startRunning() }
+        
+        if !playing {
+            audioPlayer.playIfNeeded()
+        }
         playing = true
     }
     
     func pause() {
         queue.stopRunning()
-        audioPlayer?.pause()
+        audioPlayer.pause()
+        playing = false
     }
     
     func seek(to time: TimeInterval) {
-        audioPlayer?.seek(to: time)
-        audioPlayer?.parseDeliveredData(data: dataFromDecoder)
+        audioPlayer.seek(to: time)
+        audioPlayer.parseDeliveredData(data: dataFromDecoder)
     }
 }
 
 extension MoviePlayer: MultiMediaAudioTypeDecoderDelegate {
     func prepareToPlay(with data: Data) {
         isAudioReady = true
-    audioPlayer = AudioPlayer()
+    
         dataFromDecoder = data
-        audioPlayer?.parseDeliveredData(data: data)
+        audioPlayer.parseDeliveredData(data: data)
     }
     
 }
@@ -324,18 +363,11 @@ protocol VideoQueueDelegate: class {
 extension MoviePlayer: DisplayLinkedQueueDelegate {
     // MARK: DisplayLinkedQueue
     func queue(_ buffer: CMSampleBuffer) {
-//        if playing {
-//            play()
-//           //
-//        } else {
-//            playing = true
-//
-//        }
-        //print(buffer)
-        if playing {
-            self.audioPlayer?.playIfNeeded()
-        }
+
         delegate?.displayQueue(with: buffer)
+        if playing {
+            self.audioPlayer.playIfNeeded()
+        }
     }
 }
 

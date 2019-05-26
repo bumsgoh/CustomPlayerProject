@@ -20,7 +20,8 @@ class MediaPlaylist {
     var targetDuration: Int?
     var mediaSequence: Int?
     
-    var mediaSegments = [MediaSegment]()
+    var videoMediaSegments = [MediaSegment]()
+    var audioMediaSegments = [MediaSegment]()
     
     func parseMediaInfo(target: String) {
         let data = target.split(separator: ",")
