@@ -35,7 +35,10 @@ class TSDecoder {
         
         let packets = preprocessData()
         var streams: [TSStream] = []
-        var currentLeadingPacket: TSStream?
+        var currentLeadingVideoPacket: TSStream?
+        var currentLeadingAudioPacket: TSStream?
+        var videoPid: UInt16 = 0
+        var audioPid: UInt16 = 0
         for packet in packets {
             
             let byteConvertedPacket = Array(packet)
@@ -52,62 +55,103 @@ class TSDecoder {
             if header.error
                 || !header.hasPayloadData
                 || header.pid == 0x1fff
-                || header.pid == 4096
-                || header.pid == 0
-                || header.pid == 258
-                || header.pid == 256 { continue } // pid 1fff null packet
+                || header.pid == 0 { continue } // pid 1fff null packet, if 0 PAT Packet
            // print(header)
-           // print(byteConvertedPacket.tohexNumbers)
-            if !header.payloadUnitStartIndicator {
-                let actualData = Array(byteConvertedPacket[4...])
-                currentLeadingPacket?.actualData.append(contentsOf: actualData)
-                continue
-            } else {
-                let tsStream = TSStream()
-                currentLeadingPacket = tsStream
-              
-            }
-            
-            let pesStartIndex: Int = header.hasAfField ? Int(byteConvertedPacket[4]) + 4 + 1 : 5
-            //if pesStartIndex > 1 { continue }
-            
-            
+            //print(byteConvertedPacket.tohexNumbers)
+ 
+            let pesStartIndex: Int = header.hasAfField ? Int(byteConvertedPacket[4]) + 4 + 1 : 4
+            if pesStartIndex > 184 {continue}
             let streamId = byteConvertedPacket[(pesStartIndex + 3)]
             
-            let streamLength = (UInt16(byteConvertedPacket[pesStartIndex + 4]) << 8) | UInt16(byteConvertedPacket[pesStartIndex + 5])
-            let timeCodeFlag = (byteConvertedPacket[pesStartIndex + 7] >> 6) & 0x03
-            let pesHeaderLength = byteConvertedPacket[pesStartIndex + 8]
-            print("time is =>  \(timeCodeFlag)")
-            if header.payloadUnitStartIndicator {
-                switch timeCodeFlag {
-                case 2:
-                    let high = ((UInt16(byteConvertedPacket[pesStartIndex + 10]) << 8) | UInt16(byteConvertedPacket[pesStartIndex + 11])) >> 1
-                    let low = ((UInt16(byteConvertedPacket[pesStartIndex + 12]) << 8) | UInt16(byteConvertedPacket[pesStartIndex + 13])) >> 1
-                    currentLeadingPacket?.pts = Int(UInt32(high) << 15 | UInt32(low))
-                case 3:
-                    let high = ((UInt16(byteConvertedPacket[pesStartIndex + 10]) << 8) | UInt16(byteConvertedPacket[pesStartIndex + 11])) >> 1
-                    let low = ((UInt16(byteConvertedPacket[pesStartIndex + 12]) << 8) | UInt16(byteConvertedPacket[pesStartIndex + 13])) >> 1
-                    currentLeadingPacket?.pts = Int(UInt32(high) << 15 | UInt32(low))
+            if !header.payloadUnitStartIndicator {
+                if header.pid == videoPid {
+                    let actualData = Array(byteConvertedPacket[4...])
+                    currentLeadingVideoPacket?.actualData.append(contentsOf: actualData)
                     
-                    let dtsHigh = ((UInt16(byteConvertedPacket[pesStartIndex + 15]) << 8) | UInt16(byteConvertedPacket[pesStartIndex + 16])) >> 1
-                    let dtsLow = ((UInt16(byteConvertedPacket[pesStartIndex + 17]) << 8) | UInt16(byteConvertedPacket[pesStartIndex + 18])) >> 1
-                    currentLeadingPacket?.dts = Int(UInt32(dtsHigh) << 15 | UInt32(dtsLow))
-                  //  print("pts: \(tsStream.pts)")
-                case 0:
-                    currentLeadingPacket?.pts = 0
-                    currentLeadingPacket?.dts = 0
-                default:
-                    assertionFailure("fail")
+                } else {
+                    let actualData = Array(byteConvertedPacket[4...])
+                    currentLeadingAudioPacket?.actualData.append(contentsOf: actualData)
                 }
+                continue
+            } else {
+                
+                let streamLength = (UInt16(byteConvertedPacket[pesStartIndex + 4]) << 8) | UInt16(byteConvertedPacket[pesStartIndex + 5])
+                let timeCodeFlag = (byteConvertedPacket[pesStartIndex + 7] >> 6) & 0x03
+                let pesHeaderLength = byteConvertedPacket[pesStartIndex + 8]
+                
+                
+                
+                switch streamId {
+                case 224:
+                    currentLeadingAudioPacket = nil
+                    currentLeadingVideoPacket = TSStream()
+                    currentLeadingVideoPacket?.type = .video
+                    videoPid = header.pid
+                    
+                    switch timeCodeFlag {
+                    case 2:
+                        let high = ((UInt16(byteConvertedPacket[pesStartIndex + 10]) << 8) | UInt16(byteConvertedPacket[pesStartIndex + 11])) >> 1
+                        let low = ((UInt16(byteConvertedPacket[pesStartIndex + 12]) << 8) | UInt16(byteConvertedPacket[pesStartIndex + 13])) >> 1
+                        currentLeadingVideoPacket?.pts = Int(UInt32(high) << 15 | UInt32(low))
+                    case 3:
+                        let high = ((UInt16(byteConvertedPacket[pesStartIndex + 10]) << 8) | UInt16(byteConvertedPacket[pesStartIndex + 11])) >> 1
+                        let low = ((UInt16(byteConvertedPacket[pesStartIndex + 12]) << 8) | UInt16(byteConvertedPacket[pesStartIndex + 13])) >> 1
+                        currentLeadingVideoPacket?.pts = Int(UInt32(high) << 15 | UInt32(low))
+                        
+                        let dtsHigh = ((UInt16(byteConvertedPacket[pesStartIndex + 15]) << 8) | UInt16(byteConvertedPacket[pesStartIndex + 16])) >> 1
+                        let dtsLow = ((UInt16(byteConvertedPacket[pesStartIndex + 17]) << 8) | UInt16(byteConvertedPacket[pesStartIndex + 18])) >> 1
+                        currentLeadingVideoPacket?.dts = Int(UInt32(dtsHigh) << 15 | UInt32(dtsLow))
+                    //  print("pts: \(tsStream.pts)")
+                    case 0:
+                        currentLeadingVideoPacket?.pts = 0
+                        currentLeadingVideoPacket?.dts = 0
+                    default:
+                        assertionFailure("fail")
+                    }
+                    
+                    let actualDataIndex = Int(pesStartIndex) + 8 + Int(pesHeaderLength) + 1
+                    let actualData = Array(byteConvertedPacket[actualDataIndex...])
+                    
+                    currentLeadingVideoPacket?.actualData = actualData
+                    streams.append(currentLeadingVideoPacket!)
+                    
+                case 192:
+                    currentLeadingAudioPacket = TSStream()
+                    currentLeadingAudioPacket?.type = .audio
+                    audioPid = header.pid
+                    
+                    switch timeCodeFlag {
+                    case 2:
+                        let high = ((UInt16(byteConvertedPacket[pesStartIndex + 10]) << 8) | UInt16(byteConvertedPacket[pesStartIndex + 11])) >> 1
+                        let low = ((UInt16(byteConvertedPacket[pesStartIndex + 12]) << 8) | UInt16(byteConvertedPacket[pesStartIndex + 13])) >> 1
+                        currentLeadingAudioPacket?.pts = Int(UInt32(high) << 15 | UInt32(low))
+                    case 3:
+                        let high = ((UInt16(byteConvertedPacket[pesStartIndex + 10]) << 8) | UInt16(byteConvertedPacket[pesStartIndex + 11])) >> 1
+                        let low = ((UInt16(byteConvertedPacket[pesStartIndex + 12]) << 8) | UInt16(byteConvertedPacket[pesStartIndex + 13])) >> 1
+                        currentLeadingAudioPacket?.pts = Int(UInt32(high) << 15 | UInt32(low))
+                        
+                        let dtsHigh = ((UInt16(byteConvertedPacket[pesStartIndex + 15]) << 8) | UInt16(byteConvertedPacket[pesStartIndex + 16])) >> 1
+                        let dtsLow = ((UInt16(byteConvertedPacket[pesStartIndex + 17]) << 8) | UInt16(byteConvertedPacket[pesStartIndex + 18])) >> 1
+                        currentLeadingAudioPacket?.dts = Int(UInt32(dtsHigh) << 15 | UInt32(dtsLow))
+                    //  print("pts: \(tsStream.pts)")
+                    case 0:
+                        currentLeadingAudioPacket?.pts = 0
+                        currentLeadingAudioPacket?.dts = 0
+                    default:
+                        assertionFailure("fail")
+                    }
+                    
+                    let actualDataIndex = Int(pesStartIndex) + 8 + Int(pesHeaderLength) + 1
+                    let actualData = Array(byteConvertedPacket[actualDataIndex...])
+                    currentLeadingAudioPacket?.actualData = actualData
+                    streams.append(currentLeadingAudioPacket!)
+                default:
+                    continue
+                    
+                }
+                
             }
-             print("time is =>  \(currentLeadingPacket?.pts) , \(currentLeadingPacket?.dts)")
-            if streamId != 0xE0 { continue }
-            let actualDataIndex = Int(pesStartIndex) + 8 + Int(pesHeaderLength) + 1
-            let actualData = Array(byteConvertedPacket[actualDataIndex...])
-            currentLeadingPacket?.actualData = actualData
-            streams.append(currentLeadingPacket!)
         }
-        //streams.sort()
         return streams
     }
 }
@@ -142,13 +186,14 @@ class TSStream: Comparable {
     static func < (lhs: TSStream, rhs: TSStream) -> Bool {
         return lhs.pts < rhs.pts
     }
-    
+    var type: MediaType = .unknown
     var pts: Int = 0
     var dts: Int = 0
     var actualData: [UInt8] = []
 }
 
 struct TS {
+    
     enum MediaType {
         
         case MPEG2Video

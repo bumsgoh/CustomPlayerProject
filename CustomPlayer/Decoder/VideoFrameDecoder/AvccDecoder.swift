@@ -11,7 +11,6 @@ import VideoToolbox
 
 
 class AvccDecoder: NSObject, VideoTrackDecodable {
-    
     private(set) var track: Track
     
     private var isPrepared: Bool = false

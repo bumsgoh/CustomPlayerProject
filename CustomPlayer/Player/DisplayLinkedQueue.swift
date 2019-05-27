@@ -18,20 +18,20 @@ final class DisplayLinkedQueue: NSObject {
     private let lockQueue = DispatchQueue(label: "com.bumslap.DisplayLinkedQueue.lock")
     
     var running: Bool = false
-    var bufferTime: TimeInterval = 1 // sec
+    var bufferTime: TimeInterval = 5 // sec
     
     @objc dynamic var bufferCount = 0
     weak var delegate: DisplayLinkedQueueDelegate?
     
     private(set) var duration: TimeInterval = 0
     private var buffers: [CMSampleBuffer] = []
-    private var isReady: Bool = false
+    @objc dynamic var isReady: Bool = false
     private var mediaTime: CFTimeInterval = 0
     private var displayLink: CADisplayLink? {
         didSet {
             oldValue?.invalidate()
             guard let displayLink: CADisplayLink = displayLink else { return }
-            displayLink.preferredFramesPerSecond = 60
+            displayLink.preferredFramesPerSecond = 30
             displayLink.add(to: .main, forMode: .common)
         }
     }

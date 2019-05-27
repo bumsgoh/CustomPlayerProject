@@ -80,8 +80,8 @@ class M3U8Decoder {
     
     func parseMediaPlaylist(list: MediaPlaylist, completion: @escaping () -> Void) {
         guard let stringURL = list.path, let url = URL(string: stringURL) else { return }
-        let httpConnection = HTTPConnetion(url: url)
-        httpConnection.request { (result, response) in
+        let httpConnection = HTTPConnetion()
+        httpConnection.request(url: url) { (result, response) in
             switch result {
             case .failure:
                 print("")
@@ -102,7 +102,17 @@ class M3U8Decoder {
                         splitedURL.remove(at: (splitedURL.count - 1))
                         let newURL = String(splitedURL.joined(separator: "/"))
                         mediaSegment.path = newURL + "/\(line)"
-                        list.mediaSegments.append(mediaSegment)
+                        
+                        splitedURL.remove(at: (splitedURL.count - 1))
+                        let audioNewURL = String(splitedURL.joined(separator: "/")) + "/a1/"
+                        let audioFileType = String(line.split(separator: ".")[0]) + ".aac"
+                        
+                        let audioURL = audioNewURL + audioFileType
+                        let audioSeg = MediaSegment()
+                        audioSeg.path = audioURL
+                        list.videoMediaSegments.append(mediaSegment)
+                        if line.hasPrefix("#EXT-X-BITRATE") { continue }
+                        list.audioMediaSegments.append(audioSeg)
                         hasStreamInfo = false
                     }
                     guard !line.isEmpty || !line.hasPrefix("#EXTM3U") else { continue }
@@ -120,10 +130,14 @@ class M3U8Decoder {
                         let value = String(line.split(separator: ":")[1])
                         mediaSegment.duration = Float(value)
                         currentMediaSegment = mediaSegment
+                        hasStreamInfo = true
                         
                     } else if line.hasPrefix("#EXT-X-BITRATE") {
-                         hasStreamInfo = true
-                        
+                      hasStreamInfo = true
+                      
+                    } else if line.hasPrefix("#EXT-X-BYTERANGE") {
+                        hasStreamInfo = true
+
                     } else if line.hasPrefix("#EXT-X-MEDIA-SEQUENCE") {
                         // URI - must be
                     } else{

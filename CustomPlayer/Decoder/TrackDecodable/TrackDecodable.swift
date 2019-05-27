@@ -10,12 +10,13 @@ import Foundation
 import AVFoundation
 
 protocol TrackDecodable: class {
-
+   
     var track: Track { get }
     func decodeTrack(timeScale: Int)
 }
 
 protocol AudioTrackDecodable: TrackDecodable {
+     var isAdts: Bool { get set }
      var audioDelegate: MultiMediaAudioTypeDecoderDelegate? { get set }
 }
 
