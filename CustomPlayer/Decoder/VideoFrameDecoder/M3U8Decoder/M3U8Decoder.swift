@@ -137,7 +137,7 @@ class M3U8Decoder {
                       
                     } else if line.hasPrefix("#EXT-X-BYTERANGE") {
                         hasStreamInfo = true
-                       
+
                     } else if line.hasPrefix("#EXT-X-MEDIA-SEQUENCE") {
                         // URI - must be
                     } else{
