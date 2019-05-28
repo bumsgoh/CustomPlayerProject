@@ -242,15 +242,19 @@ class MoviePlayer: NSObject {
                                 var audioTimings = [CMSampleTimingInfo]()
                                 var pts: [Int] = []
                                 var datas = [Data]()
+                                var count = 0
                                 tsStreams.forEach {
                                     switch $0.type {
                                     case .video:
                                         videoDataArray.append(contentsOf: $0.actualData)
-                                        videoTimings.append(CMSampleTimingInfo(duration: CMTime(value: 24, timescale: 1000),
-                                                                               presentationTimeStamp: CMTime(value: CMTimeValue($0.pts), timescale: 1000),
+                                        videoTimings.append(CMSampleTimingInfo(duration: CMTime(value: 3000, timescale: 90000),
+                                                                               presentationTimeStamp: CMTime(value: CMTimeValue($0.pts), timescale: 90000),
                                                                                decodeTimeStamp: CMTime(value: CMTimeValue($0.dts), timescale: 1000)))
                                       
                                     case .audio:
+                                        
+                                        print(count)
+                                        count += 1
                                         pts.append($0.pts)
                                         datas.append(Data($0.actualData))
                                         audioDataArray.append(contentsOf: $0.actualData)
@@ -268,6 +272,7 @@ class MoviePlayer: NSObject {
                                 if !audioDataArray.isEmpty {
                                     let dataPackage = DataPackage(presentationTimestamp: pts, dataStorage: datas)
                                     self.audioDecoder = AAC_ADTSDecoder(track: Track(type: .audio), dataPackage: dataPackage)
+                                    self.audioDecoder?.isAdts = true
                                     self.audioDecoder?.audioDelegate = self
                                     self.audioDecoder?.decodeTrack(timeScale: 44100)
                                 }

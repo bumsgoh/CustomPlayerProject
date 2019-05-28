@@ -60,7 +60,8 @@ class H264Decoder {
             imageBuffer: decodedBuffer,
             formatDescriptionOut: &formatDescription
         )
-        
+
+
         var decodedSampleBuffer: CMSampleBuffer?
         CMSampleBufferCreateForImageBuffer(
             allocator: kCFAllocatorDefault,
@@ -72,8 +73,10 @@ class H264Decoder {
             sampleTiming: &timingInfo,
             sampleBufferOut: &decodedSampleBuffer
         )
-       
-            decoder.videoDecoderDelegate?.prepareToDisplay(with: decodedSampleBuffer!)
+        
+        guard let sample = decodedSampleBuffer else { return }
+      
+            decoder.videoDecoderDelegate?.prepareToDisplay(with: sample)
            // delegate?.sampleOutput(video: buffers.removeFirst())
         
        
@@ -97,9 +100,10 @@ class H264Decoder {
     func decode() {
         guard let nalu = makeNALUnits() else { return }
        // print("is cout:\(presentationTimestamps.count)")
-        
+        var count = 0
         for nal in nalu {
             //print("nalu: \(nal)")
+         
             var packet = nal
          //  print(packet.tohexNumbers)
            // ["00", "00", "00", "01", "09, 240"00", "00", "00", "01", "06", "05", "11", "03", "87", "F4", "4E", "CD", "0A", "4B", "DC", "A1", "94", "3A", "C3", "D4", "9B", "17", "1F", "00", "80", "00",
@@ -112,7 +116,7 @@ class H264Decoder {
             analyzeNALAndDecode(packet: &packet)
             
         }
-        
+    
         decodeVideoPacket(packet: frameSlices, timingInfos: presentationTimestamps)
         
     }
@@ -122,6 +126,7 @@ class H264Decoder {
         //   print(videoPacket)
  //print(packet)
         let preservedPacket = packet
+       
         var lengthOfNAL = CFSwapInt32HostToBig((UInt32(packet.count - 4)))
 //print("pack is: \(packet.tohexNumbers)")
         memcpy(&packet, &lengthOfNAL, 4)
@@ -134,6 +139,7 @@ class H264Decoder {
         switch typeOfNAL {
         case TypeOfNAL.idr.rawValue, TypeOfNAL.bpFrame.rawValue:
             let timingInfo = presentationTimestamps[pictureCount]
+            //print(packet.tohexNumbers)
             frameSlices.append(contentsOf: packet)
             sizeArray.append(packet.count)
            // print(timingInfo)
@@ -145,7 +151,7 @@ class H264Decoder {
         case TypeOfNAL.sps.rawValue:
             spsSize = packet.count - 4
             sps = Array(packet[4..<packet.count])
-            updateDecompressionSession()
+           // updateDecompressionSession()
         case TypeOfNAL.pps.rawValue:
             ppsSize = packet.count - 4
             pps = Array(packet[4..<packet.count])

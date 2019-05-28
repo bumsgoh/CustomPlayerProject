@@ -37,8 +37,10 @@ class TSDecoder {
         var streams: [TSStream] = []
         var currentLeadingVideoPacket: TSStream?
         var currentLeadingAudioPacket: TSStream?
-        var videoPid: UInt16 = 0
-        var audioPid: UInt16 = 0
+        var videoPid: UInt16 = 258
+        var audioPid: UInt16 = 257
+        
+        var count = 0
         for packet in packets {
             
             let byteConvertedPacket = Array(packet)
@@ -65,11 +67,11 @@ class TSDecoder {
             
             if !header.payloadUnitStartIndicator {
                 if header.pid == videoPid {
-                    let actualData = Array(byteConvertedPacket[4...])
+                    let actualData = Array(byteConvertedPacket[pesStartIndex...])
                     currentLeadingVideoPacket?.actualData.append(contentsOf: actualData)
-                    
+                    print(actualData.count)
                 } else {
-                    let actualData = Array(byteConvertedPacket[4...])
+                    let actualData = Array(byteConvertedPacket[pesStartIndex...])
                     currentLeadingAudioPacket?.actualData.append(contentsOf: actualData)
                 }
                 continue
@@ -83,7 +85,11 @@ class TSDecoder {
                 
                 switch streamId {
                 case 224:
-                    currentLeadingAudioPacket = nil
+                    print(count)
+                    count += 1
+                    print("formal: \(currentLeadingVideoPacket?.actualData.tohexNumbers)")
+                     print("formal count: \(currentLeadingVideoPacket?.actualData.count)")
+                    currentLeadingVideoPacket = nil
                     currentLeadingVideoPacket = TSStream()
                     currentLeadingVideoPacket?.type = .video
                     videoPid = header.pid
@@ -111,7 +117,7 @@ class TSDecoder {
                     
                     let actualDataIndex = Int(pesStartIndex) + 8 + Int(pesHeaderLength) + 1
                     let actualData = Array(byteConvertedPacket[actualDataIndex...])
-                    
+                    print("act\(actualData.tohexNumbers)")
                     currentLeadingVideoPacket?.actualData = actualData
                     streams.append(currentLeadingVideoPacket!)
                     
