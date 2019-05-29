@@ -174,7 +174,7 @@ class MoviePlayer: NSObject {
                     case .failure:
                         completion(.failure(APIError.requestFailed))
                     case .success(let data):
-                        let m3u8Player = M3U8Decoder(rawData: data, url: self.url.absoluteString)
+                        let m3u8Player = M3U8Parser(rawData: data, url: self.url.absoluteString)
                         guard let masterPlaylist = m3u8Player.parseMasterPlaylist() else {
                             completion(.failure(APIError.invalidData))
                             return
@@ -231,7 +231,7 @@ class MoviePlayer: NSObject {
                             case .failure:
                                 completion(.failure(APIError.requestFailed))
                             case .success(let data):
-                                let decoder = TSDecoder(target: data)
+                                let decoder = TSParser(target: data)
                                 let tsStreams = decoder.decode()
                                 
                                 var videoDataArray = [UInt8]()
@@ -291,7 +291,7 @@ class MoviePlayer: NSObject {
             case .failure:
                 assertionFailure("failed to fetch")
             case .success(let data):
-                let decoder = TSDecoder(target: data)
+                let decoder = TSParser(target: data)
                 let result = decoder.decode()
                 var dataArray = [UInt8]()
                 var timings = [CMSampleTimingInfo]()

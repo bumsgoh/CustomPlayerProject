@@ -8,7 +8,7 @@
 
 import Foundation
 
-class TSDecoder {
+class TSParser {
     private let packetLength = 188
     private let headerLength = 4
     private let targetData: Data
