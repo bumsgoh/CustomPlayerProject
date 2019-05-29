@@ -8,7 +8,7 @@
 
 import Foundation
 
-class TSDecoder {
+class TSParser {
     private let packetLength = 188
     private let headerLength = 4
     private let targetData: Data
@@ -37,10 +37,9 @@ class TSDecoder {
         var streams: [TSStream] = []
         var currentLeadingVideoPacket: TSStream?
         var currentLeadingAudioPacket: TSStream?
-        var videoPid: UInt16 = 258
-        var audioPid: UInt16 = 257
-        
-        var count = 0
+        var videoPid: UInt16 = 0
+        var audioPid: UInt16 = 0
+
         for packet in packets {
             
             let byteConvertedPacket = Array(packet)
@@ -58,9 +57,7 @@ class TSDecoder {
                 || !header.hasPayloadData
                 || header.pid == 0x1fff
                 || header.pid == 0 { continue } // pid 1fff null packet, if 0 PAT Packet
-           // print(header)
-            //print(byteConvertedPacket.tohexNumbers)
- 
+
             let pesStartIndex: Int = header.hasAfField ? Int(byteConvertedPacket[4]) + 4 + 1 : 4
             if pesStartIndex > 184 {continue}
             let streamId = byteConvertedPacket[(pesStartIndex + 3)]
@@ -69,7 +66,6 @@ class TSDecoder {
                 if header.pid == videoPid {
                     let actualData = Array(byteConvertedPacket[pesStartIndex...])
                     currentLeadingVideoPacket?.actualData.append(contentsOf: actualData)
-                    print(actualData.count)
                 } else {
                     let actualData = Array(byteConvertedPacket[pesStartIndex...])
                     currentLeadingAudioPacket?.actualData.append(contentsOf: actualData)
@@ -80,15 +76,9 @@ class TSDecoder {
                 let streamLength = (UInt16(byteConvertedPacket[pesStartIndex + 4]) << 8) | UInt16(byteConvertedPacket[pesStartIndex + 5])
                 let timeCodeFlag = (byteConvertedPacket[pesStartIndex + 7] >> 6) & 0x03
                 let pesHeaderLength = byteConvertedPacket[pesStartIndex + 8]
-                
-                
-                
+
                 switch streamId {
                 case 224:
-                    print(count)
-                    count += 1
-                    print("formal: \(currentLeadingVideoPacket?.actualData.tohexNumbers)")
-                     print("formal count: \(currentLeadingVideoPacket?.actualData.count)")
                     currentLeadingVideoPacket = nil
                     currentLeadingVideoPacket = TSStream()
                     currentLeadingVideoPacket?.type = .video
@@ -117,7 +107,6 @@ class TSDecoder {
                     
                     let actualDataIndex = Int(pesStartIndex) + 8 + Int(pesHeaderLength) + 1
                     let actualData = Array(byteConvertedPacket[actualDataIndex...])
-                    print("act\(actualData.tohexNumbers)")
                     currentLeadingVideoPacket?.actualData = actualData
                     streams.append(currentLeadingVideoPacket!)
                     
@@ -153,11 +142,10 @@ class TSDecoder {
                     streams.append(currentLeadingAudioPacket!)
                 default:
                     continue
-                    
                 }
-                
             }
         }
+
         return streams
     }
 }

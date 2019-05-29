@@ -117,8 +117,6 @@ class MoviePlayer: NSObject {
                 isAudioReady = true
             }
         }
-        print(isAudioReady)
-        print(isVideoReady)
         isPlayable = isAudioReady && isVideoReady
         if isPlayable { queue.startRunning() }
         
@@ -176,7 +174,7 @@ class MoviePlayer: NSObject {
                     case .failure:
                         completion(.failure(APIError.requestFailed))
                     case .success(let data):
-                        let m3u8Player = M3U8Decoder(rawData: data, url: self.url.absoluteString)
+                        let m3u8Player = M3U8Parser(rawData: data, url: self.url.absoluteString)
                         guard let masterPlaylist = m3u8Player.parseMasterPlaylist() else {
                             completion(.failure(APIError.invalidData))
                             return
@@ -197,8 +195,8 @@ class MoviePlayer: NSObject {
 //                            }
 //                        }
                         
-                        m3u8Player.parseMediaPlaylist(list: masterPlaylist.mediaPlaylists[0]) {
-                            self.currentPlayingItemIndex = ListIndex(gear: 0, index: 0)
+                        m3u8Player.parseMediaPlaylist(list: masterPlaylist.mediaPlaylists[2]) {
+                            self.currentPlayingItemIndex = ListIndex(gear: 2, index: 3)
                             self.masterPlaylist = masterPlaylist
                             guard let currentPlaylist = self.currentPlayingItemIndex else { return }
                             guard let tempPlaylistPath = masterPlaylist
@@ -233,7 +231,7 @@ class MoviePlayer: NSObject {
                             case .failure:
                                 completion(.failure(APIError.requestFailed))
                             case .success(let data):
-                                let decoder = TSDecoder(target: data)
+                                let decoder = TSParser(target: data)
                                 let tsStreams = decoder.decode()
                                 
                                 var videoDataArray = [UInt8]()
@@ -242,19 +240,15 @@ class MoviePlayer: NSObject {
                                 var audioTimings = [CMSampleTimingInfo]()
                                 var pts: [Int] = []
                                 var datas = [Data]()
-                                var count = 0
                                 tsStreams.forEach {
                                     switch $0.type {
                                     case .video:
                                         videoDataArray.append(contentsOf: $0.actualData)
-                                        videoTimings.append(CMSampleTimingInfo(duration: CMTime(value: 3000, timescale: 90000),
-                                                                               presentationTimeStamp: CMTime(value: CMTimeValue($0.pts), timescale: 90000),
+                                        videoTimings.append(CMSampleTimingInfo(duration: CMTime(value: 24, timescale: 1000),
+                                                                               presentationTimeStamp: CMTime(value: CMTimeValue($0.pts), timescale: 1000),
                                                                                decodeTimeStamp: CMTime(value: CMTimeValue($0.dts), timescale: 1000)))
                                       
                                     case .audio:
-                                        
-                                        print(count)
-                                        count += 1
                                         pts.append($0.pts)
                                         datas.append(Data($0.actualData))
                                         audioDataArray.append(contentsOf: $0.actualData)
@@ -272,7 +266,6 @@ class MoviePlayer: NSObject {
                                 if !audioDataArray.isEmpty {
                                     let dataPackage = DataPackage(presentationTimestamp: pts, dataStorage: datas)
                                     self.audioDecoder = AAC_ADTSDecoder(track: Track(type: .audio), dataPackage: dataPackage)
-                                    self.audioDecoder?.isAdts = true
                                     self.audioDecoder?.audioDelegate = self
                                     self.audioDecoder?.decodeTrack(timeScale: 44100)
                                 }
@@ -298,7 +291,7 @@ class MoviePlayer: NSObject {
             case .failure:
                 assertionFailure("failed to fetch")
             case .success(let data):
-                let decoder = TSDecoder(target: data)
+                let decoder = TSParser(target: data)
                 let result = decoder.decode()
                 var dataArray = [UInt8]()
                 var timings = [CMSampleTimingInfo]()

@@ -8,7 +8,7 @@
 
 import Foundation
 
-class M3U8Decoder {
+class M3U8Parser {
     
     private let url: String
     private let rawData: Data

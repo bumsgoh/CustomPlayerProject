@@ -30,8 +30,6 @@ class AvccDecoder: NSObject, VideoTrackDecodable {
         }
     }
     
-    private var semaphore: DispatchSemaphore = DispatchSemaphore(value: 1)
-    
     weak var videoDelegate: MultiMediaVideoTypeDecoderDelegate?
     weak var audioDelegate: MultiMediaAudioTypeDecoderDelegate? = nil
     
