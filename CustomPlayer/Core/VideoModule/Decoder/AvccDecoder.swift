@@ -78,7 +78,7 @@ class AvccDecoder: NSObject, VideoTrackDecodable {
             sampleTiming: &timingInfo,
             sampleBufferOut: &decodedSampleBuffer
         )
-        print(decodedSampleBuffer)
+     
         decoder.videoDelegate?.prepareToDisplay(with: decodedSampleBuffer!)
     }
     

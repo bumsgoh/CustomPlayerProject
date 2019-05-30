@@ -10,20 +10,29 @@ import Foundation
 
 class HTTPConnetion {
     public var session: URLSession
+    public var networkChecker: NetworkChecker
     
     public init() {
-        self.session = URLSession.shared
+        self.networkChecker = NetworkChecker.shared
+        let configuration = URLSessionConfiguration.default
+        configuration.timeoutIntervalForRequest = 10
+        self.session = URLSession(configuration: configuration)
     }
     
     public func request(url: URL?,
                         completion: @escaping (Result<Data, Error>, URLResponse?) -> ()) {
-    
+        networkChecker.setStartTime()
         guard let url = url else {
             completion(.failure(APIError.urlFailure), nil)
             return
         }
         
-        let task = session.dataTask(with: url) { (data, response, error) in
+        let task = session.dataTask(with: url) { [weak self] (data, response, error) in
+            
+            if response?.expectedContentLength ?? 0 > 0 {
+                self?.networkChecker.stopTimeTracking()
+                self?.networkChecker.getDataLength(size: Int(response!.expectedContentLength))
+            }
             
             if let error = error {
                 completion(.failure(error), response)
@@ -33,6 +42,8 @@ class HTTPConnetion {
                 completion(.failure(error ?? APIError.responseUnsuccessful), response)
                 return
             }
+            
+            
             guard let data = data else {
                 completion(.failure(APIError.invalidData), nil)
                 return
@@ -40,5 +51,9 @@ class HTTPConnetion {
             completion(.success(data), response)
         }
         task.resume()
+    }
+    
+    public func attach(netWorkChecker checker: NetworkChecker) {
+        self.networkChecker = checker
     }
 }

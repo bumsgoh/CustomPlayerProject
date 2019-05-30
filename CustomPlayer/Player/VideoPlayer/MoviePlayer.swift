@@ -167,117 +167,57 @@ class MoviePlayer: NSObject {
                 }
                 completion(.success(true))
             } else {
-               
-                self.httpConnection.request(url: self.url) { (result, response) in
-                    let startTime = Date()
-                    switch result {
-                    case .failure:
-                        completion(.failure(APIError.requestFailed))
-                    case .success(let data):
-                        let m3u8Player = M3U8Parser(rawData: data, url: self.url.absoluteString)
-                        guard let masterPlaylist = m3u8Player.parseMasterPlaylist() else {
-                            completion(.failure(APIError.invalidData))
-                            return
-                        }
-                        //TODO: initial ts file 설정하기
-                        guard let expectedLength = response?.expectedContentLength else { return }
-                        let length  = CGFloat(expectedLength) / 1000000.0
-                        let elapsed = CGFloat( Date().timeIntervalSince(startTime))
-                        let currentNetworkSpeed = length/elapsed
-//                        if currentNetworkSpeed < 1 {
-//                            m3u8Player.parseMediaPlaylist(list: masterPlaylist.mediaPlaylists[0]) {
-//                                self.currentPlayingItemIndex = ListIndex(gear: 0, index: 0)
-//                            }
-//
-//                        } else {
-//                            m3u8Player.parseMediaPlaylist(list: masterPlaylist.mediaPlaylists[3]) {
-//                                 self.currentPlayingItemIndex = ListIndex(gear: 3, index: 0)
-//                            }
-//                        }
-                        
-                        m3u8Player.parseMediaPlaylist(list: masterPlaylist.mediaPlaylists[2]) {
-                            self.currentPlayingItemIndex = ListIndex(gear: 2, index: 3)
-                            self.masterPlaylist = masterPlaylist
-                            guard let currentPlaylist = self.currentPlayingItemIndex else { return }
-                            guard let tempPlaylistPath = masterPlaylist
-                                .mediaPlaylists[currentPlaylist.gear]
-                                .videoMediaSegments[currentPlaylist.index].path else { return }
-                          
-                           guard let url = URL(string: tempPlaylistPath) else { return }
-                            print(url)
-                            guard let audioURLString = masterPlaylist.mediaPlaylists[currentPlaylist.gear].audioMediaSegments[currentPlaylist.gear].path else { return }
-                            let audioURL = URL(string: audioURLString)
-                            
-                            
-                            self.totalDuration = 5960
-                            self.httpConnection.request(url: audioURL) { (result, response) in
-                                switch result {
-                                case .failure:
-                                    completion(.failure(APIError.requestFailed))
-                                case .success(let data):
-                                    var datas = [Data]()
-                                    datas.append(data)
+                self.totalDuration = 5960
+                let tsLoader = TSLoader(url: self.url)
+                tsLoader.initializeLoader {
+                    tsLoader.fetchTsStream { (result) in
+                        switch result {
+                        case .failure(let error):
+                            completion(.failure(error))
+                        case .success(let tsStreams):
+                            var videoDataArray = [UInt8]()
+                            var audioDataArray = [UInt8]()
+                            var videoTimings = [CMSampleTimingInfo]()
+                            var audioTimings = [CMSampleTimingInfo]()
+                            var pts: [Int] = []
+                            var datas = [Data]()
+                            tsStreams.forEach {
+                                switch $0.type {
+                                case .video:
+                                    videoDataArray.append(contentsOf: $0.actualData)
+                                    videoTimings.append(CMSampleTimingInfo(duration: CMTime(value: 24, timescale: 1000),
+                                                                           presentationTimeStamp: CMTime(value: CMTimeValue($0.pts), timescale: 1000),
+                                                                           decodeTimeStamp: CMTime(value: CMTimeValue($0.dts), timescale: 1000)))
                                     
-                                    let dataPackage = DataPackage(presentationTimestamp: [Int](), dataStorage: datas)
-                                    self.audioDecoder = AAC_ADTSDecoder(track: Track(type: .audio), dataPackage: dataPackage)
-                                    self.audioDecoder?.isAdts = false
-                                    self.audioDecoder?.audioDelegate = self
-                                    self.audioDecoder?.decodeTrack(timeScale: 44100)
+                                case .audio:
+                                    pts.append($0.pts)
+                                    datas.append(Data($0.actualData))
+                                    audioDataArray.append(contentsOf: $0.actualData)
+                                    audioTimings.append(CMSampleTimingInfo(duration: CMTime(value: 3000, timescale: 30000),
+                                                                           presentationTimeStamp: CMTime(value: CMTimeValue($0.pts), timescale: 30000),
+                                                                           decodeTimeStamp: CMTime(value: CMTimeValue($0.dts), timescale: 30000)))
+                                case .unknown:
+                                    return
                                 }
                             }
-     
-                            self.httpConnection.request(url: url) { (result, response) in
-                            switch result {
-                            case .failure:
-                                completion(.failure(APIError.requestFailed))
-                            case .success(let data):
-                                let decoder = TSParser(target: data)
-                                let tsStreams = decoder.decode()
-                                
-                                var videoDataArray = [UInt8]()
-                                var audioDataArray = [UInt8]()
-                                var videoTimings = [CMSampleTimingInfo]()
-                                var audioTimings = [CMSampleTimingInfo]()
-                                var pts: [Int] = []
-                                var datas = [Data]()
-                                tsStreams.forEach {
-                                    switch $0.type {
-                                    case .video:
-                                        videoDataArray.append(contentsOf: $0.actualData)
-                                        videoTimings.append(CMSampleTimingInfo(duration: CMTime(value: 24, timescale: 1000),
-                                                                               presentationTimeStamp: CMTime(value: CMTimeValue($0.pts), timescale: 1000),
-                                                                               decodeTimeStamp: CMTime(value: CMTimeValue($0.dts), timescale: 1000)))
-                                      
-                                    case .audio:
-                                        pts.append($0.pts)
-                                        datas.append(Data($0.actualData))
-                                        audioDataArray.append(contentsOf: $0.actualData)
-                                        audioTimings.append(CMSampleTimingInfo(duration: CMTime(value: 3000, timescale: 30000),
-                                                                                presentationTimeStamp: CMTime(value: CMTimeValue($0.pts), timescale: 30000),
-                                                                                decodeTimeStamp: CMTime(value: CMTimeValue($0.dts), timescale: 30000)))
-                                    case .unknown:
-                                        return
-                                    }
-                                }
-                                let h264Decoder = H264Decoder(frames: videoDataArray, presentationTimestamps: videoTimings)
-                                h264Decoder.videoDecoderDelegate = self
-                                h264Decoder.decode()
-                                
-                                if !audioDataArray.isEmpty {
-                                    let dataPackage = DataPackage(presentationTimestamp: pts, dataStorage: datas)
-                                    self.audioDecoder = AAC_ADTSDecoder(track: Track(type: .audio), dataPackage: dataPackage)
-                                    self.audioDecoder?.audioDelegate = self
-                                    self.audioDecoder?.decodeTrack(timeScale: 44100)
-                                }
-                                 completion(.success(true))
-                            }
+                            
+                            let h264Decoder = H264Decoder(frames: videoDataArray, presentationTimestamps: videoTimings)
+                            h264Decoder.videoDecoderDelegate = self
+                            h264Decoder.decode()
+                           
+                            let dataPackage = DataPackage(presentationTimestamp: pts, dataStorage: datas)
+                            self.audioDecoder = AAC_ADTSDecoder(track: Track(type: .audio), dataPackage: dataPackage)
+                            self.audioDecoder?.isAdts = false
+                            self.audioDecoder?.audioDelegate = self
+                            self.audioDecoder?.decodeTrack(timeScale: 44100)
+                            
+                            completion(.success(true))
                         }
                     }
                 }
             }
         }
     }
-}
     
     private func fetchNextItem() {
         guard let masterPlaylist = masterPlaylist, let currentIndex = currentPlayingItemIndex else { return }

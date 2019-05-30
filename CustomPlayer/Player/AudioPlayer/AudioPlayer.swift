@@ -8,6 +8,8 @@
 
 import Foundation
 import AudioToolbox
+import CoreMedia
+import AVFoundation
 
 
 class AudioPlayer: NSObject {
@@ -17,6 +19,10 @@ class AudioPlayer: NSObject {
     private var isPlaying: Bool = false
     @objc dynamic var isReady: Bool = false
     @objc dynamic var state: MediaStatus = .stopped
+    private var dataBuffer: [Data] = []
+    private var currentIndex: Int = 0
+    var packetDescriptions: [AudioStreamPacketDescription] = []
+    var bufferTime: Int = 2
    // private var passedData: Data
     
     
@@ -38,6 +44,14 @@ class AudioPlayer: NSObject {
                 return
             }
             AudioFileStreamClose(oldValue)
+        }
+    }
+    
+    private var packetPerSecond: Int {
+        get {
+            guard let description = streamDescription else { return 0 }
+            let numberOfPackets = Int(description.mSampleRate / Float64(description.mFramesPerPacket))
+            return numberOfPackets
         }
     }
     
@@ -67,7 +81,7 @@ class AudioPlayer: NSObject {
                                        &sizeOfProperty,
                                        &audioStreamDescription)
             )
-  
+    
           audioPlayerSelfPointer.makeNewAudioQueue(audioStreamDescription)
     
     }
@@ -80,45 +94,22 @@ class AudioPlayer: NSObject {
         packetDescriptions) -> Void in
         let audioPlayerSelfPointer: AudioPlayer = unsafeBitCast(clientData,
                                                                 to: AudioPlayer.self)
+//        audioPlayerSelfPointer.appendPacketToBuffer(byteSize: numberBytes,
+//                                                    numberOfPackets: numberPackets,
+//                                                    dataPointer: inputData,
+//                                                    packetDescriptions: packetDescriptions)
+    
+    
+        for i in 0..<numberPackets {
+            audioPlayerSelfPointer.appendBuffer(inputData, inPacketDescription: &packetDescriptions[Int(i)])
+        }
 
-        var audioQueuebuffer: AudioQueueBufferRef?
-        
-        guard let audioQueue = audioPlayerSelfPointer.audioQueue else { return }
-        AudioQueueAllocateBuffer(audioQueue, numberBytes, &audioQueuebuffer)
-        audioQueuebuffer?.pointee.mAudioDataByteSize = numberBytes
-        memcpy(audioQueuebuffer?.pointee.mAudioData,
-               inputData,
-               Int(numberBytes))
-        AudioQueueEnqueueBuffer(audioQueue,
-                                audioQueuebuffer!,
-                                numberPackets,
-                                packetDescriptions)
+        audioPlayerSelfPointer.enqueuePacket(with: 0)
         audioPlayerSelfPointer.isReady = true
-        AudioQueuePrime(audioQueue, 0, nil)
 
         }
     
-    private var audioQueuePropertyListner: AudioQueuePropertyListenerProc = { (clientData,
-        audioQueueRef,
-        propertyID) in
-        
-        let audioPlayerSelfPointer: AudioPlayer = unsafeBitCast(clientData,
-                                                                to: AudioPlayer.self)
-        guard propertyID == kAudioQueueProperty_IsRunning else { return }
-        
-            var isRunning: UInt32 = 0
-            var propertySize: UInt32 = UInt32(MemoryLayout<UInt32>.size)
-        
-            assertDependOnMultiMediaValueStatus(
-                AudioQueueGetProperty(audioQueueRef,
-                propertyID,
-                &isRunning,
-                &propertySize)
-            )
-        
-        audioPlayerSelfPointer.isRunning = isRunning
-        
-    }
+
     
     private var outputListner: AudioQueueOutputCallback = { (clientData,
         audioQueue,
@@ -151,7 +142,6 @@ class AudioPlayer: NSObject {
             kAudioFileAAC_ADTSType,
             &fileStreamID)
         )
-       // parse()
     }
     
     deinit {
@@ -191,15 +181,7 @@ class AudioPlayer: NSObject {
        print(outDataByteOffset)
          let audioPlayerSelfPointer = unsafeBitCast(self, to: UnsafeMutableRawPointer.self)
         AudioQueueStart(audioQueue,nil)
-//        assertDependOnMultiMediaValueStatus(
-//            AudioFileStreamOpen(audioPlayerSelfPointer,
-//                                propertyListener,
-//                                packetInformationListner,
-//                                kAudioFileAAC_ADTSType,
-//                                &fileStreamID)
-//        )
-        //guard let audioQueue = audioQueue else { return }
-      //  )
+
     }
     
     private func makeNewAudioQueue(_ audioStreamDescription: AudioStreamBasicDescription) {
@@ -217,16 +199,67 @@ class AudioPlayer: NSObject {
                                 &audioQueue)
             )
         
-        guard let audioQueue = self.audioQueue else { return }
-        
-        assertDependOnMultiMediaValueStatus(
-            AudioQueueAddPropertyListener(audioQueue,
-                                          kAudioQueueProperty_IsRunning,
-                                          audioQueuePropertyListner,
-                                          audioPlayerSelfPointer)
-            )
+//        guard let audioQueue = self.audioQueue else { return }
+//
+//        assertDependOnMultiMediaValueStatus(
+//            AudioQueueAddPropertyListener(audioQueue,
+//                                          kAudioQueueProperty_IsRunning,
+//                                          audioQueuePropertyListner,
+//                                          audioPlayerSelfPointer)
+//            )
 
        // AudioQueueStart(audioQueue, nil)
+    }
+    
+    func enqueuePacket(with number: Int) {
+        guard let audioQueue = audioQueue else { return }
+        
+        var audioQueuebuffer: AudioQueueBufferRef?
+        var targetData = Array(dataBuffer[number...])
+        var targetDescriptions = Array(packetDescriptions[number...])
+        var numberOfBytes = 0
+        targetData.forEach {
+            numberOfBytes += $0.count
+        }
+        
+
+        AudioQueueAllocateBuffer(audioQueue, UInt32(numberOfBytes), &audioQueuebuffer)
+        audioQueuebuffer?.pointee.mAudioDataByteSize = UInt32(numberOfBytes)
+        memcpy(audioQueuebuffer?.pointee.mAudioData,
+               targetData,
+               Int(numberOfBytes))
+        AudioQueueEnqueueBuffer(audioQueue,
+                                audioQueuebuffer!,
+                                UInt32(targetData.count),
+                                &targetDescriptions)
+        
+        
+        
+    }
+
+    func appendBuffer(_ inInputData:UnsafeRawPointer,
+                       inPacketDescription:inout AudioStreamPacketDescription) {
+        
+    
+    
+        let offset:Int = Int(inPacketDescription.mStartOffset)
+        let packetSize:UInt32 = inPacketDescription.mDataByteSize
+//        if (isBufferFull(packetSize) || isPacketDescriptionsFull) {
+//            enqueueBuffer()
+//            rotateBuffer()
+//        }
+        dataBuffer.append(Data(bytes: inInputData, count: Int(packetSize)))
+        inPacketDescription.mStartOffset = Int64(offset)
+        packetDescriptions.append(inPacketDescription)
+//
+//        self.packetDescriptions.append(&packetDescriptions[i])
+//        dataBuffer.append(packetData)
+        
+        
+        
+      
+        
+
     }
     
     func parseDeliveredData(data: Data) {
@@ -241,10 +274,62 @@ class AudioPlayer: NSObject {
                                                        (data as NSData).bytes,
                                                        parseFlags)
                 )
-           // }
+    }
+    
+    
+    func getMagicCookieForFileStream() -> [UInt8]? {
+        guard let fileStreamID:AudioFileStreamID = fileStreamID else {
+            return nil
         }
+        var size:UInt32 = 0
+        var writable:DarwinBoolean = true
+        guard AudioFileStreamGetPropertyInfo(fileStreamID, kAudioFileStreamProperty_MagicCookieData, &size, &writable) == noErr else {
+           
+            return nil
+        }
+        var data:[UInt8] = [UInt8](repeating: 0, count: Int(size))
+        guard AudioFileStreamGetProperty(fileStreamID, kAudioFileStreamProperty_MagicCookieData, &size, &data) == noErr else {
+            
+            return nil
+        }
+        return data
+    }
     
     
+    func getFormatListForFileStream() -> [UInt8]? {
+        guard let fileStreamID:AudioFileStreamID = fileStreamID else {
+            return nil
+        }
+        var size:UInt32 = 0
+        var writable:DarwinBoolean = true
+        guard AudioFileStreamGetPropertyInfo(fileStreamID, kAudioFileStreamProperty_FormatList, &size, &writable) == noErr else {
+            
+            return nil
+        }
+        var data:[UInt8] = [UInt8](repeating: 0, count: Int(size))
+        guard AudioFileStreamGetProperty(fileStreamID, kAudioFileStreamProperty_FormatList, &size, &data) == noErr else {
+            
+            return nil
+        }
+        return data
+    }
     
+    func getChannelLayoutForFileStream() -> [UInt8]? {
+        guard let fileStreamID:AudioFileStreamID = fileStreamID else {
+            return nil
+        }
+        var size:UInt32 = 0
+        var writable:DarwinBoolean = true
+        guard AudioFileStreamGetPropertyInfo(fileStreamID, kAudioFileStreamProperty_ChannelLayout, &size, &writable) == noErr else {
+            
+            return nil
+        }
+        var data:[UInt8] = [UInt8](repeating: 0, count: Int(size))
+        guard AudioFileStreamGetProperty(fileStreamID, kAudioFileStreamProperty_ChannelLayout, &size, &data) == noErr else {
+            
+            return nil
+        }
+        return data
+    }
 }
 

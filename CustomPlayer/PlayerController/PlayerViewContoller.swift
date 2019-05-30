@@ -43,7 +43,6 @@ class PlayerViewContoller: UIViewController {
     private lazy var volumeSlider: UISlider = {
         let slider = UISlider(frame: .zero)
         slider.translatesAutoresizingMaskIntoConstraints = false
-        slider.transform = CGAffineTransform(scaleX: 1, y: 1)
         slider.setThumbImage(#imageLiteral(resourceName: "thumbImage"), for: .normal)
         slider.minimumTrackTintColor = #colorLiteral(red: 0.4901509881, green: 0.4902249575, blue: 0.4901347756, alpha: 1)
         slider.maximumTrackTintColor = #colorLiteral(red: 0.2274276018, green: 0.2274659276, blue: 0.2274191976, alpha: 1)
@@ -151,7 +150,7 @@ class PlayerViewContoller: UIViewController {
         //https://devstreaming-cdn.apple.com/videos/streaming/examples/bipbop_4x3/bipbop_4x3_variant.m3u8
         //https://video-dev.github.io/streams/test_001/stream.m3u8
         //https://devstreaming-cdn.apple.com/videos/streaming/examples/img_bipbop_adv_example_ts/master.m3u8
-//        guard let filePath = Bundle.main.path(forResource: "outputfilename", ofType: "mp4") else { return nil }
+//        guard let filePath = Bundle.main.path(forResource: "you", ofType: "mp4") else { return nil }
 //        let url = URL(fileURLWithPath: filePath)
         let player: MoviePlayer = MoviePlayer(url: url)
         player.delegate = self
