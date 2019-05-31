@@ -104,7 +104,7 @@ class AudioPlayer: NSObject {
             audioPlayerSelfPointer.appendBuffer(inputData, inPacketDescription: &packetDescriptions[Int(i)])
         }
 
-        audioPlayerSelfPointer.enqueuePacket(with: 0)
+    
         audioPlayerSelfPointer.isReady = true
 
         }
@@ -156,6 +156,9 @@ class AudioPlayer: NSObject {
         guard let audioQueue = audioQueue, !isPlaying else { return }
         isPlaying = true
         state = .playing
+        let cookie = getMagicCookieForFileStream()
+        setMagicCookieForQueue(cookie!)
+        self.enqueuePacket(with: 10)
         AudioQueuePrime(audioQueue, 5, nil)
         AudioQueueStart(audioQueue,nil)
     }
@@ -217,21 +220,55 @@ class AudioPlayer: NSObject {
         var audioQueuebuffer: AudioQueueBufferRef?
         var targetData = Array(dataBuffer[number...])
         var targetDescriptions = Array(packetDescriptions[number...])
+        
+        for i in 0..<targetDescriptions.count {
+            targetDescriptions[i].mStartOffset -= 4010
+            targetDescriptions[i].mDataByteSize = UInt32(targetData[i].count) - 7
+        }
+        
         var numberOfBytes = 0
         targetData.forEach {
             numberOfBytes += $0.count
         }
-        
-
-        AudioQueueAllocateBuffer(audioQueue, UInt32(numberOfBytes), &audioQueuebuffer)
+//        targetData.forEach {
+//       //     print("is super origin\(Array($0).tohexNumbers)")
+//        }
+        AudioQueueAllocateBufferWithPacketDescriptions(audioQueue, UInt32(numberOfBytes), UInt32(targetDescriptions.count), &audioQueuebuffer)
+       // AudioQueueAllocateBuffer(audioQueue, UInt32(numberOfBytes), &audioQueuebuffer)
         audioQueuebuffer?.pointee.mAudioDataByteSize = UInt32(numberOfBytes)
-        memcpy(audioQueuebuffer?.pointee.mAudioData,
-               targetData,
-               Int(numberOfBytes))
-        AudioQueueEnqueueBuffer(audioQueue,
-                                audioQueuebuffer!,
-                                UInt32(targetData.count),
-                                &targetDescriptions)
+        
+        let resultData = Data(targetData.joined())
+     
+        resultData.withUnsafeBytes { (byte) -> Void in
+            memcpy(audioQueuebuffer?.pointee.mAudioData,
+                   byte,
+                   Int(numberOfBytes))
+        }
+        
+        
+        print("")
+        print("")
+        print("")
+        print("")
+        print("is pack desc\(packetDescriptions)")
+        let descPointer = UnsafePointer<AudioStreamPacketDescription>(&targetDescriptions)
+        print("___________________________________________")
+        
+        print(Array(Data(bytes: (audioQueuebuffer?.pointee.mAudioData)!, count: numberOfBytes)).tohexNumbers)
+        
+       // targetDescriptions.withUnsafePointer { (description) -> Void in
+            AudioQueueEnqueueBuffer(audioQueue,
+                                    audioQueuebuffer!,
+                                    UInt32(targetData.count),
+                                    descPointer)
+        for i in 0..<targetDescriptions.count {
+            let desc: AudioStreamPacketDescription = descPointer[i]
+            print(desc)
+        }
+       // }
+       
+        
+        
         
         
         
@@ -248,7 +285,7 @@ class AudioPlayer: NSObject {
 //            enqueueBuffer()
 //            rotateBuffer()
 //        }
-        dataBuffer.append(Data(bytes: inInputData, count: Int(packetSize)))
+        dataBuffer.append(Data(bytes: inInputData + offset - 7, count: Int(packetSize + 7)))
         inPacketDescription.mStartOffset = Int64(offset)
         packetDescriptions.append(inPacketDescription)
 //
@@ -331,5 +368,19 @@ class AudioPlayer: NSObject {
         }
         return data
     }
+    
+    func setMagicCookieForQueue(_ inData: [UInt8]) -> Bool {
+        guard let queue:AudioQueueRef = audioQueue else {
+            return false
+        }
+        var status:OSStatus = noErr
+        status = AudioQueueSetProperty(queue, kAudioQueueProperty_MagicCookie, inData, UInt32(inData.count))
+        guard status == noErr else {
+            
+            return false
+        }
+        return true
+    }
+    
 }
 

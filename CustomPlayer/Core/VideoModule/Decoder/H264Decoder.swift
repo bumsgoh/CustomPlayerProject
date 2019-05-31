@@ -182,7 +182,6 @@ class H264Decoder {
         
         var sampleBuffer: CMSampleBuffer?
         let timing = timingInfo
-        print(timing)
         guard CMSampleBufferCreateReady(
             allocator: kCFAllocatorDefault,
             dataBuffer: blockBuffer,

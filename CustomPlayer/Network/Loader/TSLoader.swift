@@ -37,8 +37,8 @@ class TSLoader: NSObject {
             case .success(let playlist):
                 self.masterPlaylist = playlist
                 // TODO: Calc net speed
-                self.currentMediaPlaylist = playlist.mediaPlaylists[1]
-                self.currentPlayingItemIndex = ListIndex(gear: 1, index: 0)
+                self.currentMediaPlaylist = playlist.mediaPlaylists[0]
+                self.currentPlayingItemIndex = ListIndex(gear: 0, index: 0)
                 guard let mediaPlaylist = self.currentMediaPlaylist else { return }
                 self.m3u8Parser.parseMediaPlaylist(list: mediaPlaylist) {
                     self.isLoaderReady = true
