@@ -43,7 +43,7 @@ final class DisplayLinkedQueue: NSObject {
             self.buffers.append(buffer)
             self.bufferCount += 1
             if !self.isReady {
-                self.isReady = self.duration <= self.bufferTime
+                self.isReady = self.duration >= self.bufferTime
             }
         }
     }

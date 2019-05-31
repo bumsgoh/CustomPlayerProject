@@ -284,8 +284,8 @@ class H264Decoder {
         var nal = [UInt8]()
         var nalu: [[UInt8]] = []
         var startCodeFlag = false
+        
         while true {
-            
             while Array(mutableFrames[index..<(index + VideoCodingConstant.startCodeBType.count)])
                 != VideoCodingConstant.startCodeBType
                 && Array(mutableFrames[index..<(index + VideoCodingConstant.startCodeAType.count)]) != VideoCodingConstant.startCodeAType {
@@ -310,49 +310,6 @@ class H264Decoder {
         }
         return nalu
     }
-}
-
-func parseSEI(packet: [UInt8]) -> [[UInt8]]? {
-    
-    var mutableFrames = Array(packet[1...])
-    var nalu: [[UInt8]] = []
-    let startCode = VideoCodingConstant.startCodeBType
-    let startCodeSize = 3
-    var startIndex = startCodeSize
-    var processing = false
-    
-    if mutableFrames.isEmpty  {
-        return nil
-    }
-    
-    if mutableFrames.count < startCodeSize + 1 || Array(mutableFrames[0..<startCode.count]) != VideoCodingConstant.startCodeBType {
-        return nil
-    }
-    
-    //while true {
-   // print("count: \(mutableFrames.count)")
-    while ((startIndex + startCodeSize - 1) < mutableFrames.count) {
-        processing = true
-        if Array(mutableFrames[startIndex..<(startIndex + startCodeSize)]) ==  VideoCodingConstant.startCodeBType {
-            
-            var packet = Array(mutableFrames[0..<startIndex])
-            if startCode == VideoCodingConstant.startCodeBType {
-                packet.insert(0, at: 0)
-            }
-            
-            mutableFrames.removeSubrange(0..<startIndex)
-            startIndex = startCodeSize
-            processing = false
-            nalu.append(packet)
-        }
-        startIndex += 1
-        //   }
-        
-    }
-    if processing { nalu.append(mutableFrames) }
-    if !nalu.isEmpty { nalu.remove(at: 0) }
-   // print(nalu)
-    return nalu
 }
 
 
