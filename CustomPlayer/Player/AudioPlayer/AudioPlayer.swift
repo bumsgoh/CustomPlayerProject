@@ -68,6 +68,7 @@ class AudioPlayer: NSObject {
         let audioPlayerSelfPointer: AudioPlayer = unsafeBitCast(clientData,
                                                                 to: AudioPlayer.self)
         guard propertyID == kAudioFileStreamProperty_DataFormat else { return }
+    
         var sizeOfProperty: UInt32 = 0
         var isWritable: DarwinBoolean = false
         var audioStreamDescription = AudioStreamBasicDescription()
@@ -99,12 +100,15 @@ class AudioPlayer: NSObject {
         packetDescriptions) -> Void in
         let audioPlayerSelfPointer: AudioPlayer = unsafeBitCast(clientData,
                                                                 to: AudioPlayer.self)
-    
+        print(numberPackets)
+        guard numberBytes > 1 else { return }
         for index in 0..<numberPackets {
             audioPlayerSelfPointer.appendBuffer(inputData, inPacketDescription: &packetDescriptions[Int(index)])
         }
+        audioPlayerSelfPointer.enqueuePacket(with: audioPlayerSelfPointer.readIndex)
+        audioPlayerSelfPointer.readIndex += audioPlayerSelfPointer.dataBuffer.count
 
-      // audioPlayerSelfPointer.isReady = true
+    
 
     }
 
@@ -235,6 +239,8 @@ class AudioPlayer: NSObject {
                                 audioQueuebuffer!,
                                 UInt32(targetData.count),
                                 descPointer)
+        
+        self.isReady = true
         AudioQueueFreeBuffer(audioQueue, audioQueuebuffer!)
         
     }
@@ -249,12 +255,7 @@ class AudioPlayer: NSObject {
         packetDescriptions.append(inPacketDescription)
         dataBuffer.append(Data(bytes: inInputData + offset - 7, count: Int(packetSize + 7)))
         
-        if bufferTime <= packetPerSecond * dataBuffer.count && !isReady {
-            enqueuePacket(with: readIndex)
-            readIndex += packetPerSecond * bufferTime
-          //  self.isReady = self.duration >= self.bufferTime
-        }
-
+     
     }
     
     func parseDeliveredData(data: Data) {

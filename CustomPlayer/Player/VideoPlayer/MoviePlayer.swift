@@ -110,7 +110,7 @@ class MoviePlayer: NSObject {
             }
         }
         
-        if keyPath == #keyPath(AudioPlayer.state) {
+        if keyPath == #keyPath(AudioPlayer.isReady) {
             guard let state = change?[.newKey] as? Int else { return }
             print(state)
             if state == 1 {
@@ -276,9 +276,6 @@ class MoviePlayer: NSObject {
 
 extension MoviePlayer: MultiMediaAudioTypeDecoderDelegate {
     func prepareToPlay(with data: Data) {
-        isAudioReady = true
-    
-        dataFromDecoder = data
         audioPlayer.parseDeliveredData(data: data)
     }
     
