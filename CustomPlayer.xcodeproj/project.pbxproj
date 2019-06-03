@@ -9,7 +9,6 @@
 /* Begin PBXBuildFile section */
 		C91E43FB2281DE4000435465 /* you.mp4 in Resources */ = {isa = PBXBuildFile; fileRef = C91E43FA2281DE4000435465 /* you.mp4 */; };
 		C91E43FD2281E12D00435465 /* ten.mp4 in Resources */ = {isa = PBXBuildFile; fileRef = C91E43FC2281E12D00435465 /* ten.mp4 */; };
-		C91E440F22830C7000435465 /* Playable.swift in Sources */ = {isa = PBXBuildFile; fileRef = C91E440E22830C7000435465 /* Playable.swift */; };
 		C91E441122833A7600435465 /* AudioPlayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = C91E441022833A7600435465 /* AudioPlayer.swift */; };
 		C91E442D2285E13100435465 /* MediaMixer.swift in Sources */ = {isa = PBXBuildFile; fileRef = C91E442C2285E13100435465 /* MediaMixer.swift */; };
 		C91E44322286AF1800435465 /* AudioStreamer.swift in Sources */ = {isa = PBXBuildFile; fileRef = C91E44312286AF1800435465 /* AudioStreamer.swift */; };
@@ -32,7 +31,9 @@
 		C9C28ED4229192EB00337CC7 /* MediaPlaylist.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9C28ED3229192EB00337CC7 /* MediaPlaylist.swift */; };
 		CE0810BC229D02B0009ED5DB /* outputfilename.mp4 in Resources */ = {isa = PBXBuildFile; fileRef = CE0810BB229D02B0009ED5DB /* outputfilename.mp4 */; };
 		CE0810BF229F5051009ED5DB /* NetworkChecker.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE0810BE229F5051009ED5DB /* NetworkChecker.swift */; };
-		CE2D62C22282BF120078D2C5 /* Mpeg4File.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE2D62C12282BF120078D2C5 /* Mpeg4File.swift */; };
+		CE0810C122A4D623009ED5DB /* NetworkLoadPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE0810C022A4D623009ED5DB /* NetworkLoadPolicy.swift */; };
+		CE0810C422A52E35009ED5DB /* Math.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE0810C322A52E35009ED5DB /* Math.swift */; };
+		CE0810C622A52E43009ED5DB /* MediaModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE0810C522A52E43009ED5DB /* MediaModels.swift */; };
 		CE2D62C72282C9940078D2C5 /* MediaFileReadable.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE2D62C62282C9940078D2C5 /* MediaFileReadable.swift */; };
 		CE2D62CD2282D4BC0078D2C5 /* MediaPlayable.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE2D62CC2282D4BC0078D2C5 /* MediaPlayable.swift */; };
 		CE2D62D4228572BF0078D2C5 /* MoviePlayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE2D62D3228572BF0078D2C5 /* MoviePlayer.swift */; };
@@ -59,7 +60,6 @@
 /* Begin PBXFileReference section */
 		C91E43FA2281DE4000435465 /* you.mp4 */ = {isa = PBXFileReference; lastKnownFileType = file; path = you.mp4; sourceTree = "<group>"; };
 		C91E43FC2281E12D00435465 /* ten.mp4 */ = {isa = PBXFileReference; lastKnownFileType = file; path = ten.mp4; sourceTree = "<group>"; };
-		C91E440E22830C7000435465 /* Playable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Playable.swift; sourceTree = "<group>"; };
 		C91E441022833A7600435465 /* AudioPlayer.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = AudioPlayer.swift; sourceTree = "<group>"; };
 		C91E442C2285E13100435465 /* MediaMixer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaMixer.swift; sourceTree = "<group>"; };
 		C91E44312286AF1800435465 /* AudioStreamer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioStreamer.swift; sourceTree = "<group>"; };
@@ -82,7 +82,9 @@
 		C9C28ED3229192EB00337CC7 /* MediaPlaylist.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaPlaylist.swift; sourceTree = "<group>"; };
 		CE0810BB229D02B0009ED5DB /* outputfilename.mp4 */ = {isa = PBXFileReference; lastKnownFileType = file; path = outputfilename.mp4; sourceTree = "<group>"; };
 		CE0810BE229F5051009ED5DB /* NetworkChecker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkChecker.swift; sourceTree = "<group>"; };
-		CE2D62C12282BF120078D2C5 /* Mpeg4File.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Mpeg4File.swift; sourceTree = "<group>"; };
+		CE0810C022A4D623009ED5DB /* NetworkLoadPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkLoadPolicy.swift; sourceTree = "<group>"; };
+		CE0810C322A52E35009ED5DB /* Math.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Math.swift; sourceTree = "<group>"; };
+		CE0810C522A52E43009ED5DB /* MediaModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaModels.swift; sourceTree = "<group>"; };
 		CE2D62C62282C9940078D2C5 /* MediaFileReadable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaFileReadable.swift; sourceTree = "<group>"; };
 		CE2D62CC2282D4BC0078D2C5 /* MediaPlayable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaPlayable.swift; sourceTree = "<group>"; };
 		CE2D62D3228572BF0078D2C5 /* MoviePlayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MoviePlayer.swift; sourceTree = "<group>"; };
@@ -159,6 +161,7 @@
 			isa = PBXGroup;
 			children = (
 				C9A7559D229EBBBF0043E812 /* TSLoader.swift */,
+				CE0810C022A4D623009ED5DB /* NetworkLoadPolicy.swift */,
 			);
 			path = Loader;
 			sourceTree = "<group>";
@@ -187,7 +190,6 @@
 				C9A8A2142277DF1300EB3FBC /* FileStreamReadable.swift */,
 				C9A8A2162277DF1300EB3FBC /* FileReader.swift */,
 				CE2D62C62282C9940078D2C5 /* MediaFileReadable.swift */,
-				CE2D62C82282CB9B0078D2C5 /* Mpeg4Parser */,
 			);
 			path = FileReader;
 			sourceTree = "<group>";
@@ -195,6 +197,7 @@
 		C9A8A2222277DF6E00EB3FBC /* Parser */ = {
 			isa = PBXGroup;
 			children = (
+				CE2D62C82282CB9B0078D2C5 /* Mpeg4Parser */,
 				C9A7559B229EB8CB0043E812 /* TSParser */,
 				C9C28ED022915D3700337CC7 /* M3U8Parser */,
 			);
@@ -220,21 +223,13 @@
 			path = NetworkChecker;
 			sourceTree = "<group>";
 		};
-		CE2D62C02282BEEA0078D2C5 /* Playable */ = {
+		CE0810C222A52E2D009ED5DB /* Sharing */ = {
 			isa = PBXGroup;
 			children = (
-				C91E440E22830C7000435465 /* Playable.swift */,
-				CE2D62C52282BF3D0078D2C5 /* MPEG4 */,
+				CE0810C322A52E35009ED5DB /* Math.swift */,
+				CE0810C522A52E43009ED5DB /* MediaModels.swift */,
 			);
-			path = Playable;
-			sourceTree = "<group>";
-		};
-		CE2D62C52282BF3D0078D2C5 /* MPEG4 */ = {
-			isa = PBXGroup;
-			children = (
-				CE2D62C12282BF120078D2C5 /* Mpeg4File.swift */,
-			);
-			path = MPEG4;
+			path = Sharing;
 			sourceTree = "<group>";
 		};
 		CE2D62C82282CB9B0078D2C5 /* Mpeg4Parser */ = {
@@ -294,9 +289,9 @@
 		CEF94B80226E8F7D006B7528 /* CustomPlayer */ = {
 			isa = PBXGroup;
 			children = (
+				CE0810C222A52E2D009ED5DB /* Sharing */,
 				CEFE47C222923E1E006D6AFE /* Network */,
 				CE2D62C92282D4820078D2C5 /* Player */,
-				CE2D62C02282BEEA0078D2C5 /* Playable */,
 				CEF94BD4227AEDAB006B7528 /* PlayerController */,
 				CEF94BCF227AD2EC006B7528 /* Core */,
 				C9A8A21E2277DF2400EB3FBC /* Extensions */,
@@ -464,6 +459,7 @@
 				C9C28ED4229192EB00337CC7 /* MediaPlaylist.swift in Sources */,
 				C9A8A21D2277DF1400EB3FBC /* Extenstions.swift in Sources */,
 				C9A8A2132277DF0500EB3FBC /* Models.swift in Sources */,
+				CE0810C622A52E43009ED5DB /* MediaModels.swift in Sources */,
 				C91E44322286AF1800435465 /* AudioStreamer.swift in Sources */,
 				C97E79532291C5B2002E081C /* MediaSegment.swift in Sources */,
 				CEFE47C6229242B3006D6AFE /* URLResponse+.swift in Sources */,
@@ -472,6 +468,7 @@
 				C9A8A21B2277DF1400EB3FBC /* FileReader.swift in Sources */,
 				C9A8A2192277DF1400EB3FBC /* FileStreamReadable.swift in Sources */,
 				CEFE47C42292416E006D6AFE /* HTTPConnetion.swift in Sources */,
+				CE0810C422A52E35009ED5DB /* Math.swift in Sources */,
 				C9C28ED222915DA900337CC7 /* MasterPlaylist.swift in Sources */,
 				C91E441122833A7600435465 /* AudioPlayer.swift in Sources */,
 				CEF94B9A226ED513006B7528 /* AvccDecoder.swift in Sources */,
@@ -483,12 +480,11 @@
 				CE2D62D6228B9C180078D2C5 /* TSParser.swift in Sources */,
 				C9A8A21A2277DF1400EB3FBC /* Mpeg4Parser.swift in Sources */,
 				CEF94BD9227AEE9C006B7528 /* CustomizedPlayerView.swift in Sources */,
-				CE2D62C22282BF120078D2C5 /* Mpeg4File.swift in Sources */,
 				CE2D62CD2282D4BC0078D2C5 /* MediaPlayable.swift in Sources */,
 				C91E44342286B95000435465 /* DisplayLinkedQueue.swift in Sources */,
+				CE0810C122A4D623009ED5DB /* NetworkLoadPolicy.swift in Sources */,
 				CEF94B9C226EDE78006B7528 /* MultiMediaVideoTypeDecoderDelegate.swift in Sources */,
 				C91E442D2285E13100435465 /* MediaMixer.swift in Sources */,
-				C91E440F22830C7000435465 /* Playable.swift in Sources */,
 				C9A8A2092272ECEC00EB3FBC /* Container.swift in Sources */,
 				CEF94BCE227AD2E0006B7528 /* AAC_ADTSDecoder.swift in Sources */,
 				CE0810BF229F5051009ED5DB /* NetworkChecker.swift in Sources */,

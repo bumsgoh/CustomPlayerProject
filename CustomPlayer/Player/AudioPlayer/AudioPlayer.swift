@@ -100,7 +100,7 @@ class AudioPlayer: NSObject {
         packetDescriptions) -> Void in
         let audioPlayerSelfPointer: AudioPlayer = unsafeBitCast(clientData,
                                                                 to: AudioPlayer.self)
-        print(numberPackets)
+
         guard numberBytes > 1 else { return }
         for index in 0..<numberPackets {
             audioPlayerSelfPointer.appendBuffer(inputData, inPacketDescription: &packetDescriptions[Int(index)])

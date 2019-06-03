@@ -11,6 +11,7 @@ import Foundation
 class MediaPlaylist {
     var masterPlaylist: MasterPlaylist?
     
+    var isParsed: Bool = false
     var programId: Int = 0
     var bandwidth: Int = 0
     var frameRate: Float = 0

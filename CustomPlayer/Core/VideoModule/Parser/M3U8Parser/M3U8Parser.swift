@@ -140,6 +140,7 @@ class M3U8Parser {
                         //TODO: process another tag
                     }
                 }
+                list.isParsed = true
                 completion() 
             }
         }

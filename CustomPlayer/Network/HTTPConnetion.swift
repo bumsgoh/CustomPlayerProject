@@ -32,6 +32,7 @@ class HTTPConnetion {
             if response?.expectedContentLength ?? 0 > 0 {
                 self?.networkChecker.stopTimeTracking()
                 self?.networkChecker.getDataLength(size: Int(response!.expectedContentLength))
+                self?.networkChecker.calculateNetworkSpeed()
             }
             
             if let error = error {
@@ -42,8 +43,7 @@ class HTTPConnetion {
                 completion(.failure(error ?? APIError.responseUnsuccessful), response)
                 return
             }
-            
-            
+        
             guard let data = data else {
                 completion(.failure(APIError.invalidData), nil)
                 return

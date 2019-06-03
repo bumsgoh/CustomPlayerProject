@@ -188,7 +188,6 @@ class MoviePlayer: NSObject {
                                     videoTimings.append(CMSampleTimingInfo(duration: CMTime(value: 24, timescale: 1000),
                                                                            presentationTimeStamp: CMTime(value: CMTimeValue($0.pts), timescale: 1000),
                                                                            decodeTimeStamp: CMTime(value: CMTimeValue($0.dts), timescale: 1000)))
-                                    
                                 case .audio:
                                     pts.append($0.pts)
                                     datas.append(Data($0.actualData))

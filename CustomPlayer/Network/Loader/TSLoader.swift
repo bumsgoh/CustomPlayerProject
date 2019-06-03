@@ -12,6 +12,8 @@ class TSLoader: NSObject {
     
     private let url: URL
     private let httpConnection: HTTPConnetion
+    private let networkChecker: NetworkChecker = NetworkChecker.shared
+    private let policy: NetworkLoadPolicy
     
     private var masterPlaylist: MasterPlaylist?
     private var currentPlayingItemIndex: ListIndex?
@@ -23,6 +25,7 @@ class TSLoader: NSObject {
     init(url: URL) {
         self.url = url
         self.httpConnection = HTTPConnetion()
+        self.policy = NetworkLoadPolicy()
         super.init()
     }
   
@@ -36,9 +39,9 @@ class TSLoader: NSObject {
                 
             case .success(let playlist):
                 self.masterPlaylist = playlist
-                // TODO: Calc net speed
-                self.currentMediaPlaylist = playlist.mediaPlaylists[0]
-                self.currentPlayingItemIndex = ListIndex(gear: 0, index: 0)
+                let gear = self.policy.selectFirstPlaylistGear()
+                self.currentMediaPlaylist = playlist.mediaPlaylists[gear]
+                self.currentPlayingItemIndex = ListIndex(gear: gear, index: 0)
                 guard let mediaPlaylist = self.currentMediaPlaylist else { return }
                 self.m3u8Parser.parseMediaPlaylist(list: mediaPlaylist) {
                     self.isLoaderReady = true
@@ -53,23 +56,77 @@ class TSLoader: NSObject {
             completion(.failure(APIError.waitRequest))
             return
         }
-        guard let currentPlaylistIndex = self.currentPlayingItemIndex else { return }
-        guard let tempPlaylistPath = masterPlaylist?
-            .mediaPlaylists[currentPlaylistIndex.gear]
-            .videoMediaSegments[currentPlaylistIndex.index].path else { return }
-        guard let url = URL(string: tempPlaylistPath) else { return }
-        httpConnection.request(url: url) { (result, response) in
-            switch result {
-            case .failure:
-                completion(.failure(APIError.requestFailed))
-                
-            case .success(let tsData):
-                let tsParser = TSParser(target: tsData)
-                let tsStream = tsParser.decode()
-                completion(.success(tsStream))
+        
+        guard let currentPlaylistIndex = currentPlayingItemIndex else { return }
+        
+        let gear = policy.shouldUpdateGear()
+        if gear == -1 { return }
+        
+        guard let targetMediaPlaylist = masterPlaylist?
+            .mediaPlaylists[gear] else { return }
+        
+        if !targetMediaPlaylist.isParsed {
+            m3u8Parser.parseMediaPlaylist(list: targetMediaPlaylist) {
+                guard let path = targetMediaPlaylist
+                    .videoMediaSegments[currentPlaylistIndex.index].path else {
+                        completion(.failure(APIError.urlFailure))
+                        return
+                }
+                guard let url = URL(string: path) else { return }
+                self.httpConnection.request(url: url) { (result, response) in
+                    switch result {
+                    case .failure:
+                        completion(.failure(APIError.requestFailed))
+                        
+                    case .success(let tsData):
+                        let tsParser = TSParser(target: tsData)
+                        let tsStream = tsParser.decode()
+                        completion(.success(tsStream))
+                    }
+                }
+            }
+        } else {
+            guard let path = targetMediaPlaylist
+                .videoMediaSegments[currentPlaylistIndex.index].path else {
+                    completion(.failure(APIError.urlFailure))
+                    return
+            }
+            guard let url = URL(string: path) else { return }
+            self.httpConnection.request(url: url) { (result, response) in
+                switch result {
+                case .failure:
+                    completion(.failure(APIError.requestFailed))
+                    
+                case .success(let tsData):
+                    let tsParser = TSParser(target: tsData)
+                    let tsStream = tsParser.decode()
+                    completion(.success(tsStream))
+                }
             }
         }
     }
+}
+
+extension TSLoader: NetworkPolicyDelegate {
+    func currentNetworkSpeed() -> Double {
+        return networkChecker.currentNetworkSpeed
+    }
     
+    func numberOfPlaylist() -> Int {
+        guard let size = masterPlaylist?.mediaPlaylists.count else {
+            return 0
+        }
+        return size
+    }
+    
+    func samplingNetworSpeedkHistory(limit number: Int) -> [Double] {
+        let history = networkChecker.networkSpeedHistory
+        if number > history.count {
+            return history
+        } else {
+            let index = history.count - number
+            return Array(history[index...])
+        }
+    }
     
 }

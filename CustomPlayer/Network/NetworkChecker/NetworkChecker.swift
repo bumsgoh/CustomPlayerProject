@@ -11,10 +11,14 @@ import Foundation
 class NetworkChecker {
     
     static let shared = NetworkChecker()
+    private let historySize: Int = 10
     
     private var startTime: Date = Date()
     private var elapsedTime: Float = 0
     private var dataLength: Float = 0
+    var currentNetworkSpeed: Double = 0
+    var networkSpeedHistory: [Double] = []
+    
     
     private init() {}
     
@@ -28,16 +32,19 @@ class NetworkChecker {
     
     func getDataLength(size: Int) {
         dataLength = Float(size) / 1000000.0
-        calculateNetworkSpeed(by: .low)
     }
     
-    func calculateNetworkSpeed(by policy: NetworkPolicy) {
-      
+    func calculateNetworkSpeed() {
         let speed = dataLength / elapsedTime
-        print(speed)
+        currentNetworkSpeed = Double(speed)
+        if networkSpeedHistory.count < historySize {
+            networkSpeedHistory.append(currentNetworkSpeed)
+        } else {
+            networkSpeedHistory.removeFirst()
+            networkSpeedHistory.append(currentNetworkSpeed)
+        }
     }
+    
+    
 }
 
-enum NetworkPolicy {
-    case low
-}

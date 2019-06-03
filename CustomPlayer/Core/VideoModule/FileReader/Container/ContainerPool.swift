@@ -20,7 +20,6 @@ class ContainerPool {
     }
     func pullOutContainer(with name: String) throws -> ContainerType {
         guard let container = containerPool[name] else {
-            print(name)
             throw NSError(domain: "No container with input name", code: 0)
         }
         return container
