@@ -75,12 +75,12 @@ class NetworkLoadPolicy {
         guard let sampleData = delegate?.samplingNetworSpeedkHistory(limit: 10) else {
             return -1
         }
-        
-        if isTrendLineIncreasing(data: sampleData) && hasLevelChanged {
+        let isIncreasing = isTrendLineIncreasing(data: sampleData)
+        if isIncreasing && hasLevelChanged {
             let nextGear = currentGear + 1
             let gear = (numberOfPlaylist - 1) < nextGear ? numberOfPlaylist - 1 : nextGear
             return gear
-        } else if !isTrendLineIncreasing(data: sampleData) && hasLevelChanged {
+        } else if !isIncreasing && hasLevelChanged {
             let nextGear = currentGear - 1
             let gear = 0 > nextGear ? 0 : nextGear
             return gear

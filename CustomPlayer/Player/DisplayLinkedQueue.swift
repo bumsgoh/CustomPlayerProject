@@ -18,7 +18,7 @@ final class DisplayLinkedQueue: NSObject {
     private let lockQueue = DispatchQueue(label: "com.bumslap.DisplayLinkedQueue.lock")
     
     var running: Bool = false
-    var bufferTime: TimeInterval = 5 // sec
+    var bufferTime: TimeInterval = 3 // sec
     
     @objc dynamic var bufferCount = 0
     weak var delegate: DisplayLinkedQueueDelegate?
@@ -43,7 +43,7 @@ final class DisplayLinkedQueue: NSObject {
             self.buffers.append(buffer)
             self.bufferCount += 1
             if !self.isReady {
-                self.isReady = self.duration <= self.bufferTime
+                self.isReady = self.duration >= self.bufferTime
             }
         }
     }
