@@ -105,18 +105,18 @@ class H264Decoder {
             let typeOfNAL = packet[4] & 0x1F
             
             switch typeOfNAL {
-            case TypeOfNAL.idr.rawValue, TypeOfNAL.bpFrame.rawValue:
+            case NALType.idr.rawValue, NALType.slice.rawValue:
                 // print(packet.tohexNumbers)
                 currentFrameSlices.append(contentsOf: packet)
-            case TypeOfNAL.sps.rawValue:
+            case NALType.sps.rawValue:
                 spsSize = packet.count - 4
                 sps = Array(packet[4..<packet.count])
                 updateDecompressionSession()
-            case TypeOfNAL.pps.rawValue:
+            case NALType.pps.rawValue:
                 ppsSize = packet.count - 4
                 pps = Array(packet[4..<packet.count])
                 updateDecompressionSession()
-            case TypeOfNAL.aud.rawValue:
+            case NALType.aud.rawValue:
                 pictureCount += 1
                 decodeVideoPacket(packet: currentFrameSlices, timingInfo: presentationTimestamps[pictureCount])
                 currentFrameSlices = []
@@ -124,43 +124,12 @@ class H264Decoder {
                 break
             }
         }
-//        for nal in nalu {
-//            var packet = nal
-//            analyzeNALAndDecode(packet: &packet)
-//        }
-    
-       // decodeVideoPacket(packet: frameSlices, timingInfos: presentationTimestamps)
     }
 
-//
-//    private func analyzeNALAndDecode(packet: inout [UInt8]) {
-//
-//        var lengthOfNAL = CFSwapInt32HostToBig((UInt32(packet.count - 4)))
-//
-//        memcpy(&packet, &lengthOfNAL, 4)
-//
-//        let typeOfNAL = packet[4] & 0x1F
-//
-//        switch typeOfNAL {
-//        case TypeOfNAL.idr.rawValue, TypeOfNAL.bpFrame.rawValue:
-//           // print(packet.tohexNumbers)
-//            frameSlices.append(contentsOf: packet)
-//            decodeVideoPacket(packet: packet, timingInfo: presentationTimestamps[pictureCount])
-//            sizeArray.append(packet.count)
-//        case TypeOfNAL.sps.rawValue:
-//            spsSize = packet.count - 4
-//            sps = Array(packet[4..<packet.count])
-//             updateDecompressionSession()
-//        case TypeOfNAL.pps.rawValue:
-//            ppsSize = packet.count - 4
-//            pps = Array(packet[4..<packet.count])
-//            updateDecompressionSession()
-//        case TypeOfNAL.aud.rawValue:
-//            pictureCount += 1
-//        default:
-//            break
-//        }
-//    }
+    
+
+
+
     
     private func decodeVideoPacket(packet:[UInt8], timingInfo: CMSampleTimingInfo) {
         let bufferPointer = UnsafeMutablePointer<UInt8>(mutating: packet)
@@ -310,6 +279,83 @@ class H264Decoder {
         }
         return nalu
     }
+    
+    func decode1(frames: [UInt8], presentationTimestamps: [CMSampleTimingInfo]) {
+        var mutableFrames = frames
+        var index = startCode.count
+        var startCodeFlag = false
+        var currentFrameSlices: [UInt8] = []
+        var timingCount = 0
+        
+        while true {
+            while Array(mutableFrames[index..<(index + VideoCodingConstant.startCodeBType.count)])
+                != VideoCodingConstant.startCodeBType
+                && Array(mutableFrames[index..<(index + VideoCodingConstant.startCodeAType.count)]) != VideoCodingConstant.startCodeAType {
+                    if index + VideoCodingConstant.startCodeAType.count > mutableFrames.count - 1 {
+                        let nal = Array(mutableFrames[0...])
+                        processNAL(nal: nal,
+                                   targetSlices: &currentFrameSlices,
+                                   timingInfoCount: &timingCount,
+                                   timingInfo: presentationTimestamps[timingCount])
+                        return
+                    }
+                index += 1
+            }
+            var nal = Array(mutableFrames[0..<index])
+            mutableFrames.removeSubrange(0..<index)
+            
+            if startCodeFlag {
+                nal.insert(0, at: 0)
+            }
+            processNAL(nal: nal,
+                       targetSlices: &currentFrameSlices,
+                       timingInfoCount: &timingCount,
+                       timingInfo: presentationTimestamps[timingCount])
+            
+            if Array(mutableFrames[0..<3]) == VideoCodingConstant.startCodeBType {
+                index = VideoCodingConstant.startCodeBType.count
+                startCodeFlag = true
+            } else {
+                index = VideoCodingConstant.startCodeAType.count
+                startCodeFlag = false
+            }
+        }
+    }
+    
+    func processNAL(nal: [UInt8],
+                    targetSlices: inout [UInt8],
+                    timingInfoCount: inout Int,
+                    timingInfo: CMSampleTimingInfo) {
+        
+        let startCodeSize = 4
+        var packet = nal
+        var lengthOfNAL = CFSwapInt32HostToBig((UInt32(packet.count - 4)))
+        
+        memcpy(&packet, &lengthOfNAL, startCodeSize)
+        
+        let nalType = packet[4] & 0x1F
+        
+        switch nalType {
+        case NALType.idr.rawValue, NALType.slice.rawValue:
+            // print(packet.tohexNumbers)
+            targetSlices.append(contentsOf: packet)
+        case NALType.sps.rawValue:
+            spsSize = packet.count - startCodeSize
+            sps = Array(packet[startCodeSize..<packet.count])
+        case NALType.pps.rawValue:
+            ppsSize = packet.count - startCodeSize
+            pps = Array(packet[startCodeSize..<packet.count])
+            updateDecompressionSession()
+        case NALType.aud.rawValue:
+            timingInfoCount += 1
+            decodeVideoPacket(packet: targetSlices, timingInfo: timingInfo)
+            targetSlices = []
+        default:
+            break
+        }
+    
+    }
+    
 }
 
 
@@ -320,12 +366,3 @@ struct VideoCodingConstant {
     
 }
 
-
-enum TypeOfNAL: UInt8 {
-    case idr = 0x05
-    case sps = 0x07
-    case pps = 0x08
-    case sei = 0x06
-    case aud = 0x09
-    case bpFrame = 0x01
-}
