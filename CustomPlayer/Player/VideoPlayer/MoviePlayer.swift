@@ -11,12 +11,15 @@ import VideoToolbox
 
 class MoviePlayer: NSObject {
 
+    private let fetchingQueue: DispatchQueue = DispatchQueue(label: "com.fetchAndDecodeQueue")
     private let jobQueue: DispatchQueue = DispatchQueue(label: "decodeQueue")
     private let lockQueue: DispatchQueue = DispatchQueue(label: "com.lockQueue", qos: .userInitiated, attributes: .concurrent, autoreleaseFrequency: .workItem, target: nil)
     private let isFileBasedPlayer: Bool
     private let url: URL
     private let httpConnection: HTTPConnetion
     
+    private let tsLoader: TSLoader
+    private var h264Decoder: H264Decoder?
     var playContext = 1
     
     private var pastBufferCounts: [Int] = [] {
@@ -72,6 +75,7 @@ class MoviePlayer: NSObject {
     init(url: URL) {
         self.httpConnection = HTTPConnetion()
         self.url = url
+        self.tsLoader = TSLoader(url: url)
         if url.isFileURL {
             self.isFileBasedPlayer = true
         } else {
@@ -168,20 +172,22 @@ class MoviePlayer: NSObject {
                 completion(.success(true))
             } else {
                 self.totalDuration = 5960
-                let tsLoader = TSLoader(url: self.url)
-                tsLoader.initializeLoader {
-                    tsLoader.fetchTsStream { (result) in
+               // let tsLoader = TSLoader(url: self.url)
+                self.tsLoader.initializeLoader {
+                    self.tsLoader.fetchTsStream { (result) in
                         switch result {
                         case .failure(let error):
                             completion(.failure(error))
                         case .success(let tsStreams):
+                            guard let streams = tsStreams else { return }
                             var videoDataArray = [UInt8]()
                             var audioDataArray = [UInt8]()
                             var videoTimings = [CMSampleTimingInfo]()
                             var audioTimings = [CMSampleTimingInfo]()
                             var pts: [Int] = []
                             var datas = [Data]()
-                            tsStreams.forEach {
+                            
+                            streams.forEach {
                                 switch $0.type {
                                 case .video:
                                     videoDataArray.append(contentsOf: $0.actualData)
@@ -200,16 +206,16 @@ class MoviePlayer: NSObject {
                                 }
                             }
                             
-                            let h264Decoder = H264Decoder(frames: videoDataArray, presentationTimestamps: videoTimings)
-                            h264Decoder.videoDecoderDelegate = self
-                            h264Decoder.decode()
+                            self.h264Decoder = H264Decoder(frames: videoDataArray, presentationTimestamps: videoTimings)
+                            self.h264Decoder?.videoDecoderDelegate = self
+                            self.h264Decoder?.decode()
                            
                             let dataPackage = DataPackage(presentationTimestamp: pts, dataStorage: datas)
                             self.audioDecoder = AAC_ADTSDecoder(track: Track(type: .audio), dataPackage: dataPackage)
                             self.audioDecoder?.isAdts = false
                             self.audioDecoder?.audioDelegate = self
                             self.audioDecoder?.decodeTrack(timeScale: 44100)
-                            
+                            self.fetchNextItem()
                             completion(.success(true))
                         }
                     }
@@ -219,37 +225,54 @@ class MoviePlayer: NSObject {
     }
     
     private func fetchNextItem() {
-        guard let masterPlaylist = masterPlaylist, let currentIndex = currentPlayingItemIndex else { return }
-        if currentIndex.index > 98 {return}
-        let nextIndex = ListIndex(gear: currentIndex.gear, index: currentIndex.index + 1)
-        currentPlayingItemIndex = nextIndex
-        guard let stringPath = masterPlaylist.mediaPlaylists[nextIndex.gear].videoMediaSegments[nextIndex.index].path else { return }
-        print(stringPath)
-        httpConnection.request(url: URL(string: stringPath)) { (result, response) in
-            switch result {
-            case .failure:
-                assertionFailure("failed to fetch")
-            case .success(let data):
-                let decoder = TSParser(target: data)
-                let result = decoder.decode()
-                var dataArray = [UInt8]()
-                var timings = [CMSampleTimingInfo]()
-                result.forEach {
-                    dataArray.append(contentsOf: $0.actualData)
-                    let pts = $0.pts % 10 == 0 ? $0.pts : $0.pts + 1
-                    let dts = $0.dts % 10 == 0 ? $0.dts : $0.dts + 1
-                    timings.append(CMSampleTimingInfo(duration: CMTime(value: 3000, timescale: 30000),
-                                                      presentationTimeStamp: CMTime(value: CMTimeValue(pts), timescale: 30000),
-                                                      decodeTimeStamp: CMTime.invalid)) //CMTime(value: CMTimeValue($0.dts), timescale: 30000) ))
+        while true {
+        fetchingQueue.sync {
+                self.tsLoader.fetchTsStream { (result) in
+                    switch result {
+                    case .failure(let error):
+                        return
+                    case .success(let tsStreams):
+                        guard let streams = tsStreams else { break }
+                        var videoDataArray = [UInt8]()
+                        var audioDataArray = [UInt8]()
+                        var videoTimings = [CMSampleTimingInfo]()
+                        var audioTimings = [CMSampleTimingInfo]()
+                        var pts: [Int] = []
+                        var datas = [Data]()
+                        
+                        streams.forEach {
+                            switch $0.type {
+                            case .video:
+                                videoDataArray.append(contentsOf: $0.actualData)
+                                videoTimings.append(CMSampleTimingInfo(duration: CMTime(value: 24, timescale: 1000),
+                                                                       presentationTimeStamp: CMTime(value: CMTimeValue($0.pts), timescale: 1000),
+                                                                       decodeTimeStamp: CMTime(value: CMTimeValue($0.dts), timescale: 1000)))
+                            case .audio:
+                                pts.append($0.pts)
+                                datas.append(Data($0.actualData))
+                                audioDataArray.append(contentsOf: $0.actualData)
+                                audioTimings.append(CMSampleTimingInfo(duration: CMTime(value: 3000, timescale: 30000),
+                                                                       presentationTimeStamp: CMTime(value: CMTimeValue($0.pts), timescale: 30000),
+                                                                       decodeTimeStamp: CMTime(value: CMTimeValue($0.dts), timescale: 30000)))
+                            case .unknown:
+                                return
+                            }
+                        }
+                        
+                        let h264Decoder = H264Decoder(frames: videoDataArray, presentationTimestamps: videoTimings)
+                       
+                        h264Decoder
+                        h264Decoder.decode()
+                        
+                        let dataPackage = DataPackage(presentationTimestamp: pts, dataStorage: datas)
+                        self.audioDecoder = AAC_ADTSDecoder(track: Track(type: .audio), dataPackage: dataPackage)
+                        self.audioDecoder?.isAdts = false
+                        self.audioDecoder?.audioDelegate = self
+                        self.audioDecoder?.decodeTrack(timeScale: 44100)
+                    }
                 }
-                let h264Decoder = H264Decoder(frames: dataArray,
-                                              presentationTimestamps: timings)
-                h264Decoder.videoDecoderDelegate = self
-                h264Decoder.decode()
             }
-            
         }
-       
     }
     
     func play() {

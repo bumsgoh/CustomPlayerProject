@@ -27,6 +27,7 @@ class TSLoader: NSObject {
         self.httpConnection = HTTPConnetion()
         self.policy = NetworkLoadPolicy()
         super.init()
+        self.policy.delegate = self
     }
   
     
@@ -51,19 +52,23 @@ class TSLoader: NSObject {
         }
     }
     
-    func fetchTsStream(completion: @escaping (Result<[TSStream], Error>) -> Void) {
+    func fetchTsStream(completion: @escaping (Result<[TSStream]?, Error>) -> Void) {
         guard isLoaderReady else {
             completion(.failure(APIError.waitRequest))
             return
         }
         
         guard let currentPlaylistIndex = currentPlayingItemIndex else { return }
-        
+       
         let gear = policy.shouldUpdateGear()
         if gear == -1 { return }
         
         guard let targetMediaPlaylist = masterPlaylist?
             .mediaPlaylists[gear] else { return }
+        
+        if targetMediaPlaylist.videoMediaSegments.count < currentPlaylistIndex.index {
+            completion(.success(nil))
+        }
         
         if !targetMediaPlaylist.isParsed {
             m3u8Parser.parseMediaPlaylist(list: targetMediaPlaylist) {
@@ -82,6 +87,7 @@ class TSLoader: NSObject {
                         let tsParser = TSParser(target: tsData)
                         let tsStream = tsParser.decode()
                         completion(.success(tsStream))
+                        self.currentPlayingItemIndex = ListIndex(gear: currentPlaylistIndex.gear, index: currentPlaylistIndex.index + 1)
                     }
                 }
             }
@@ -101,6 +107,7 @@ class TSLoader: NSObject {
                     let tsParser = TSParser(target: tsData)
                     let tsStream = tsParser.decode()
                     completion(.success(tsStream))
+                    self.currentPlayingItemIndex = ListIndex(gear: currentPlaylistIndex.gear, index: currentPlaylistIndex.index + 1)
                 }
             }
         }
