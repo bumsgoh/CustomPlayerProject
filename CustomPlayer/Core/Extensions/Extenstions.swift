@@ -15,23 +15,7 @@ func assertDependOnMultiMediaValueStatus(_ status: OSStatus) {
 }
 
 
-extension CMSampleBuffer {
-    var numSamples: CMItemCount {
-        return CMSampleBufferGetNumSamples(self)
-    }
-    var duration: CMTime {
-        return CMSampleBufferGetDuration(self)
-    }
-    var formatDescription: CMFormatDescription? {
-        return CMSampleBufferGetFormatDescription(self)
-    }
-    var decodeTimeStamp: CMTime {
-        return CMSampleBufferGetDecodeTimeStamp(self)
-    }
-    var presentationTimeStamp: CMTime {
-        return CMSampleBufferGetPresentationTimeStamp(self)
-    }
-}
+
 
 extension URL {
     var isFileURL: Bool {
@@ -130,16 +114,7 @@ extension Array where Element == UInt8 {
     }
 }
 
-extension Array where Element == CMSampleBuffer {
-    mutating func copyNextSample() -> CMSampleBuffer? {
-        if self.isEmpty {
-            return nil
-        }
-        let item = self.first
-        self.remove(at: 0)
-        return item
-    }
-}
+
 
 extension UInt8 {
     var toHexNumber: String {

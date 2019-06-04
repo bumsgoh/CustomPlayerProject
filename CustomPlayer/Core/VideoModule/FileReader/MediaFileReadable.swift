@@ -16,7 +16,5 @@ protocol MediaFileReadable {
     
     var root: RootType { get }
     
-    func decodeMediaData()
-    
-    func makeTracks() -> [Track]
+    func parse()
 }

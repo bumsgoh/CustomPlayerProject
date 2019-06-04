@@ -10,10 +10,7 @@ import Foundation
 import VideoToolbox
 
 class H264Decoder {
-    
-    private var buffers: [CMSampleBuffer] = []
-    private var minimumGroupOfPictures: Int = 12
-    
+  
     private let lockQueue = DispatchQueue(label: "com.bumslap.h264DecoderLock")
     
     private var formatDescription: CMVideoFormatDescription?
@@ -21,17 +18,15 @@ class H264Decoder {
     
     private var spsSize: Int = 0
     private var ppsSize: Int = 0
-    
-    var sizeArray: [Int] = []
-    private var sps: [UInt8]?
-    private var pps: [UInt8]?
-    
-    private var pictureCount = -1
-    weak var videoDecoderDelegate: MultiMediaVideoTypeDecoderDelegate?
-    
-    private var frames: [UInt8]
 
-    private var presentationTimestamps: [CMSampleTimingInfo]
+    var sps: [UInt8]?
+    var pps: [UInt8]?
+    var sampleSizeArray: [Int] = []
+    var count = 0
+    
+    private var isESType: Bool = false
+    
+    weak var videoDecoderDelegate: MultiMediaVideoTypeDecoderDelegate?
     
     private lazy var startCode: [UInt8] = []
     
@@ -43,93 +38,183 @@ class H264Decoder {
         imageBuffer: CVBuffer?,
         presentationTimeStamp: CMTime,
         duration: CMTime) in
-        
+       
         let decoder: H264Decoder = unsafeBitCast(decompressionOutputRefCon,
                                                  to: H264Decoder.self)
-        guard let decodedBuffer = imageBuffer else { return }
-        
+        guard let decodedBuffer: CVPixelBuffer = imageBuffer else { return }
+        let pointer = CVPixelBufferGetBaseAddress(decodedBuffer)
         var timingInfo:CMSampleTimingInfo = CMSampleTimingInfo(
-            duration: duration,
-            presentationTimeStamp: presentationTimeStamp,
-            decodeTimeStamp: CMTime.invalid
-        )
-        
-        var formatDescription: CMVideoFormatDescription? = nil
-        CMVideoFormatDescriptionCreateForImageBuffer(
-            allocator: kCFAllocatorDefault,
-            imageBuffer: decodedBuffer,
-            formatDescriptionOut: &formatDescription
-        )
+                    duration: duration,
+                    presentationTimeStamp: presentationTimeStamp,
+                    decodeTimeStamp: CMTime.invalid
+                )
 
+                var formatDescription: CMVideoFormatDescription? = nil
+                CMVideoFormatDescriptionCreateForImageBuffer(
+                    allocator: kCFAllocatorDefault,
+                    imageBuffer: decodedBuffer,
+                    formatDescriptionOut: &formatDescription
+                )
+   var decodedSampleBuffer: CMSampleBuffer?
+        CMSampleBufferCreateReadyWithImageBuffer(allocator: kCFAllocatorDefault,
+                                                 imageBuffer: decodedBuffer,
+                                                 formatDescription: formatDescription!,
+                                                 sampleTiming: &timingInfo,
+                                                 sampleBufferOut: &decodedSampleBuffer)
 
-        var decodedSampleBuffer: CMSampleBuffer?
-        CMSampleBufferCreateForImageBuffer(
-            allocator: kCFAllocatorDefault,
-            imageBuffer: decodedBuffer,
-            dataReady: true,
-            makeDataReadyCallback: nil,
-            refcon: nil,
-            formatDescription: formatDescription!,
-            sampleTiming: &timingInfo,
-            sampleBufferOut: &decodedSampleBuffer
-        )
-        
-        guard let sample = decodedSampleBuffer else { return }
-        
-        decoder.videoDecoderDelegate?.prepareToDisplay(with: sample)
+decoder.videoDecoderDelegate?.prepareToDisplay(with: decodedSampleBuffer!)
+
+//         decoder.videoDecoderDelegate?.prepareToDisplay(with: decodedSampleBuffer!)
+//         CVPixelBufferLockBaseAddress(decodedBuffer, CVPixelBufferLockFlags(rawValue: 0))
+//        var timingInfo:CMSampleTimingInfo = CMSampleTimingInfo(
+//            duration: duration,
+//            presentationTimeStamp: presentationTimeStamp,
+//            decodeTimeStamp: CMTime.invalid
+//        )
+//
+//        var formatDescription: CMVideoFormatDescription? = nil
+//        CMVideoFormatDescriptionCreateForImageBuffer(
+//            allocator: kCFAllocatorDefault,
+//            imageBuffer: decodedBuffer,
+//            formatDescriptionOut: &formatDescription
+//        )
+//
+//
+//        var decodedSampleBuffer: CMSampleBuffer?
+//        CMSampleBufferCreateForImageBuffer(
+//            allocator: kCFAllocatorDefault,
+//            imageBuffer: decodedBuffer,
+//            dataReady: true,
+//            makeDataReadyCallback: nil,
+//            refcon: nil,
+//            formatDescription: formatDescription!,
+//            sampleTiming: &timingInfo,
+//            sampleBufferOut: &decodedSampleBuffer
+//        )
+//        decoder.count += 1
+//        print(decoder.count)
+//        CVPixelBufferUnlockBaseAddress(decodedBuffer, CVPixelBufferLockFlags(rawValue: 0))
+//
+//        guard let sample = decodedSampleBuffer else { return }
+//
+//        decoder.videoDecoderDelegate?.prepareToDisplay(with: sample)
     }
   
 
-    init(frames: [UInt8], presentationTimestamps: [CMSampleTimingInfo]) {
-        self.frames = frames
-        self.presentationTimestamps = presentationTimestamps
+    init() {}
+    
+    func decode(frames: [UInt8], presentationTimestamps: [CMSampleTimingInfo]) {
+        
+        if sps == nil {
+            isESType = true
+        } else {
+            isESType = false
+            updateDecompressionSession()
+        }
         
         if Array(frames[0...3]) == VideoCodingConstant.startCodeAType {
             self.startCode = VideoCodingConstant.startCodeAType
         } else if Array(frames[0...2]) == VideoCodingConstant.startCodeBType {
             self.startCode = VideoCodingConstant.startCodeBType
-        } else {
+        } 
+        
+        var mutableFrames = frames
+        var index = startCode.count
+        var startCodeFlag = false
+        var currentFrameSlices: [UInt8] = []
+        var timingCount = 0
+        
+        if !isESType {
+            var count = 0
+            while true {
+                if mutableFrames.isEmpty { break }
+                let packet = Array(mutableFrames[0..<sampleSizeArray[count]])
+                mutableFrames.removeSubrange(0..<sampleSizeArray[count])
+                decodeVideoPacket(packet: packet, timingInfo: presentationTimestamps[count])
+                count += 1
+            }
+           // decodeVideoPacket(frames: frames, presentationTimestamps: presentationTimestamps)
             return
         }
-    }
-    
-    func decode() {
-      //  guard let nalu = makeNALUnits() else { return }
-        var currentFrameSlices = [UInt8]()
-        makeNALUnits()?.forEach {
-            var packet = $0
-            var lengthOfNAL = CFSwapInt32HostToBig((UInt32(packet.count - 4)))
+        
+        while true {
             
-            memcpy(&packet, &lengthOfNAL, 4)
+            while Array(mutableFrames[index..<(index + VideoCodingConstant.startCodeBType.count)])
+                != VideoCodingConstant.startCodeBType
+                && Array(mutableFrames[index..<(index + VideoCodingConstant.startCodeAType.count)]) != VideoCodingConstant.startCodeAType {
+                    
+                    if index + VideoCodingConstant.startCodeAType.count > mutableFrames.count - 1
+                        && !mutableFrames.isEmpty {
+                        let nal = Array(mutableFrames[0...])
+                        processNAL(nal: nal,
+                                   targetSlices: &currentFrameSlices,
+                                   timingInfoCount: &timingCount,
+                                   timingInfo: presentationTimestamps[timingCount])
+                        cleanUp()
+                        return
+                    }
+                index += 1
+            }
             
-            let typeOfNAL = packet[4] & 0x1F
+            var nal = Array(mutableFrames[0..<index])
+            mutableFrames.removeSubrange(0..<index)
             
-            switch typeOfNAL {
-            case NALType.idr.rawValue, NALType.slice.rawValue:
-                // print(packet.tohexNumbers)
-                currentFrameSlices.append(contentsOf: packet)
-            case NALType.sps.rawValue:
-                spsSize = packet.count - 4
-                sps = Array(packet[4..<packet.count])
-                updateDecompressionSession()
-            case NALType.pps.rawValue:
-                ppsSize = packet.count - 4
-                pps = Array(packet[4..<packet.count])
-                updateDecompressionSession()
-            case NALType.aud.rawValue:
-                pictureCount += 1
-                decodeVideoPacket(packet: currentFrameSlices, timingInfo: presentationTimestamps[pictureCount])
-                currentFrameSlices = []
-            default:
-                break
+            if startCodeFlag {
+                nal.insert(0, at: 0)
+            }
+            
+            processNAL(nal: nal,
+                       targetSlices: &currentFrameSlices,
+                       timingInfoCount: &timingCount,
+                       timingInfo: presentationTimestamps[timingCount])
+            
+            if Array(mutableFrames[0..<3]) == VideoCodingConstant.startCodeBType {
+                index = VideoCodingConstant.startCodeBType.count
+                startCodeFlag = true
+            } else {
+                index = VideoCodingConstant.startCodeAType.count
+                startCodeFlag = false
             }
         }
+       
     }
-
     
-
-
-
+    private func processNAL(nal: [UInt8],
+                    targetSlices: inout [UInt8],
+                    timingInfoCount: inout Int,
+                    timingInfo: CMSampleTimingInfo) {
+        
+        let startCodeSize = 4
+        var packet = nal
+        if isESType {
+            var lengthOfNAL = CFSwapInt32HostToBig((UInt32(packet.count - 4)))
+            memcpy(&packet, &lengthOfNAL, startCodeSize)
+        }
+        let nalType = packet[4] & 0x1F
+        
+        switch nalType {
+        case NALType.idr.rawValue, NALType.slice.rawValue:
+            targetSlices.append(contentsOf: packet)
+            
+        case NALType.sps.rawValue:
+            spsSize = packet.count - startCodeSize
+            sps = Array(packet[startCodeSize..<packet.count])
+            
+        case NALType.pps.rawValue:
+            ppsSize = packet.count - startCodeSize
+            pps = Array(packet[startCodeSize..<packet.count])
+            updateDecompressionSession()
+            
+        case NALType.aud.rawValue:
+            if !targetSlices.isEmpty {
+                decodeVideoPacket(packet: targetSlices, timingInfo: timingInfo)
+                targetSlices.removeAll()
+                timingInfoCount += 1
+            }
+        default:
+            break
+        }
+    }
     
     private func decodeVideoPacket(packet:[UInt8], timingInfo: CMSampleTimingInfo) {
         let bufferPointer = UnsafeMutablePointer<UInt8>(mutating: packet)
@@ -179,11 +264,65 @@ class H264Decoder {
             frameRefcon: nil,
             infoFlagsOut: &flag) == 0 else {
                 assertionFailure("fail decom")
-                return }
-        
-        
+                return
+        }
     }
     
+    private func decodeVideoPacket(frames: [UInt8], presentationTimestamps: [CMSampleTimingInfo]) {
+        var blockBuffer: CMBlockBuffer?
+        let dataLength = frames.count
+        let sizeArray = sampleSizeArray
+        
+        var mergedData = Data(frames)
+        mergedData.withUnsafeMutableBytes { (bytes: UnsafeMutablePointer<UInt8>) -> Void in
+            
+            guard CMBlockBufferCreateWithMemoryBlock(
+                allocator: kCFAllocatorDefault,
+                memoryBlock: bytes,
+                blockLength: dataLength,
+                blockAllocator: kCFAllocatorNull,
+                customBlockSource: nil,
+                offsetToData: 0,
+                dataLength: dataLength,
+                flags: 0,
+                blockBufferOut: &blockBuffer) == kCMBlockBufferNoErr else {
+                    return
+                    
+            }
+        }
+        
+        
+        var sampleBuffer: CMSampleBuffer?
+        var timingEntries = presentationTimestamps.count
+        
+        guard CMSampleBufferCreateReady(
+            allocator: kCFAllocatorDefault,
+            dataBuffer: blockBuffer,
+            formatDescription: formatDescription,
+            sampleCount: sizeArray.count,
+            sampleTimingEntryCount: timingEntries,
+            sampleTimingArray: presentationTimestamps,
+            sampleSizeEntryCount: sizeArray.count,
+            sampleSizeArray: sizeArray,
+            sampleBufferOut: &sampleBuffer) == kCMBlockBufferNoErr,
+            let derivedSampleBuffer = sampleBuffer else {
+                return
+        }
+        guard let session = decompressionSession else {
+            print("failed to fetch session")
+            return
+        }
+        
+        var flag = VTDecodeInfoFlags()
+        
+        guard VTDecompressionSessionDecodeFrame(
+            session,
+            sampleBuffer: derivedSampleBuffer,
+            flags: [._EnableAsynchronousDecompression, ._EnableTemporalProcessing],
+            frameRefcon: nil,
+            infoFlagsOut: &flag) == 0 else { return }
+        
+    }
     
     private func updateDecompressionSession() {
         formatDescription = nil
@@ -207,12 +346,13 @@ class H264Decoder {
                                                                          parameterSetSizes: parameterSetSizes,
                                                                          nalUnitHeaderLength: 4,
                                                                          formatDescriptionOut: &formatDescription)
-        guard let formatDescription = self.formatDescription,
+        guard let formatDescription = formatDescription,
             status == noErr
             else {
                 print("desc fail\(status)")
                 return
         }
+        
         if let session = decompressionSession {
             VTDecompressionSessionInvalidate(session)
             decompressionSession = nil
@@ -246,118 +386,19 @@ class H264Decoder {
     }
     
     
-    
-    func makeNALUnits() -> [[UInt8]]? {
-        var mutableFrames = frames
-        var index = startCode.count
-        var nal = [UInt8]()
-        var nalu: [[UInt8]] = []
-        var startCodeFlag = false
+    func cleanUp() {
+        sps = nil
+        pps = nil
         
-        while true {
-            while Array(mutableFrames[index..<(index + VideoCodingConstant.startCodeBType.count)])
-                != VideoCodingConstant.startCodeBType
-                && Array(mutableFrames[index..<(index + VideoCodingConstant.startCodeAType.count)]) != VideoCodingConstant.startCodeAType {
-                if index + VideoCodingConstant.startCodeAType.count > mutableFrames.count - 1 {
-                    nalu.append(Array(mutableFrames[0...]))
-                    return nalu
-                }
-                index += 1
-                
-            }
-            nal = Array(mutableFrames[0..<index])
-            mutableFrames.removeSubrange(0..<index)
-            if startCodeFlag { nal.insert(0, at: 0) }
-            nalu.append(nal)
-            if Array(mutableFrames[0..<3]) == VideoCodingConstant.startCodeBType {
-                index = VideoCodingConstant.startCodeBType.count
-                startCodeFlag = true
-            } else {
-                index = VideoCodingConstant.startCodeAType.count
-                startCodeFlag = false
-            }
-        }
-        return nalu
+        formatDescription = nil
+        decompressionSession = nil
+        
+        spsSize = 0
+        ppsSize = 0
+        
+        startCode.removeAll()
     }
-    
-    func decode1(frames: [UInt8], presentationTimestamps: [CMSampleTimingInfo]) {
-        var mutableFrames = frames
-        var index = startCode.count
-        var startCodeFlag = false
-        var currentFrameSlices: [UInt8] = []
-        var timingCount = 0
-        
-        while true {
-            while Array(mutableFrames[index..<(index + VideoCodingConstant.startCodeBType.count)])
-                != VideoCodingConstant.startCodeBType
-                && Array(mutableFrames[index..<(index + VideoCodingConstant.startCodeAType.count)]) != VideoCodingConstant.startCodeAType {
-                    if index + VideoCodingConstant.startCodeAType.count > mutableFrames.count - 1 {
-                        let nal = Array(mutableFrames[0...])
-                        processNAL(nal: nal,
-                                   targetSlices: &currentFrameSlices,
-                                   timingInfoCount: &timingCount,
-                                   timingInfo: presentationTimestamps[timingCount])
-                        return
-                    }
-                index += 1
-            }
-            var nal = Array(mutableFrames[0..<index])
-            mutableFrames.removeSubrange(0..<index)
-            
-            if startCodeFlag {
-                nal.insert(0, at: 0)
-            }
-            processNAL(nal: nal,
-                       targetSlices: &currentFrameSlices,
-                       timingInfoCount: &timingCount,
-                       timingInfo: presentationTimestamps[timingCount])
-            
-            if Array(mutableFrames[0..<3]) == VideoCodingConstant.startCodeBType {
-                index = VideoCodingConstant.startCodeBType.count
-                startCodeFlag = true
-            } else {
-                index = VideoCodingConstant.startCodeAType.count
-                startCodeFlag = false
-            }
-        }
-    }
-    
-    func processNAL(nal: [UInt8],
-                    targetSlices: inout [UInt8],
-                    timingInfoCount: inout Int,
-                    timingInfo: CMSampleTimingInfo) {
-        
-        let startCodeSize = 4
-        var packet = nal
-        var lengthOfNAL = CFSwapInt32HostToBig((UInt32(packet.count - 4)))
-        
-        memcpy(&packet, &lengthOfNAL, startCodeSize)
-        
-        let nalType = packet[4] & 0x1F
-        
-        switch nalType {
-        case NALType.idr.rawValue, NALType.slice.rawValue:
-            // print(packet.tohexNumbers)
-            targetSlices.append(contentsOf: packet)
-        case NALType.sps.rawValue:
-            spsSize = packet.count - startCodeSize
-            sps = Array(packet[startCodeSize..<packet.count])
-        case NALType.pps.rawValue:
-            ppsSize = packet.count - startCodeSize
-            pps = Array(packet[startCodeSize..<packet.count])
-            updateDecompressionSession()
-        case NALType.aud.rawValue:
-            timingInfoCount += 1
-            decodeVideoPacket(packet: targetSlices, timingInfo: timingInfo)
-            targetSlices = []
-        default:
-            break
-        }
-    
-    }
-    
 }
-
 
 struct VideoCodingConstant {
     

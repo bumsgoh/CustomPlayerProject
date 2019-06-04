@@ -52,7 +52,7 @@ class TSLoader: NSObject {
         }
     }
     
-    func fetchTsStream(completion: @escaping (Result<[TSStream]?, Error>) -> Void) {
+    func fetchTsStream(completion: @escaping (Result<[DataStream]?, Error>) -> Void) {
         guard isLoaderReady else {
             completion(.failure(APIError.waitRequest))
             return
@@ -85,7 +85,7 @@ class TSLoader: NSObject {
                         
                     case .success(let tsData):
                         let tsParser = TSParser(target: tsData)
-                        let tsStream = tsParser.decode()
+                        let tsStream = tsParser.parse()
                         completion(.success(tsStream))
                         self.currentPlayingItemIndex = ListIndex(gear: currentPlaylistIndex.gear, index: currentPlaylistIndex.index + 1)
                     }
@@ -105,7 +105,7 @@ class TSLoader: NSObject {
                     
                 case .success(let tsData):
                     let tsParser = TSParser(target: tsData)
-                    let tsStream = tsParser.decode()
+                    let tsStream = tsParser.parse()
                     completion(.success(tsStream))
                     self.currentPlayingItemIndex = ListIndex(gear: currentPlaylistIndex.gear, index: currentPlaylistIndex.index + 1)
                 }

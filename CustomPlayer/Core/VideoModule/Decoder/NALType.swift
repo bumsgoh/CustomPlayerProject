@@ -8,13 +8,6 @@
 
 import Foundation
 
-struct NALUnit {
-    var refIdc: UInt8 = 0
-    var type: NALType = .unspecified
-    var payload: [UInt8]
-}
-
-
 enum NALType: UInt8 {
     case idr = 0x05
     case sps = 0x07

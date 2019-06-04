@@ -8,15 +8,26 @@
 
 import Foundation
 
-class Mpeg4Parser: MediaFileReadable {
+class Mpeg4Parser {
     
     private(set) var status: MediaStatus = .paused
     private(set) var fileReader: FileStreamReadable
     private(set) var root = RootType()
     
+    private var sequenceParameterSet: Data = Data()
+    private var sequenceParameters: [Data] = []
+    
+    private var pictureParameterSet: Data = Data()
+    private var pictureParameters: [Data] = []
+    
+    private var sampleSizeArray: [Int] = []
+    private var duration: Double = 0
+    
     private let containerPool: ContainerPool = ContainerPool()
     private let headerSize = 8
-    private let lockQueue: DispatchQueue = DispatchQueue(label: "mediaFileReadQueue")
+    private let jobQueue: DispatchQueue = DispatchQueue(label: "mp4JobQueue")
+    
+    
     
     init(fileReader: FileStreamReadable) {
         self.fileReader = fileReader
@@ -39,31 +50,34 @@ class Mpeg4Parser: MediaFileReadable {
         return (size, decodedHeaderName)
     }
     
-    func decodeMediaData() {
+    func parse(completion: @escaping (Result<[DataStream], Error>) -> Void) {
         status = .paused
-        var containers: [HalfContainer] = []
-        root.size = Int(fileReader.fileHandler.seekToEndOfFile()) + headerSize
-        
-        lockQueue.sync { [weak self] in
-            guard let self = self else { return }
+        jobQueue.async { 
+            
+            var containers: [HalfContainer] = []
+            self.root.size = Int(self.fileReader.fileHandler.seekToEndOfFile()) + self.headerSize
+            
+            
             self.status = .paused
-            containers = decode(root: root)
+            containers = self.doParse(root: self.root)
             
             while let item = containers.first {
                 containers.remove(at: 0)
-                let parentContainers = decode(root: item)
+                let parentContainers = self.doParse(root: item)
                 containers.append(contentsOf: parentContainers)
             }
-        }
         
-       lockQueue.sync { [weak self] in
-        guard let self = self else { return }
             self.root.parse()
-        self.status = .prepared
+            let tracks = self.makeTracks()
+            let streams = self.processTracks(tracks: tracks)
+            self.status = .prepared
+            self.cleanUp()
+            completion(.success(streams))
         }
+       
     }
     
-    private func decode(root: HalfContainer) -> [HalfContainer] {
+    private func doParse(root: HalfContainer) -> [HalfContainer] {
         var containers: [HalfContainer] = []
         var currentRootContainer: HalfContainer = root
         var currentOffset = currentRootContainer.offset
@@ -108,7 +122,7 @@ class Mpeg4Parser: MediaFileReadable {
     }
 
     
-    func makeTracks() -> [Track] {
+   private func makeTracks() -> [Track] {
         var tracks: [Track] = []
         
         for trak in root.moov.traks {
@@ -217,6 +231,69 @@ class Mpeg4Parser: MediaFileReadable {
             tracks.append(trackItem)
         }
         return tracks
+    }
+    
+    private func processTracks(tracks: [Track]) -> [DataStream] {
+        var streams: [DataStream] = []
+        for track in tracks {
+            var packet: [Data] = []
+            var presentationTimestamp: [Int] = []
+            
+            for sample in track.samples {
+                
+                fileReader.seek(offset: UInt64(sample.offset))
+                fileReader.read(length: sample.size) { (data) in
+                    packet.append(data)
+                }
+                
+            }
+            presentationTimestamp = track.samples.map {
+                $0.startTime + $0.compositionTimeOffset
+            }
+            
+            switch track.mediaType {
+            case .video:
+                sampleSizeArray = track.samples.map {
+                    $0.size
+                }
+                let videoStream = DataStream()
+                videoStream.actualData = Array(packet.joined())
+                videoStream.type = .video
+                videoStream.pts = presentationTimestamp
+                videoStream.dts = presentationTimestamp
+                
+                sequenceParameterSet = track.sequenceParameterSet
+                sequenceParameters = track.sequenceParameters
+                
+                pictureParameterSet = track.pictureParameterSet
+                pictureParameters = track.pictureParameters
+                
+                duration = Double(track.duration)
+                
+                streams.append(videoStream)
+
+            case .audio:
+                let audioStream = DataStream()
+                audioStream.actualData = Array(packet.joined())
+                audioStream.type = .audio
+                audioStream.pts = presentationTimestamp
+                audioStream.dts = presentationTimestamp
+                streams.append(audioStream)
+            default:
+                assertionFailure("failed to make Stream")
+            }
+        }
+        return streams
+    }
+    
+    func fetchMetaData() -> MP4MetaData {
+        let metaData = MP4MetaData(totalDuration: duration, sampleSizeArray: sampleSizeArray, sequenceParameterSet: sequenceParameterSet, sequenceParameters: sequenceParameters, pictureParameterSet: pictureParameterSet, pictureParameters: pictureParameters)
+        return metaData
+    }
+    
+    private func cleanUp() {
+        fileReader.close()
+
     }
 }
     

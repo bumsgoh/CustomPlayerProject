@@ -19,21 +19,9 @@ class MoviePlayer: NSObject {
     private let httpConnection: HTTPConnetion
     
     private let tsLoader: TSLoader
-    private var h264Decoder: H264Decoder?
+    private var h264Decoder: H264Decoder = H264Decoder()
     var playContext = 1
     
-    private var pastBufferCounts: [Int] = [] {
-        didSet {
-            if pastBufferCounts.count > 10 {
-                let average = pastBufferCounts.reduce(0, {$0 + $1}) / 10
-                guard let newValue = pastBufferCounts.last else { return }
-                if newValue < average {
-                 //   fetchNextItem()
-                }
-                pastBufferCounts.remove(at: 0)
-            }
-        }
-    }
     
     private var currentPlayingItemIndex: ListIndex?
     private var state: MediaStatus = .stopped
@@ -131,45 +119,47 @@ class MoviePlayer: NSObject {
             guard let self = self else { return }
             if self.isFileBasedPlayer {
                 guard let fileReader = FileReader(url: self.url) else { return }
-                let mediaFileReader = Mpeg4Parser(fileReader: fileReader)
+                let mp4Parser = Mpeg4Parser(fileReader: fileReader)
                 
-                mediaFileReader.decodeMediaData()
-                let tracks = mediaFileReader.makeTracks()
-                self.totalDuration = tracks[0].duration
-                for track in tracks {
-                    var sizeArray: [Int] = []
-                    var rawFrames: [Data] = []
-                    var presentationTimestamp: [Int] = []
-                    
-                    for sample in track.samples {
+                mp4Parser.parse() { [weak self] (result) in
+                    guard let self = self else { return }
+                    switch result {
+                    case .failure(let error):
+                        completion(.failure(error))
+                    case .success(let streams):
+                        var videoDataArray = [UInt8]()
+                        var videoTimings = [CMSampleTimingInfo]()
                         
-                        mediaFileReader.fileReader.seek(offset: UInt64(sample.offset))
-                        mediaFileReader.fileReader.read(length: sample.size) { (data) in
-                            rawFrames.append(data)
-                            sizeArray.append(data.count)
+                        streams.forEach {
+                            switch $0.type {
+                            case .video:
+                                videoDataArray = $0.actualData
+                                videoTimings = zip($0.pts, $0.dts).map {
+                                    CMSampleTimingInfo(pts: Int64($0.0), dts: Int64($0.1), fps: 24)
+                                }
+                            case .audio:
+                                
+                                print("d")
+                             ///   self.prepareToPlay(with: Data($0.actualData))
+                                self.isAudioReady = true
+                            case .unknown:
+                                return
+                            }
                         }
-                    }
-                    presentationTimestamp = track.samples.map {
-                        $0.startTime
-                    }
-                    let dataPackage = DataPackage(presentationTimestamp: presentationTimestamp,
-                                                  dataStorage: rawFrames)
-                    
-                    switch track.mediaType {
-                    case .audio:
-                        self.audioDecoder = AAC_ADTSDecoder(track: track, dataPackage: dataPackage)
-                        self.audioDecoder?.audioDelegate = self
-                        self.audioDecoder?.decodeTrack(timeScale: track.timescale)
-                    case .video:
-                        self.videoDecoder = AvccDecoder(track: track, dataPackage: dataPackage)
-                        self.videoDecoder?.videoDelegate = self
-                        self.videoDecoder?.decodeTrack(timeScale: track.timescale)
-                    case .unknown:
-                        completion(.failure(NSError(domain: "fail to decode track", code: -1, userInfo: nil)))
-                        return
+                        
+                        let metaData =  mp4Parser.fetchMetaData()
+                        self.totalDuration = Int(metaData.totalDuration)
+                        self.h264Decoder.sps = metaData.sequenceParameters.toUInt8Array
+                        self.h264Decoder.pps = metaData.pictureParameters.toUInt8Array
+                        self.h264Decoder.sampleSizeArray = metaData.sampleSizeArray
+                        
+                        self.h264Decoder.videoDecoderDelegate = self
+                        
+                        self.h264Decoder.decode(frames: videoDataArray, presentationTimestamps: videoTimings)
+                        
+                        completion(.success(true))
                     }
                 }
-                completion(.success(true))
             } else {
                 self.totalDuration = 5960
                // let tsLoader = TSLoader(url: self.url)
@@ -181,41 +171,29 @@ class MoviePlayer: NSObject {
                         case .success(let tsStreams):
                             guard let streams = tsStreams else { return }
                             var videoDataArray = [UInt8]()
-                            var audioDataArray = [UInt8]()
                             var videoTimings = [CMSampleTimingInfo]()
-                            var audioTimings = [CMSampleTimingInfo]()
-                            var pts: [Int] = []
-                            var datas = [Data]()
-                            
+
                             streams.forEach {
                                 switch $0.type {
                                 case .video:
-                                    videoDataArray.append(contentsOf: $0.actualData)
-                                    videoTimings.append(CMSampleTimingInfo(duration: CMTime(value: 24, timescale: 1000),
-                                                                           presentationTimeStamp: CMTime(value: CMTimeValue($0.pts), timescale: 1000),
-                                                                           decodeTimeStamp: CMTime(value: CMTimeValue($0.dts), timescale: 1000)))
+                                    videoDataArray = $0.actualData
+                                    videoTimings = zip($0.pts, $0.dts).map {
+                                         CMSampleTimingInfo(pts: Int64($0.0), dts: Int64($0.1), fps: 24)
+                                    }
                                 case .audio:
-                                    pts.append($0.pts)
-                                    datas.append(Data($0.actualData))
-                                    audioDataArray.append(contentsOf: $0.actualData)
-                                    audioTimings.append(CMSampleTimingInfo(duration: CMTime(value: 3000, timescale: 30000),
-                                                                           presentationTimeStamp: CMTime(value: CMTimeValue($0.pts), timescale: 30000),
-                                                                           decodeTimeStamp: CMTime(value: CMTimeValue($0.dts), timescale: 30000)))
+                            
+                                    
+                                    self.prepareToPlay(with: Data($0.actualData))
+                                    
                                 case .unknown:
                                     return
                                 }
                             }
                             
-                            self.h264Decoder = H264Decoder(frames: videoDataArray, presentationTimestamps: videoTimings)
-                            self.h264Decoder?.videoDecoderDelegate = self
-                            self.h264Decoder?.decode()
-                           
-                            let dataPackage = DataPackage(presentationTimestamp: pts, dataStorage: datas)
-                            self.audioDecoder = AAC_ADTSDecoder(track: Track(type: .audio), dataPackage: dataPackage)
-                            self.audioDecoder?.isAdts = false
-                            self.audioDecoder?.audioDelegate = self
-                            self.audioDecoder?.decodeTrack(timeScale: 44100)
-                            self.fetchNextItem()
+                          
+                            self.h264Decoder.videoDecoderDelegate = self
+                            self.h264Decoder.decode(frames: videoDataArray, presentationTimestamps: videoTimings)
+
                             completion(.success(true))
                         }
                     }
@@ -224,56 +202,56 @@ class MoviePlayer: NSObject {
         }
     }
     
-    private func fetchNextItem() {
-        while true {
-        fetchingQueue.sync {
-                self.tsLoader.fetchTsStream { (result) in
-                    switch result {
-                    case .failure(let error):
-                        return
-                    case .success(let tsStreams):
-                        guard let streams = tsStreams else { break }
-                        var videoDataArray = [UInt8]()
-                        var audioDataArray = [UInt8]()
-                        var videoTimings = [CMSampleTimingInfo]()
-                        var audioTimings = [CMSampleTimingInfo]()
-                        var pts: [Int] = []
-                        var datas = [Data]()
-                        
-                        streams.forEach {
-                            switch $0.type {
-                            case .video:
-                                videoDataArray.append(contentsOf: $0.actualData)
-                                videoTimings.append(CMSampleTimingInfo(duration: CMTime(value: 24, timescale: 1000),
-                                                                       presentationTimeStamp: CMTime(value: CMTimeValue($0.pts), timescale: 1000),
-                                                                       decodeTimeStamp: CMTime(value: CMTimeValue($0.dts), timescale: 1000)))
-                            case .audio:
-                                pts.append($0.pts)
-                                datas.append(Data($0.actualData))
-                                audioDataArray.append(contentsOf: $0.actualData)
-                                audioTimings.append(CMSampleTimingInfo(duration: CMTime(value: 3000, timescale: 30000),
-                                                                       presentationTimeStamp: CMTime(value: CMTimeValue($0.pts), timescale: 30000),
-                                                                       decodeTimeStamp: CMTime(value: CMTimeValue($0.dts), timescale: 30000)))
-                            case .unknown:
-                                return
-                            }
-                        }
-                        
-                        let h264Decoder = H264Decoder(frames: videoDataArray, presentationTimestamps: videoTimings)
-                       
-                        h264Decoder
-                        h264Decoder.decode()
-                        
-                        let dataPackage = DataPackage(presentationTimestamp: pts, dataStorage: datas)
-                        self.audioDecoder = AAC_ADTSDecoder(track: Track(type: .audio), dataPackage: dataPackage)
-                        self.audioDecoder?.isAdts = false
-                        self.audioDecoder?.audioDelegate = self
-                        self.audioDecoder?.decodeTrack(timeScale: 44100)
-                    }
-                }
-            }
-        }
-    }
+//    private func fetchNextItem() {
+//        while true {
+//        fetchingQueue.sync {
+//                self.tsLoader.fetchTsStream { (result) in
+//                    switch result {
+//                    case .failure(let error):
+//                        return
+//                    case .success(let tsStreams):
+//                        guard let streams = tsStreams else { break }
+//                        var videoDataArray = [UInt8]()
+//                        var audioDataArray = [UInt8]()
+//                        var videoTimings = [CMSampleTimingInfo]()
+//                        var audioTimings = [CMSampleTimingInfo]()
+//                        var pts: [Int] = []
+//                        var datas = [Data]()
+//                        
+//                        streams.forEach {
+//                            switch $0.type {
+//                            case .video:
+//                                videoDataArray.append(contentsOf: $0.actualData)
+//                                videoTimings.append(CMSampleTimingInfo(duration: CMTime(value: 24, timescale: 1000),
+//                                                                       presentationTimeStamp: CMTime(value: CMTimeValue($0.pts), timescale: 1000),
+//                                                                       decodeTimeStamp: CMTime(value: CMTimeValue($0.dts), timescale: 1000)))
+//                            case .audio:
+//                                pts.append($0.pts)
+//                                datas.append(Data($0.actualData))
+//                                audioDataArray.append(contentsOf: $0.actualData)
+//                                audioTimings.append(CMSampleTimingInfo(duration: CMTime(value: 3000, timescale: 30000),
+//                                                                       presentationTimeStamp: CMTime(value: CMTimeValue($0.pts), timescale: 30000),
+//                                                                       decodeTimeStamp: CMTime(value: CMTimeValue($0.dts), timescale: 30000)))
+//                            case .unknown:
+//                                return
+//                            }
+//                        }
+//                        
+//                        let h264Decoder = H264Decoder()
+//                       
+//                        h264Decoder
+//                       // h264Decoder.decode(frames: <#[UInt8]#>)
+//                        
+//                        let dataPackage = DataPackage(presentationTimestamp: pts, dataStorage: datas)
+//                        self.audioDecoder = AAC_ADTSDecoder(track: Track(type: .audio), dataPackage: dataPackage)
+//                        self.audioDecoder?.isAdts = false
+//                        self.audioDecoder?.audioDelegate = self
+//                        self.audioDecoder?.decodeTrack(timeScale: 44100)
+//                    }
+//                }
+//            }
+//        }
+//    }
     
     func play() {
         if isPlayable { queue.startRunning() }
@@ -305,8 +283,8 @@ extension MoviePlayer: MultiMediaAudioTypeDecoderDelegate {
 
 extension MoviePlayer: MultiMediaVideoTypeDecoderDelegate {
     func prepareToDisplay(with buffers: CMSampleBuffer) {
-       
-         queue.enqueue(buffers)
+        delegate?.displayQueue(with: buffers)
+        // queue.enqueue(buffers)
        
     }
     
@@ -321,7 +299,7 @@ extension MoviePlayer: DisplayLinkedQueueDelegate {
     // MARK: DisplayLinkedQueue
     func queue(_ buffer: CMSampleBuffer) {
 
-        delegate?.displayQueue(with: buffer)
+       // delegate?.displayQueue(with: buffer)
         if playing {
             self.audioPlayer.playIfNeeded()
         }

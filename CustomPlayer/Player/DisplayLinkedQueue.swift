@@ -58,6 +58,7 @@ final class DisplayLinkedQueue: NSObject {
                 if self.buffers.isEmpty { return }
                 self.buffers.removeFirst()
                 self.bufferCount -= 1
+                
             }
             delegate?.queue(first)
         }

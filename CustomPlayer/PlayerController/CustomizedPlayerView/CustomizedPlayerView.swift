@@ -76,7 +76,8 @@ class CustomizedPlayerView: UIView {
     
     func displayFrame(_ sample: CMSampleBuffer) {
         DispatchQueue.main.async {
-            self.videoPlayerLayer.enqueue(sample)
+            if self.videoPlayerLayer.isReadyForMoreMediaData {
+                self.videoPlayerLayer.enqueue(sample)}
         }
     }
 
