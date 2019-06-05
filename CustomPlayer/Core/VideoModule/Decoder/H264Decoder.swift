@@ -39,8 +39,11 @@ class H264Decoder {
         presentationTimeStamp: CMTime,
         duration: CMTime) in
        
-        let decoder: H264Decoder = unsafeBitCast(decompressionOutputRefCon,
-                                                 to: H264Decoder.self)
+//        let decoder: H264Decoder = unsafeBitCast(decompressionOutputRefCon,
+//                                                 to: H264Decoder.self)
+        
+        let decoder: H264Decoder = Unmanaged<H264Decoder>.fromOpaque(decompressionOutputRefCon!).takeUnretainedValue()
+        
         guard let decodedBuffer: CVPixelBuffer = imageBuffer else { return }
         let pointer = CVPixelBufferGetBaseAddress(decodedBuffer)
         var timingInfo:CMSampleTimingInfo = CMSampleTimingInfo(
@@ -55,14 +58,21 @@ class H264Decoder {
                     imageBuffer: decodedBuffer,
                     formatDescriptionOut: &formatDescription
                 )
+        
+        
+        
    var decodedSampleBuffer: CMSampleBuffer?
-        CMSampleBufferCreateReadyWithImageBuffer(allocator: kCFAllocatorDefault,
+        
+        CMSampleBufferCreateReadyWithImageBuffer(allocator: nil,
                                                  imageBuffer: decodedBuffer,
                                                  formatDescription: formatDescription!,
                                                  sampleTiming: &timingInfo,
                                                  sampleBufferOut: &decodedSampleBuffer)
+        guard let sample = decodedSampleBuffer else { return }
+                decoder.videoDecoderDelegate?.prepareToDisplay(with: sample)
+    
 
-decoder.videoDecoderDelegate?.prepareToDisplay(with: decodedSampleBuffer!)
+
 
 //         decoder.videoDecoderDelegate?.prepareToDisplay(with: decodedSampleBuffer!)
 //         CVPixelBufferLockBaseAddress(decodedBuffer, CVPixelBufferLockFlags(rawValue: 0))
@@ -233,6 +243,7 @@ decoder.videoDecoderDelegate?.prepareToDisplay(with: decodedSampleBuffer!)
                 return
                 
         }
+       
         
         var sampleBuffer: CMSampleBuffer?
         let timing = timingInfo
@@ -321,7 +332,6 @@ decoder.videoDecoderDelegate?.prepareToDisplay(with: decodedSampleBuffer!)
             flags: [._EnableAsynchronousDecompression, ._EnableTemporalProcessing],
             frameRefcon: nil,
             infoFlagsOut: &flag) == 0 else { return }
-        
     }
     
     private func updateDecompressionSession() {

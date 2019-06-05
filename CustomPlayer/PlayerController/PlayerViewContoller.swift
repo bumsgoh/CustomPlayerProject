@@ -143,15 +143,15 @@ class PlayerViewContoller: UIViewController {
     }()
     
     private lazy var moviePlayer: MoviePlayer? = {
-//        guard let url = URL(string: "https://video-dev.github.io/streams/x36xhzz/x36xhzz.m3u8") else {
-//            return nil
-//        }
+        guard let url = URL(string: "https://video-dev.github.io/streams/x36xhzz/x36xhzz.m3u8") else {
+            return nil
+        }
         //https://video-dev.github.io/streams/x36xhzz/x36xhzz.m3u8
         //https://devstreaming-cdn.apple.com/videos/streaming/examples/bipbop_4x3/bipbop_4x3_variant.m3u8
         //https://video-dev.github.io/streams/test_001/stream.m3u8
         //https://devstreaming-cdn.apple.com/videos/streaming/examples/img_bipbop_adv_example_ts/master.m3u8
-        guard let filePath = Bundle.main.path(forResource: "you", ofType: "mp4") else { return nil }
-        let url = URL(fileURLWithPath: filePath)
+//        guard let filePath = Bundle.main.path(forResource: "you", ofType: "mp4") else { return nil }
+//        let url = URL(fileURLWithPath: filePath)
         let player: MoviePlayer = MoviePlayer(url: url)
         player.delegate = self
         return player
@@ -305,7 +305,6 @@ class PlayerViewContoller: UIViewController {
         playButton.isEnabled = false
         if playButton.isSelected {
             playButton.setImage(#imageLiteral(resourceName: "pauseBtn"), for: .normal)
-            moviePlayer?.play()
             if state == .paused {
                 playButton.isEnabled = true
                 return
@@ -333,6 +332,7 @@ class PlayerViewContoller: UIViewController {
                         
                         let formattedDuration = String(format: "%0d:%02d", m, s)
                         self.playerTimerDurationLabel.text = formattedDuration
+                        self.moviePlayer?.play()
                     }
                    
                 }

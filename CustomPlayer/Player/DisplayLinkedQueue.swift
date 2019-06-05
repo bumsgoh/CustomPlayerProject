@@ -41,9 +41,8 @@ final class DisplayLinkedQueue: NSObject {
         lockQueue.async {
             self.duration += buffer.duration.seconds
             self.buffers.append(buffer)
-            self.bufferCount += 1
             if !self.isReady {
-                self.isReady = self.duration >= self.bufferTime
+                self.isReady = self.duration <= self.bufferTime
             }
         }
     }
@@ -55,10 +54,7 @@ final class DisplayLinkedQueue: NSObject {
         }
         if first.presentationTimeStamp.seconds <= displayLink.timestamp {
             lockQueue.async {
-                if self.buffers.isEmpty { return }
                 self.buffers.removeFirst()
-                self.bufferCount -= 1
-                
             }
             delegate?.queue(first)
         }

@@ -10,7 +10,7 @@ import Foundation
 import VideoToolbox
 
 class MoviePlayer: NSObject {
-
+    private var buffer: [CMSampleBuffer] = []
     private let fetchingQueue: DispatchQueue = DispatchQueue(label: "com.fetchAndDecodeQueue")
     private let jobQueue: DispatchQueue = DispatchQueue(label: "decodeQueue")
     private let lockQueue: DispatchQueue = DispatchQueue(label: "com.lockQueue", qos: .userInitiated, attributes: .concurrent, autoreleaseFrequency: .workItem, target: nil)
@@ -22,7 +22,7 @@ class MoviePlayer: NSObject {
     private var h264Decoder: H264Decoder = H264Decoder()
     var playContext = 1
     
-    
+    let semaphore = DispatchSemaphore(value: 1)
     private var currentPlayingItemIndex: ListIndex?
     private var state: MediaStatus = .stopped
     private var audioDecoder: AudioTrackDecodable?
@@ -31,7 +31,20 @@ class MoviePlayer: NSObject {
     
     private var dataFromDecoder = Data()
     
-    private var playing = false
+    @objc dynamic var isPlayable: Bool = false {
+        didSet {
+            if isPlayable {
+                if !started {
+                    queue.startRunning()
+                    audioPlayer.playIfNeeded()
+                    started = true
+                }
+            } else {
+                
+            }
+        }
+    }
+    private var started = false
     private var isVideoReady: Bool = false
     private var isAudioReady: Bool = false
     
@@ -52,7 +65,7 @@ class MoviePlayer: NSObject {
     
     weak var delegate: VideoQueueDelegate?
     
-   @objc dynamic var isPlayable: Bool = false
+   
    
     private lazy var queue: DisplayLinkedQueue = {
         let queue: DisplayLinkedQueue = DisplayLinkedQueue()
@@ -79,12 +92,12 @@ class MoviePlayer: NSObject {
     }
     
     func setObservers() {
-        queue.addObserver(self, forKeyPath: "isReady", options: .new, context: &playContext)
-        audioPlayer.addObserver(self, forKeyPath: "isReady", options: .new, context: &playContext)
+        queue.addObserver(self, forKeyPath: "isReady", options: [.new, .old], context: &playContext)
+        audioPlayer.addObserver(self, forKeyPath: "isReady", options: [.new, .old], context: &playContext)
     }
     
     override func observeValue(forKeyPath keyPath: String?, of object: Any?, change: [NSKeyValueChangeKey : Any]?, context: UnsafeMutableRawPointer?) {
-        
+    
         guard context == &playContext else {
             super.observeValue(forKeyPath: keyPath, of: object, change: change, context: context)
             return
@@ -96,22 +109,31 @@ class MoviePlayer: NSObject {
         }
         
         if keyPath == #keyPath(DisplayLinkedQueue.isReady) {
-            guard let isPlayable = change?[.newKey] as? Int else { return }
-            if isPlayable == 1 {
-                isVideoReady = true
+            guard let oldValue = change?[.oldKey] as? Bool,
+                let newValue = change?[.newKey] as? Bool else { return }
+            if oldValue != newValue {
+                if newValue {
+                    isVideoReady = true
+                } else {
+                    isVideoReady = false
+                }
             }
         }
         
         if keyPath == #keyPath(AudioPlayer.isReady) {
-            guard let state = change?[.newKey] as? Int else { return }
-            print(state)
-            if state == 1 {
-                isAudioReady = true
+            guard let oldValue = change?[.oldKey] as? Bool,
+                let newValue = change?[.newKey] as? Bool else { return }
+            if oldValue != newValue {
+                if newValue {
+                    isAudioReady = true
+                } else {
+                    isAudioReady = false
+                }
             }
         }
-        isPlayable = isAudioReady && isVideoReady
-        if isPlayable { queue.startRunning() }
         
+        isPlayable = isAudioReady && isVideoReady
+//        if isPlayable { queue.startRunning() }
     }
     
     func loadPlayerAsynchronously(completion: @escaping (Result<Bool, Error>) -> Void) {
@@ -162,7 +184,6 @@ class MoviePlayer: NSObject {
                 }
             } else {
                 self.totalDuration = 5960
-               // let tsLoader = TSLoader(url: self.url)
                 self.tsLoader.initializeLoader {
                     self.tsLoader.fetchTsStream { (result) in
                         switch result {
@@ -177,23 +198,23 @@ class MoviePlayer: NSObject {
                                 switch $0.type {
                                 case .video:
                                     videoDataArray = $0.actualData
-                                    videoTimings = zip($0.pts, $0.dts).map {
-                                         CMSampleTimingInfo(pts: Int64($0.0), dts: Int64($0.1), fps: 24)
-                                    }
+                                    videoTimings =
+                                        zip($0.pts, $0.dts).map {
+                                         CMSampleTimingInfo(pts: Int64($0.0),
+                                                            dts: Int64($0.1),
+                                                            fps: 24)
+                                        }
                                 case .audio:
-                            
-                                    
                                     self.prepareToPlay(with: Data($0.actualData))
                                     
                                 case .unknown:
                                     return
                                 }
                             }
-                            
-                          
                             self.h264Decoder.videoDecoderDelegate = self
-                            self.h264Decoder.decode(frames: videoDataArray, presentationTimestamps: videoTimings)
-
+                            self.h264Decoder.decode(frames: videoDataArray,
+                                                    presentationTimestamps: videoTimings)
+                            self.fetchNextItem()
                             completion(.success(true))
                         }
                     }
@@ -202,70 +223,65 @@ class MoviePlayer: NSObject {
         }
     }
     
-//    private func fetchNextItem() {
-//        while true {
-//        fetchingQueue.sync {
-//                self.tsLoader.fetchTsStream { (result) in
-//                    switch result {
-//                    case .failure(let error):
-//                        return
-//                    case .success(let tsStreams):
-//                        guard let streams = tsStreams else { break }
-//                        var videoDataArray = [UInt8]()
-//                        var audioDataArray = [UInt8]()
-//                        var videoTimings = [CMSampleTimingInfo]()
-//                        var audioTimings = [CMSampleTimingInfo]()
-//                        var pts: [Int] = []
-//                        var datas = [Data]()
-//                        
-//                        streams.forEach {
-//                            switch $0.type {
-//                            case .video:
-//                                videoDataArray.append(contentsOf: $0.actualData)
-//                                videoTimings.append(CMSampleTimingInfo(duration: CMTime(value: 24, timescale: 1000),
-//                                                                       presentationTimeStamp: CMTime(value: CMTimeValue($0.pts), timescale: 1000),
-//                                                                       decodeTimeStamp: CMTime(value: CMTimeValue($0.dts), timescale: 1000)))
-//                            case .audio:
-//                                pts.append($0.pts)
-//                                datas.append(Data($0.actualData))
-//                                audioDataArray.append(contentsOf: $0.actualData)
-//                                audioTimings.append(CMSampleTimingInfo(duration: CMTime(value: 3000, timescale: 30000),
-//                                                                       presentationTimeStamp: CMTime(value: CMTimeValue($0.pts), timescale: 30000),
-//                                                                       decodeTimeStamp: CMTime(value: CMTimeValue($0.dts), timescale: 30000)))
-//                            case .unknown:
-//                                return
-//                            }
-//                        }
-//                        
-//                        let h264Decoder = H264Decoder()
-//                       
-//                        h264Decoder
-//                       // h264Decoder.decode(frames: <#[UInt8]#>)
-//                        
-//                        let dataPackage = DataPackage(presentationTimestamp: pts, dataStorage: datas)
-//                        self.audioDecoder = AAC_ADTSDecoder(track: Track(type: .audio), dataPackage: dataPackage)
-//                        self.audioDecoder?.isAdts = false
-//                        self.audioDecoder?.audioDelegate = self
-//                        self.audioDecoder?.decodeTrack(timeScale: 44100)
-//                    }
-//                }
-//            }
-//        }
-//    }
-    
-    func play() {
-        if isPlayable { queue.startRunning() }
-        
-        if !playing {
-            audioPlayer.playIfNeeded()
+    private func fetchNextItem() {
+        while true {
+          //  fetchingQueue.async {
+                
+                self.tsLoader.fetchTsStream { (result) in
+                    self.semaphore.wait()
+                    switch result {
+                    case .failure(let error):
+                        print("d")
+                    case .success(let tsStreams):
+                        self.semaphore.signal()
+                        guard let streams = tsStreams else { return }
+                        var videoDataArray = [UInt8]()
+                        var videoTimings = [CMSampleTimingInfo]()
+                        
+                        streams.forEach {
+                            switch $0.type {
+                            case .video:
+                                videoDataArray = $0.actualData
+                                videoTimings =
+                                zip($0.pts, $0.dts).map {
+                                CMSampleTimingInfo(pts: Int64($0.0),
+                                dts: Int64($0.1),
+                                fps: 24)
+                                }
+                            case .audio:
+                                print("d")
+                               // self.prepareToPlay(with: Data($0.actualData))
+                            
+                            case .unknown:
+                                return
+                            }
+                        }
+                        
+                        self.h264Decoder.decode(frames: videoDataArray,
+                        presentationTimestamps: videoTimings)
+                        
+                    }
+                }
+            //}
         }
-        playing = true
+    }
+
+    func play() {
+        
+        if isPlayable {
+            started = true
+            queue.startRunning()
+            audioPlayer.playIfNeeded()
+        } else {
+            started = false
+        }
+        
     }
     
     func pause() {
         queue.stopRunning()
         audioPlayer.pause()
-        playing = false
+        started = false
     }
     
     func seek(to time: TimeInterval) {
@@ -283,8 +299,8 @@ extension MoviePlayer: MultiMediaAudioTypeDecoderDelegate {
 
 extension MoviePlayer: MultiMediaVideoTypeDecoderDelegate {
     func prepareToDisplay(with buffers: CMSampleBuffer) {
-        delegate?.displayQueue(with: buffers)
-        // queue.enqueue(buffers)
+        //delegate?.displayQueue(with: buffers)
+         queue.enqueue(buffers)
        
     }
     
@@ -299,15 +315,18 @@ extension MoviePlayer: DisplayLinkedQueueDelegate {
     // MARK: DisplayLinkedQueue
     func queue(_ buffer: CMSampleBuffer) {
 
-       // delegate?.displayQueue(with: buffer)
-        if playing {
-            self.audioPlayer.playIfNeeded()
-        }
+        delegate?.displayQueue(with: buffer)
+
     }
 }
 
-struct ListIndex {
-    var gear: Int
-    var index: Int
+class ListIndex {
+    var gear: Int = 0
+    var index: Int = 0
+    
+    init(gear: Int, index: Int) {
+        self.gear = gear
+        self.index = index
+    }
 }
 

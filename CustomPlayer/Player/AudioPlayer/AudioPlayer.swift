@@ -156,9 +156,8 @@ class AudioPlayer: NSObject {
         guard let audioQueue = audioQueue, !isPlaying else { return }
         isPlaying = true
         state = .playing
-        let cookie = getMagicCookieForFileStream()
-        setMagicCookieForQueue(cookie!)
-        self.enqueuePacket(with: 200)
+//        let cookie = getMagicCookieForFileStream()
+//        setMagicCookieForQueue(cookie!)
         AudioQueuePrime(audioQueue, 5, nil)
         AudioQueueStart(audioQueue,nil)
     }
@@ -263,6 +262,7 @@ class AudioPlayer: NSObject {
             //if state == .paused {
               //  parseFlags = .discontinuity
             //} else {
+        parseFlags = .discontinuity
                 guard let fileId = fileStreamID else { return }
                 parseFlags = AudioFileStreamParseFlags(rawValue: 0)
                 assertDependOnMultiMediaValueStatus(AudioFileStreamParseBytes(fileId,

@@ -65,11 +65,11 @@ class TSLoader: NSObject {
         
         guard let targetMediaPlaylist = masterPlaylist?
             .mediaPlaylists[gear] else { return }
-        
+
         if targetMediaPlaylist.videoMediaSegments.count < currentPlaylistIndex.index {
             completion(.success(nil))
         }
-        
+        print("currGear\(currentPlaylistIndex.gear), currIdx \(currentPlaylistIndex.index)")
         if !targetMediaPlaylist.isParsed {
             m3u8Parser.parseMediaPlaylist(list: targetMediaPlaylist) {
                 guard let path = targetMediaPlaylist
@@ -86,8 +86,9 @@ class TSLoader: NSObject {
                     case .success(let tsData):
                         let tsParser = TSParser(target: tsData)
                         let tsStream = tsParser.parse()
+                        
+                        currentPlaylistIndex.index += 1
                         completion(.success(tsStream))
-                        self.currentPlayingItemIndex = ListIndex(gear: currentPlaylistIndex.gear, index: currentPlaylistIndex.index + 1)
                     }
                 }
             }
@@ -106,8 +107,8 @@ class TSLoader: NSObject {
                 case .success(let tsData):
                     let tsParser = TSParser(target: tsData)
                     let tsStream = tsParser.parse()
+                    currentPlaylistIndex.index += 1
                     completion(.success(tsStream))
-                    self.currentPlayingItemIndex = ListIndex(gear: currentPlaylistIndex.gear, index: currentPlaylistIndex.index + 1)
                 }
             }
         }

@@ -47,7 +47,6 @@
 		CEF94B89226E8F7F006B7528 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = CEF94B88226E8F7F006B7528 /* Assets.xcassets */; };
 		CEF94B8C226E8F7F006B7528 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = CEF94B8A226E8F7F006B7528 /* LaunchScreen.storyboard */; };
 		CEF94B96226EB7D9006B7528 /* H264Decoder.swift in Sources */ = {isa = PBXBuildFile; fileRef = CEF94B95226EB7D9006B7528 /* H264Decoder.swift */; };
-		CEF94B9A226ED513006B7528 /* AvccDecoder.swift in Sources */ = {isa = PBXBuildFile; fileRef = CEF94B99226ED513006B7528 /* AvccDecoder.swift */; };
 		CEF94B9C226EDE78006B7528 /* MultiMediaVideoTypeDecoderDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = CEF94B9B226EDE78006B7528 /* MultiMediaVideoTypeDecoderDelegate.swift */; };
 		CEF94BCE227AD2E0006B7528 /* AAC_ADTSDecoder.swift in Sources */ = {isa = PBXBuildFile; fileRef = CEF94BCD227AD2E0006B7528 /* AAC_ADTSDecoder.swift */; };
 		CEF94BD2227ADED5006B7528 /* ma.mp4 in Resources */ = {isa = PBXBuildFile; fileRef = CEF94BD1227ADED5006B7528 /* ma.mp4 */; };
@@ -103,7 +102,6 @@
 		CEF94B8B226E8F7F006B7528 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		CEF94B8D226E8F7F006B7528 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		CEF94B95226EB7D9006B7528 /* H264Decoder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = H264Decoder.swift; sourceTree = "<group>"; };
-		CEF94B99226ED513006B7528 /* AvccDecoder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AvccDecoder.swift; sourceTree = "<group>"; };
 		CEF94B9B226EDE78006B7528 /* MultiMediaVideoTypeDecoderDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MultiMediaVideoTypeDecoderDelegate.swift; sourceTree = "<group>"; };
 		CEF94BCD227AD2E0006B7528 /* AAC_ADTSDecoder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AAC_ADTSDecoder.swift; sourceTree = "<group>"; };
 		CEF94BD1227ADED5006B7528 /* ma.mp4 */ = {isa = PBXFileReference; lastKnownFileType = file; path = ma.mp4; sourceTree = "<group>"; };
@@ -138,7 +136,6 @@
 		C9A75599229EB76C0043E812 /* VideoModule */ = {
 			isa = PBXGroup;
 			children = (
-				C9A8A2202277DF3E00EB3FBC /* FileReader */,
 				C9A7559A229EB77D0043E812 /* Decoder */,
 				C9A8A2222277DF6E00EB3FBC /* Parser */,
 			);
@@ -150,7 +147,6 @@
 			children = (
 				CEF94B9B226EDE78006B7528 /* MultiMediaVideoTypeDecoderDelegate.swift */,
 				CEF94B95226EB7D9006B7528 /* H264Decoder.swift */,
-				CEF94B99226ED513006B7528 /* AvccDecoder.swift */,
 				CE0810C722A60F11009ED5DB /* NALType.swift */,
 			);
 			path = Decoder;
@@ -252,6 +248,7 @@
 		CE2D62C82282CB9B0078D2C5 /* Mpeg4Parser */ = {
 			isa = PBXGroup;
 			children = (
+				C9A8A2202277DF3E00EB3FBC /* FileReader */,
 				C9A8A2152277DF1300EB3FBC /* Mpeg4Parser.swift */,
 			);
 			path = Mpeg4Parser;
@@ -488,7 +485,6 @@
 				CE0810C422A52E35009ED5DB /* Math.swift in Sources */,
 				C9C28ED222915DA900337CC7 /* MasterPlaylist.swift in Sources */,
 				C91E441122833A7600435465 /* AudioPlayer.swift in Sources */,
-				CEF94B9A226ED513006B7528 /* AvccDecoder.swift in Sources */,
 				CE2D62D4228572BF0078D2C5 /* MoviePlayer.swift in Sources */,
 				CE0810C822A60F11009ED5DB /* NALType.swift in Sources */,
 				C9A7559E229EBBBF0043E812 /* TSLoader.swift in Sources */,
