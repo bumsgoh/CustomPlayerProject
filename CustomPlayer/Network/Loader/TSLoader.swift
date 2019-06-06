@@ -66,12 +66,14 @@ class TSLoader: NSObject {
         guard let targetMediaPlaylist = masterPlaylist?
             .mediaPlaylists[gear] else { return }
 
-        if targetMediaPlaylist.videoMediaSegments.count < currentPlaylistIndex.index {
-            completion(.success(nil))
-        }
+        
         print("currGear\(currentPlaylistIndex.gear), currIdx \(currentPlaylistIndex.index)")
         if !targetMediaPlaylist.isParsed {
             m3u8Parser.parseMediaPlaylist(list: targetMediaPlaylist) {
+                if targetMediaPlaylist.videoMediaSegments.count < currentPlaylistIndex.index {
+                    completion(.success(nil))
+                    return
+                }
                 guard let path = targetMediaPlaylist
                     .videoMediaSegments[currentPlaylistIndex.index].path else {
                         completion(.failure(APIError.urlFailure))
@@ -93,6 +95,10 @@ class TSLoader: NSObject {
                 }
             }
         } else {
+            if targetMediaPlaylist.videoMediaSegments.count < currentPlaylistIndex.index {
+                completion(.success(nil))
+                return
+            }
             guard let path = targetMediaPlaylist
                 .videoMediaSegments[currentPlaylistIndex.index].path else {
                     completion(.failure(APIError.urlFailure))
@@ -103,7 +109,7 @@ class TSLoader: NSObject {
                 switch result {
                 case .failure:
                     completion(.failure(APIError.requestFailed))
-                    
+                    return
                 case .success(let tsData):
                     let tsParser = TSParser(target: tsData)
                     let tsStream = tsParser.parse()

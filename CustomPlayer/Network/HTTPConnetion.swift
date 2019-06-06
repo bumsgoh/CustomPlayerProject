@@ -15,7 +15,7 @@ class HTTPConnetion {
     public init() {
         self.networkChecker = NetworkChecker.shared
         let configuration = URLSessionConfiguration.default
-        configuration.timeoutIntervalForRequest = 10
+        configuration.timeoutIntervalForRequest = 3
         self.session = URLSession(configuration: configuration)
     }
     
@@ -26,7 +26,7 @@ class HTTPConnetion {
             completion(.failure(APIError.urlFailure), nil)
             return
         }
-        
+        print(url)
         let task = session.dataTask(with: url) { [weak self] (data, response, error) in
             
             if response?.expectedContentLength ?? 0 > 0 {
@@ -51,9 +51,5 @@ class HTTPConnetion {
             completion(.success(data), response)
         }
         task.resume()
-    }
-    
-    public func attach(netWorkChecker checker: NetworkChecker) {
-        self.networkChecker = checker
     }
 }

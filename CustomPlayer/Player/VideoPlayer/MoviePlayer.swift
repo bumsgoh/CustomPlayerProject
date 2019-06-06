@@ -29,8 +29,6 @@ class MoviePlayer: NSObject {
     private var videoDecoder: VideoTrackDecodable?
     private var audioPlayer: AudioPlayer = AudioPlayer()
     
-    private var dataFromDecoder = Data()
-    
     @objc dynamic var isPlayable: Bool = false {
         didSet {
             if isPlayable {
@@ -64,6 +62,12 @@ class MoviePlayer: NSObject {
     }
     
     weak var delegate: VideoQueueDelegate?
+    
+    private lazy var taskManager: TaskManager = {
+        let manager = TaskManager()
+        manager.delegate = self
+        return manager
+    }()
     
    
    
@@ -198,8 +202,7 @@ class MoviePlayer: NSObject {
                                 switch $0.type {
                                 case .video:
                                     videoDataArray = $0.actualData
-                                    videoTimings =
-                                        zip($0.pts, $0.dts).map {
+                                    videoTimings = zip($0.pts, $0.dts).map {
                                          CMSampleTimingInfo(pts: Int64($0.0),
                                                             dts: Int64($0.1),
                                                             fps: 24)
@@ -214,7 +217,28 @@ class MoviePlayer: NSObject {
                             self.h264Decoder.videoDecoderDelegate = self
                             self.h264Decoder.decode(frames: videoDataArray,
                                                     presentationTimestamps: videoTimings)
-                            self.fetchNextItem()
+                            //self.startTask()
+                            self.fetchingQueue.async {
+                                var hasMore = true
+                                let semaphore = DispatchSemaphore(value: 1)
+                                while hasMore {
+                                    semaphore.wait()
+                                    self.fetchNextItem(completion: { (result) in
+                                        
+                                        switch result {
+                                            
+                                        case .failure:
+                                            hasMore = false
+                                            semaphore.signal()
+                                        case .success(let data):
+                                            semaphore.signal()
+                                            if data == nil { hasMore = false }
+                                        }
+                                    })
+                                }
+                            }
+                       
+                           
                             completion(.success(true))
                         }
                     }
@@ -223,46 +247,52 @@ class MoviePlayer: NSObject {
         }
     }
     
-    private func fetchNextItem() {
-        while true {
-          //  fetchingQueue.async {
+    private func fetchNextItem(completion: @escaping (Result<Bool?, Error>) -> Void) {
+        
+        self.tsLoader.fetchTsStream { (result) in
+           
+            switch result {
                 
-                self.tsLoader.fetchTsStream { (result) in
-                    self.semaphore.wait()
-                    switch result {
-                    case .failure(let error):
-                        print("d")
-                    case .success(let tsStreams):
-                        self.semaphore.signal()
-                        guard let streams = tsStreams else { return }
-                        var videoDataArray = [UInt8]()
-                        var videoTimings = [CMSampleTimingInfo]()
-                        
-                        streams.forEach {
-                            switch $0.type {
-                            case .video:
-                                videoDataArray = $0.actualData
-                                videoTimings =
-                                zip($0.pts, $0.dts).map {
-                                CMSampleTimingInfo(pts: Int64($0.0),
-                                dts: Int64($0.1),
-                                fps: 24)
-                                }
-                            case .audio:
-                                print("d")
-                               // self.prepareToPlay(with: Data($0.actualData))
-                            
-                            case .unknown:
-                                return
-                            }
+            case .failure(let error):
+                completion(.failure(error))
+                return
+            case .success(let tsStreams):
+                guard let streams = tsStreams else {
+                    completion(.success(nil))
+                    return
+                }
+                var videoDataArray = [UInt8]()
+                var videoTimings = [CMSampleTimingInfo]()
+                
+                streams.forEach {
+                    switch $0.type {
+                    case .video:
+                        videoDataArray = $0.actualData
+                        videoTimings = zip($0.pts, $0.dts).map {
+                            CMSampleTimingInfo(pts: Int64($0.0),
+                            dts: Int64($0.1),
+                            fps: 24)
                         }
-                        
-                        self.h264Decoder.decode(frames: videoDataArray,
-                        presentationTimestamps: videoTimings)
-                        
+                    case .audio:
+                        print("d")
+                       // self.prepareToPlay(with: Data($0.actualData))
+                    
+                    case .unknown:
+                        completion(.failure(APIError.invalidData))
+                        return
                     }
                 }
-            //}
+                
+                self.h264Decoder.decode(frames: videoDataArray,
+                presentationTimestamps: videoTimings)
+                completion(.success(true))
+            }
+        }
+    }
+    
+    func startTask() {
+        while self.taskManager.work() {
+            
         }
     }
 
@@ -286,7 +316,7 @@ class MoviePlayer: NSObject {
     
     func seek(to time: TimeInterval) {
         audioPlayer.seek(to: time)
-        audioPlayer.parseDeliveredData(data: dataFromDecoder)
+       // audioPlayer.parseDeliveredData(data: dataFromDecoder)
     }
 }
 
@@ -317,6 +347,14 @@ extension MoviePlayer: DisplayLinkedQueueDelegate {
 
         delegate?.displayQueue(with: buffer)
 
+    }
+}
+
+extension MoviePlayer: TaskMangerDelegate {
+    func requestMoreTask() -> Operation {
+        let task = AsynchronousOperation(operation: fetchNextItem)
+        task.delegate = taskManager
+        return task
     }
 }
 
