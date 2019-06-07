@@ -329,8 +329,8 @@ extension MoviePlayer: MultiMediaAudioTypeDecoderDelegate {
 
 extension MoviePlayer: MultiMediaVideoTypeDecoderDelegate {
     func prepareToDisplay(with buffers: CMSampleBuffer) {
-        //delegate?.displayQueue(with: buffers)
-         queue.enqueue(buffers)
+        delegate?.displayQueue(with: buffers)
+        // queue.enqueue(buffers)
        
     }
     
