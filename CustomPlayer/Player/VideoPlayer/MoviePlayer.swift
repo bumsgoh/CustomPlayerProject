@@ -10,6 +10,7 @@ import Foundation
 import VideoToolbox
 
 class MoviePlayer: NSObject {
+    let opQueue = OperationQueue()
     private var buffer: [CMSampleBuffer] = []
     private let fetchingQueue: DispatchQueue = DispatchQueue(label: "com.fetchAndDecodeQueue")
     private let jobQueue: DispatchQueue = DispatchQueue(label: "decodeQueue")
@@ -17,7 +18,7 @@ class MoviePlayer: NSObject {
     private let isFileBasedPlayer: Bool
     private let url: URL
     private let httpConnection: HTTPConnetion
-    
+   
     private let tsLoader: TSLoader
     private var h264Decoder: H264Decoder = H264Decoder()
     var playContext = 1
@@ -92,24 +93,43 @@ class MoviePlayer: NSObject {
     
     deinit {
         queue.removeObserver(self, forKeyPath: "isReady")
+        queue.removeObserver(self, forKeyPath: "isBufferFull")
         audioPlayer.removeObserver(self, forKeyPath: "isReady")
     }
     
     func setObservers() {
         queue.addObserver(self, forKeyPath: "isReady", options: [.new, .old], context: &playContext)
+        queue.addObserver(self, forKeyPath: "isBufferFull", options: [.new, .old], context: &playContext)
         audioPlayer.addObserver(self, forKeyPath: "isReady", options: [.new, .old], context: &playContext)
     }
     
     override func observeValue(forKeyPath keyPath: String?, of object: Any?, change: [NSKeyValueChangeKey : Any]?, context: UnsafeMutableRawPointer?) {
-    
+        
+        
         guard context == &playContext else {
             super.observeValue(forKeyPath: keyPath, of: object, change: change, context: context)
             return
         }
         
-        guard context == &playContext else {
-            super.observeValue(forKeyPath: keyPath, of: object, change: change, context: context)
-            return
+        if keyPath == #keyPath(DisplayLinkedQueue.isBufferFull) {
+            guard let oldValue = change?[.oldKey] as? Bool,
+                let newValue = change?[.newKey] as? Bool else { return }
+            if oldValue != newValue {
+                if newValue {
+                    self.h264Decoder.taskManager.pauseTask()
+                    //self.fetchingQueue.suspend()
+                     print(self.h264Decoder.taskManager.queue.operations.count)
+                    print("stop")
+                   
+                   
+                } else {
+                    self.h264Decoder.taskManager.resumeTask()
+                    print(self.h264Decoder.taskManager.queue.operations.count)
+                    print("resume")
+                   // self.fetchingQueue.resume()
+                  
+                }
+            }
         }
         
         if keyPath == #keyPath(DisplayLinkedQueue.isReady) {
@@ -178,11 +198,13 @@ class MoviePlayer: NSObject {
                         self.h264Decoder.sps = metaData.sequenceParameters.toUInt8Array
                         self.h264Decoder.pps = metaData.pictureParameters.toUInt8Array
                         self.h264Decoder.sampleSizeArray = metaData.sampleSizeArray
-                        
+                        self.h264Decoder.isESType = false
                         self.h264Decoder.videoDecoderDelegate = self
                         
+                       
                         self.h264Decoder.decode(frames: videoDataArray, presentationTimestamps: videoTimings)
                         
+                       
                         completion(.success(true))
                     }
                 }
@@ -214,29 +236,35 @@ class MoviePlayer: NSObject {
                                     return
                                 }
                             }
+                            self.h264Decoder.isESType = true
                             self.h264Decoder.videoDecoderDelegate = self
-                            self.h264Decoder.decode(frames: videoDataArray,
-                                                    presentationTimestamps: videoTimings)
-                            //self.startTask()
-                            self.fetchingQueue.async {
-                                var hasMore = true
-                                let semaphore = DispatchSemaphore(value: 1)
-                                while hasMore {
-                                    semaphore.wait()
-                                    self.fetchNextItem(completion: { (result) in
-                                        
-                                        switch result {
-                                            
-                                        case .failure:
-                                            hasMore = false
-                                            semaphore.signal()
-                                        case .success(let data):
-                                            semaphore.signal()
-                                            if data == nil { hasMore = false }
-                                        }
-                                    })
-                                }
+                            
+                            let task = BlockOperation { self.h264Decoder.decode(frames: videoDataArray,
+                                                                                presentationTimestamps: videoTimings)
+                                
                             }
+                            self.taskManager.addWithDependency(task: task)
+                            
+                            self.startTask()
+//                            self.fetchingQueue.async {
+//                                var hasMore = true
+//                                let semaphore = DispatchSemaphore(value: 1)
+//                                while hasMore {
+//                                    semaphore.wait()
+//                                    self.fetchNextItem(completion: { (result) in
+//
+//                                        switch result {
+//
+//                                        case .failure:
+//                                            hasMore = false
+//                                            semaphore.signal()
+//                                        case .success(let data):
+//                                            semaphore.signal()
+//                                            if data == nil { hasMore = false }
+//                                        }
+//                                    })
+//                                }
+//                            }
                        
                            
                             completion(.success(true))
@@ -291,8 +319,56 @@ class MoviePlayer: NSObject {
     }
     
     func startTask() {
-        while self.taskManager.work() {
+        let semaphore = DispatchSemaphore(value: 1)
+        fetchingQueue.async {
             
+            var hasMore = true
+            while true {
+              //  if !self.h264Decoder.hasDecodeDone { continue }
+                semaphore.wait()
+                self.tsLoader.fetchTsStream(completion: { (result) in
+                    
+                    switch result {
+                        
+                    case .failure(let error):
+                        semaphore.signal()
+                        return
+                    case .success(let tsStreams):
+                        semaphore.signal()
+                        guard let streams = tsStreams else {
+                            return
+                        }
+                        var videoDataArray = [UInt8]()
+                        var videoTimings = [CMSampleTimingInfo]()
+                        
+                        streams.forEach {
+                            switch $0.type {
+                            case .video:
+                                videoDataArray = $0.actualData
+                                videoTimings = zip($0.pts, $0.dts).map {
+                                    CMSampleTimingInfo(pts: Int64($0.0),
+                                                       dts: Int64($0.1),
+                                                       fps: 24)
+                                }
+                            case .audio:
+                                print("d")
+                                // self.prepareToPlay(with: Data($0.actualData))
+                                
+                            case .unknown:
+                                return
+                            }
+                        }
+                        
+                       
+                        let task = BlockOperation { self.h264Decoder.decode(frames: videoDataArray,
+                                                presentationTimestamps: videoTimings)
+                        
+                        }
+                        self.taskManager.addWithDependency(task: task)
+                    }
+                })
+               // AsynchronousOperation(operation: self.fetchNextItem).start()
+            }
         }
     }
 
@@ -352,7 +428,8 @@ extension MoviePlayer: DisplayLinkedQueueDelegate {
 
 extension MoviePlayer: TaskMangerDelegate {
     func requestMoreTask() -> Operation {
-        let task = AsynchronousOperation(operation: fetchNextItem)
+        let task = TSOperation(operation: fetchNextItem)
+        
         task.delegate = taskManager
         return task
     }

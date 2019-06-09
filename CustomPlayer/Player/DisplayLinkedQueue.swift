@@ -16,11 +16,13 @@ protocol DisplayLinkedQueueDelegate: class {
 final class DisplayLinkedQueue: NSObject {
     
     private let lockQueue = DispatchQueue(label: "com.bumslap.DisplayLinkedQueue.lock")
+    private let bufferSize = 128
     
     var running: Bool = false
     var bufferTime: TimeInterval = 3 // sec
     
-    @objc dynamic var bufferCount = 0
+    @objc dynamic var isBufferFull: Bool = false
+    private var bufferCount = 0
     weak var delegate: DisplayLinkedQueueDelegate?
     
     private(set) var duration: TimeInterval = 0
@@ -41,6 +43,12 @@ final class DisplayLinkedQueue: NSObject {
         lockQueue.async {
             self.duration += buffer.duration.seconds
             self.buffers.append(buffer)
+            self.bufferCount += 1
+            
+            if self.bufferCount >= self.bufferSize {
+                self.isBufferFull = true
+            }
+            
             if !self.isReady {
                 self.isReady = self.duration <= self.bufferTime
             }
@@ -55,7 +63,15 @@ final class DisplayLinkedQueue: NSObject {
         if first.presentationTimeStamp.seconds <= displayLink.timestamp {
             lockQueue.async {
                 self.buffers.removeFirst()
+                self.bufferCount -= 1
+                if self.buffers.count <= self.bufferSize / 2 {
+                    
+                    
+                    self.isBufferFull = false
+                    
+                }
             }
+            
             delegate?.queue(first)
         }
     }

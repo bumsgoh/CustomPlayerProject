@@ -8,16 +8,19 @@
 
 import Foundation
 
+protocol OperationStateDelegate: class {
+    func stopRunnuing()
+}
 
-class AsyncOperation: Operation {
+class TSOperation: Operation {
     
-    typealias CompletionType = () -> Void
+    typealias CompletionType = (@escaping (Result<Bool?, Error>) -> Void) -> Void
     
     weak var delegate: OperationStateDelegate?
     
     private let operation: CompletionType
     
-    private let fetchingQueue: DispatchQueue = DispatchQueue(label: "com.OperationAsyncQueue")
+    private let fetchingQueue: DispatchQueue = DispatchQueue(label: "com.OperationSyncQueue")
     
     @objc private enum State: Int {
         case ready
@@ -68,11 +71,27 @@ class AsyncOperation: Operation {
     }
     open override func main() {
         
-        let semaphore = DispatchSemaphore(value: 0)
+            let semaphore = DispatchSemaphore(value: 0)
+            
+            self.operation() { [weak self] (result) in
+                
+                switch result {
+                case .failure:
+                    semaphore.signal()
+                    self?.delegate?.stopRunnuing()
+                    self?.finish()
+                case .success(let value):
+                    semaphore.signal()
+                    if value == nil {
+                        self?.delegate?.stopRunnuing()
+                        self?.finish()
+                    }
+                }
+                
+            }
+        semaphore.wait()
         
-        self.operation()
-        
-        
+      
     }
     
     public final func finish() {

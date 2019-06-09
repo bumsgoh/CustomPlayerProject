@@ -11,8 +11,9 @@ import VideoToolbox
 
 class H264Decoder {
   
-    private let lockQueue = DispatchQueue(label: "com.bumslap.h264DecoderLock")
-    
+    private let decodeQueue = DispatchQueue(label: "com.bumslap.h264DecoderQueue")
+    let taskManager = TaskManager()
+    let queue = OperationQueue()
     private var formatDescription: CMVideoFormatDescription?
     private var decompressionSession: VTDecompressionSession?
     
@@ -22,13 +23,26 @@ class H264Decoder {
     var sps: [UInt8]?
     var pps: [UInt8]?
     var sampleSizeArray: [Int] = []
-    var count = 0
     
-    private var isESType: Bool = false
+    private var decodeCount = 0
+    private var callbackCount = 0
+    var hasDecodeDone: Bool {
+        get {
+            if decodeCount < callbackCount {
+                callbackCount = 0
+                return true
+            } else {
+                return false
+            }
+        }
+    }
+    var isESType: Bool = false
     
     weak var videoDecoderDelegate: MultiMediaVideoTypeDecoderDelegate?
     
     private lazy var startCode: [UInt8] = []
+    
+    var isBufferFull: Bool = false
     
     private var callback: VTDecompressionOutputCallback = {(
         decompressionOutputRefCon: UnsafeMutableRawPointer?,
@@ -61,7 +75,7 @@ class H264Decoder {
         
         
         
-   var decodedSampleBuffer: CMSampleBuffer?
+        var decodedSampleBuffer: CMSampleBuffer?
         
         CMSampleBufferCreateReadyWithImageBuffer(allocator: nil,
                                                  imageBuffer: decodedBuffer,
@@ -69,7 +83,10 @@ class H264Decoder {
                                                  sampleTiming: &timingInfo,
                                                  sampleBufferOut: &decodedSampleBuffer)
         guard let sample = decodedSampleBuffer else { return }
-                decoder.videoDecoderDelegate?.prepareToDisplay(with: sample)
+       // decoder.callbackCount += 1
+       // print(decoder.callbackCount)
+        decoder.videoDecoderDelegate?.prepareToDisplay(with: sample)
+        
     
 
 
@@ -113,15 +130,21 @@ class H264Decoder {
 
     init() {}
     
+    deinit {
+        print("h264 deinit")
+    }
+    
+    func suspendDecoding() {
+        decodeQueue.suspend()
+    }
+    
+    func resumeDecoding() {
+        decodeQueue.resume()
+    }
+    
     func decode(frames: [UInt8], presentationTimestamps: [CMSampleTimingInfo]) {
-        
-        if sps == nil {
-            isESType = true
-        } else {
-            isESType = false
-            updateDecompressionSession()
-        }
-        
+        if !isESType { updateDecompressionSession() }
+
         if Array(frames[0...3]) == VideoCodingConstant.startCodeAType {
             self.startCode = VideoCodingConstant.startCodeAType
         } else if Array(frames[0...2]) == VideoCodingConstant.startCodeBType {
@@ -131,24 +154,37 @@ class H264Decoder {
         var mutableFrames = frames
         var index = startCode.count
         var startCodeFlag = false
-        var currentFrameSlices: [UInt8] = []
+        var currentFrameSlices: [[UInt8]] = []
+        var tempArray: [UInt8] = []
         var timingCount = 0
+     //   decodeQueue.async { [weak self] in
+      //      guard let self = self else { return}
         
-        if !isESType {
+        if !self.isESType {
             var count = 0
+            var packets: [[UInt8]] = []
+            
             while true {
-                if mutableFrames.isEmpty { break }
-                let packet = Array(mutableFrames[0..<sampleSizeArray[count]])
-                mutableFrames.removeSubrange(0..<sampleSizeArray[count])
-                decodeVideoPacket(packet: packet, timingInfo: presentationTimestamps[count])
-                count += 1
+                    if mutableFrames.isEmpty { break }
+                    let packet = Array(mutableFrames[0..<self.sampleSizeArray[count]])
+                    packets.append(packet)
+                    mutableFrames.removeSubrange(0..<self.sampleSizeArray[count])
+                    count += 1
             }
-           // decodeVideoPacket(frames: frames, presentationTimestamps: presentationTimestamps)
+            
+            for (index, packet) in packets.enumerated() {
+              let task =  BlockOperation { [weak self] in
+                    self?.decodeVideoPacket(packet: packet, timingInfo: presentationTimestamps[index])
+
+                }
+                
+                taskManager.add(task: task)
+            }
             return
         }
-        
-        while true {
-            
+        var hasDone = false
+        while !hasDone {
+          //  if isBufferFull { continue }
             while Array(mutableFrames[index..<(index + VideoCodingConstant.startCodeBType.count)])
                 != VideoCodingConstant.startCodeBType
                 && Array(mutableFrames[index..<(index + VideoCodingConstant.startCodeAType.count)]) != VideoCodingConstant.startCodeAType {
@@ -156,12 +192,14 @@ class H264Decoder {
                     if index + VideoCodingConstant.startCodeAType.count > mutableFrames.count - 1
                         && !mutableFrames.isEmpty {
                         let nal = Array(mutableFrames[0...])
-                        processNAL(nal: nal,
-                                   targetSlices: &currentFrameSlices,
-                                   timingInfoCount: &timingCount,
-                                   timingInfo: presentationTimestamps[timingCount])
-                        cleanUp()
-                        return
+                        self.processNAL(nal: nal,
+                                        targetSlices: &currentFrameSlices,
+                                        dumpArray: &tempArray,
+                                        timingInfo: presentationTimestamps[timingCount])
+                    
+                        
+                        hasDone = true
+                        break
                     }
                 index += 1
             }
@@ -173,10 +211,11 @@ class H264Decoder {
                 nal.insert(0, at: 0)
             }
             
-            processNAL(nal: nal,
-                       targetSlices: &currentFrameSlices,
-                       timingInfoCount: &timingCount,
-                       timingInfo: presentationTimestamps[timingCount])
+    
+            self.processNAL(nal: nal,
+                            targetSlices: &currentFrameSlices,
+                            dumpArray: &tempArray,
+                            timingInfo: presentationTimestamps[timingCount])
             
             if Array(mutableFrames[0..<3]) == VideoCodingConstant.startCodeBType {
                 index = VideoCodingConstant.startCodeBType.count
@@ -186,14 +225,23 @@ class H264Decoder {
                 startCodeFlag = false
             }
         }
-       
+        
+        self.decodeCount = currentFrameSlices.count
+        for (index, nal) in currentFrameSlices.enumerated() {
+         
+            let task = BlockOperation {
+                self.decodeVideoPacket(packet: nal, timingInfo: presentationTimestamps[index])
+
+            }
+            taskManager.add(task: task)
+        }
+        return
     }
     
     private func processNAL(nal: [UInt8],
-                    targetSlices: inout [UInt8],
-                    timingInfoCount: inout Int,
+                    targetSlices: inout [[UInt8]],
+                    dumpArray: inout [UInt8],
                     timingInfo: CMSampleTimingInfo) {
-        
         let startCodeSize = 4
         var packet = nal
         if isESType {
@@ -204,22 +252,22 @@ class H264Decoder {
         
         switch nalType {
         case NALType.idr.rawValue, NALType.slice.rawValue:
-            targetSlices.append(contentsOf: packet)
+            dumpArray.append(contentsOf: packet)
             
         case NALType.sps.rawValue:
             spsSize = packet.count - startCodeSize
             sps = Array(packet[startCodeSize..<packet.count])
-            
+            updateDecompressionSession()
         case NALType.pps.rawValue:
             ppsSize = packet.count - startCodeSize
             pps = Array(packet[startCodeSize..<packet.count])
             updateDecompressionSession()
             
         case NALType.aud.rawValue:
-            if !targetSlices.isEmpty {
-                decodeVideoPacket(packet: targetSlices, timingInfo: timingInfo)
-                targetSlices.removeAll()
-                timingInfoCount += 1
+            if !dumpArray.isEmpty {
+              //  self.decodeVideoPacket(packet: slice, timingInfo: timingInfo)
+                targetSlices.append(dumpArray)
+                dumpArray = []
             }
         default:
             break
@@ -261,7 +309,7 @@ class H264Decoder {
                 print("fail")
                 return
         }
-        
+
         guard let session = decompressionSession else {
             print("failed to fetch session")
             return

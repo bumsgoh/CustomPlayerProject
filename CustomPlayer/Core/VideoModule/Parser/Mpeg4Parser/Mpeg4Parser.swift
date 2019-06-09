@@ -245,7 +245,6 @@ class Mpeg4Parser {
                 fileReader.read(length: sample.size) { (data) in
                     packet.append(data)
                 }
-                
             }
             presentationTimestamp = track.samples.map {
                 $0.startTime + $0.compositionTimeOffset

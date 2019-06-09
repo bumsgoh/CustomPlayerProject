@@ -70,7 +70,7 @@ class TSLoader: NSObject {
         print("currGear\(currentPlaylistIndex.gear), currIdx \(currentPlaylistIndex.index)")
         if !targetMediaPlaylist.isParsed {
             m3u8Parser.parseMediaPlaylist(list: targetMediaPlaylist) {
-                if targetMediaPlaylist.videoMediaSegments.count < currentPlaylistIndex.index {
+                if targetMediaPlaylist.videoMediaSegments.count - 1 < currentPlaylistIndex.index {
                     completion(.success(nil))
                     return
                 }
@@ -95,7 +95,7 @@ class TSLoader: NSObject {
                 }
             }
         } else {
-            if targetMediaPlaylist.videoMediaSegments.count < currentPlaylistIndex.index {
+            if targetMediaPlaylist.videoMediaSegments.count - 1 < currentPlaylistIndex.index {
                 completion(.success(nil))
                 return
             }

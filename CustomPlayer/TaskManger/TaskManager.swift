@@ -15,8 +15,9 @@ protocol TaskMangerDelegate: class {
 class TaskManager {
     
     private var needMoreTask: Bool = true
+    private var currentTask: Operation?
     
-    private let queue: OperationQueue = {
+    let queue: OperationQueue = {
         let queue = OperationQueue()
         queue.maxConcurrentOperationCount = 1
         return queue
@@ -27,10 +28,43 @@ class TaskManager {
     func work() -> Bool {
         guard let delegate = delegate else { return false }
         if !needMoreTask { return false }
-        queue.addOperation(delegate.requestMoreTask())
-       // queue.addOperations([delegate.requestMoreTask()], waitUntilFinished: true)
-    
+//        if queue.operations.count > 0 {
+//            operation.addDependency(operationQueue.operations.last!)
+//            // Print dependencies
+//            print("\(operation.name!) should finish after \(operation.dependencies.first!.name!)")
+//        }
+      //  currentTask = delegate.requestMoreTask()
+      //  currentTask?.start()
+        
+        queue.addOperations([delegate.requestMoreTask()], waitUntilFinished: true)
+      //  queue.wait
+        
         return true
+    }
+    
+    func add(task: Operation) {
+
+        queue.addOperation(task)
+    }
+    
+    func addWithDependency(task: Operation) {
+        if queue.operations.count > 0 {
+             guard let lastOperation = queue.operations.last else { return }
+            task.addDependency(lastOperation)
+        }
+        queue.addOperation(task)
+    }
+    
+    func pauseTask() {
+       // if !queue.isSuspended  {
+            queue.isSuspended = true
+      //  }
+    }
+    
+    func resumeTask() {
+       // if queue.isSuspended {
+            queue.isSuspended = false
+       // }
     }
 }
 

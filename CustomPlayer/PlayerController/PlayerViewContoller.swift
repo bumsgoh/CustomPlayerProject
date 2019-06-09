@@ -151,7 +151,7 @@ class PlayerViewContoller: UIViewController {
         //https://video-dev.github.io/streams/test_001/stream.m3u8
         //https://devstreaming-cdn.apple.com/videos/streaming/examples/img_bipbop_adv_example_ts/master.m3u8
 //        guard let filePath = Bundle.main.path(forResource: "you", ofType: "mp4") else { return nil }
-//        let url = URL(fileURLWithPath: filePath)
+//       let url = URL(fileURLWithPath: filePath)
         let player: MoviePlayer = MoviePlayer(url: url)
         player.delegate = self
         return player
@@ -191,7 +191,7 @@ class PlayerViewContoller: UIViewController {
             guard let isPlayable = change?[.newKey] as? Bool else { return }
             if isPlayable {
                 self.isPlayable = true
-                print("now")
+              //  print("now")
             }
         }
     }

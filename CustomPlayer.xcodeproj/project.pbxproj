@@ -15,8 +15,9 @@
 		C91E44342286B95000435465 /* DisplayLinkedQueue.swift in Sources */ = {isa = PBXBuildFile; fileRef = C91E44332286B95000435465 /* DisplayLinkedQueue.swift */; };
 		C97E79532291C5B2002E081C /* MediaSegment.swift in Sources */ = {isa = PBXBuildFile; fileRef = C97E79522291C5B2002E081C /* MediaSegment.swift */; };
 		C9A7559E229EBBBF0043E812 /* TSLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9A7559D229EBBBF0043E812 /* TSLoader.swift */; };
-		C9A755A122A8072E0043E812 /* AsyncOperation.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9A755A022A8072E0043E812 /* AsyncOperation.swift */; };
+		C9A755A122A8072E0043E812 /* TSOperation.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9A755A022A8072E0043E812 /* TSOperation.swift */; };
 		C9A755A322A807470043E812 /* TaskManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9A755A222A807470043E812 /* TaskManager.swift */; };
+		C9A755A522ACD6350043E812 /* AsyncOperation.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9A755A422ACD6350043E812 /* AsyncOperation.swift */; };
 		C9A8A2072272ECEC00EB3FBC /* ContainerPool.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9A8A2042272ECEC00EB3FBC /* ContainerPool.swift */; };
 		C9A8A2092272ECEC00EB3FBC /* Container.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9A8A2062272ECEC00EB3FBC /* Container.swift */; };
 		C9A8A2132277DF0500EB3FBC /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9A8A2122277DF0500EB3FBC /* Models.swift */; };
@@ -70,8 +71,9 @@
 		C91E44332286B95000435465 /* DisplayLinkedQueue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DisplayLinkedQueue.swift; sourceTree = "<group>"; };
 		C97E79522291C5B2002E081C /* MediaSegment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaSegment.swift; sourceTree = "<group>"; };
 		C9A7559D229EBBBF0043E812 /* TSLoader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TSLoader.swift; sourceTree = "<group>"; };
-		C9A755A022A8072E0043E812 /* AsyncOperation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AsyncOperation.swift; sourceTree = "<group>"; };
+		C9A755A022A8072E0043E812 /* TSOperation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TSOperation.swift; sourceTree = "<group>"; };
 		C9A755A222A807470043E812 /* TaskManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskManager.swift; sourceTree = "<group>"; };
+		C9A755A422ACD6350043E812 /* AsyncOperation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AsyncOperation.swift; sourceTree = "<group>"; };
 		C9A8A2042272ECEC00EB3FBC /* ContainerPool.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ContainerPool.swift; sourceTree = "<group>"; };
 		C9A8A2062272ECEC00EB3FBC /* Container.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Container.swift; sourceTree = "<group>"; };
 		C9A8A2122277DF0500EB3FBC /* Models.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
@@ -176,8 +178,9 @@
 		C9A7559F22A8071B0043E812 /* TaskManger */ = {
 			isa = PBXGroup;
 			children = (
-				C9A755A022A8072E0043E812 /* AsyncOperation.swift */,
+				C9A755A022A8072E0043E812 /* TSOperation.swift */,
 				C9A755A222A807470043E812 /* TaskManager.swift */,
+				C9A755A422ACD6350043E812 /* AsyncOperation.swift */,
 			);
 			path = TaskManger;
 			sourceTree = "<group>";
@@ -495,6 +498,7 @@
 				C9A755A322A807470043E812 /* TaskManager.swift in Sources */,
 				CEF94B84226E8F7D006B7528 /* PlayerViewContoller.swift in Sources */,
 				C9A8A21B2277DF1400EB3FBC /* FileReader.swift in Sources */,
+				C9A755A522ACD6350043E812 /* AsyncOperation.swift in Sources */,
 				C9A8A2192277DF1400EB3FBC /* FileStreamReadable.swift in Sources */,
 				CEFE47C42292416E006D6AFE /* HTTPConnetion.swift in Sources */,
 				CE0810C422A52E35009ED5DB /* Math.swift in Sources */,
@@ -523,7 +527,7 @@
 				CEFE47C8229242EB006D6AFE /* NetworkError.swift in Sources */,
 				CEF94B96226EB7D9006B7528 /* H264Decoder.swift in Sources */,
 				CEF94B82226E8F7D006B7528 /* AppDelegate.swift in Sources */,
-				C9A755A122A8072E0043E812 /* AsyncOperation.swift in Sources */,
+				C9A755A122A8072E0043E812 /* TSOperation.swift in Sources */,
 				CE0810CA22A6449F009ED5DB /* CoreMedia+.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
