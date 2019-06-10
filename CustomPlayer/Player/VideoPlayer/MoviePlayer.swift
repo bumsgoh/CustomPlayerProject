@@ -12,6 +12,7 @@ import VideoToolbox
 class MoviePlayer: NSObject {
     let opQueue = OperationQueue()
     private var buffer: [CMSampleBuffer] = []
+    private let decodeQueue: DispatchQueue = DispatchQueue(label: "com.decodeQeue")
     private let fetchingQueue: DispatchQueue = DispatchQueue(label: "com.fetchAndDecodeQueue")
     private let jobQueue: DispatchQueue = DispatchQueue(label: "decodeQueue")
     private let lockQueue: DispatchQueue = DispatchQueue(label: "com.lockQueue", qos: .userInitiated, attributes: .concurrent, autoreleaseFrequency: .workItem, target: nil)
@@ -66,7 +67,7 @@ class MoviePlayer: NSObject {
     
     private lazy var taskManager: TaskManager = {
         let manager = TaskManager()
-        manager.delegate = self
+      //  manager.delegate = self
         return manager
     }()
     
@@ -116,15 +117,17 @@ class MoviePlayer: NSObject {
                 let newValue = change?[.newKey] as? Bool else { return }
             if oldValue != newValue {
                 if newValue {
-                    self.h264Decoder.taskManager.pauseTask()
+                    decodeQueue.suspend()
+                 //   self.h264Decoder.taskManager.pauseTask()
                     //self.fetchingQueue.suspend()
-                     print(self.h264Decoder.taskManager.queue.operations.count)
+                //     print(self.h264Decoder.taskManager.queue.operations.count)
                     print("stop")
                    
                    
                 } else {
-                    self.h264Decoder.taskManager.resumeTask()
-                    print(self.h264Decoder.taskManager.queue.operations.count)
+                  decodeQueue.resume()
+                 //   self.h264Decoder.taskManager.resumeTask()
+                   // print(self.h264Decoder.taskManager.queue.operations.count)
                     print("resume")
                    // self.fetchingQueue.resume()
                   
@@ -156,7 +159,7 @@ class MoviePlayer: NSObject {
             }
         }
         
-        isPlayable = isAudioReady && isVideoReady
+        isPlayable =  isVideoReady
 //        if isPlayable { queue.startRunning() }
     }
     
@@ -192,128 +195,125 @@ class MoviePlayer: NSObject {
                                 return
                             }
                         }
+                        self.h264Decoder.videoDecoderDelegate = self
                         
                         let metaData =  mp4Parser.fetchMetaData()
                         self.totalDuration = Int(metaData.totalDuration)
-                        self.h264Decoder.sps = metaData.sequenceParameters.toUInt8Array
-                        self.h264Decoder.pps = metaData.pictureParameters.toUInt8Array
-                        self.h264Decoder.sampleSizeArray = metaData.sampleSizeArray
-                        self.h264Decoder.isESType = false
-                        self.h264Decoder.videoDecoderDelegate = self
+                        let parser = NALParser(sps: metaData.sequenceParameters.toUInt8Array,
+                                               pps: metaData.pictureParameters.toUInt8Array)
                         
-                       
-                        self.h264Decoder.decode(frames: videoDataArray, presentationTimestamps: videoTimings)
-                        
-                       
+                       let nalus = parser.parse(nalus: videoDataArray,
+                                                type: .avcc,
+                                                sizeArray: metaData.sampleSizeArray)
+                        var count = 0
+                        for nal in nalus {
+                            var item: DispatchWorkItem?
+                                if nal.type == .idr || nal.type == .slice {
+                                    item = DispatchWorkItem {
+                                        self.h264Decoder.decode(nal: nal, pts: videoTimings[count])
+                                    }
+                                    
+                                    count += 1
+                                    if count >= videoTimings.count - 1 { break }
+                                } else {
+                                    item = DispatchWorkItem {
+                                        self.h264Decoder.decode(nal: nal)
+                                    }
+                                }
+                            
+                            self.decodeQueue.sync(execute: item!)
+                        }
                         completion(.success(true))
                     }
                 }
             } else {
                 self.totalDuration = 5960
+                self.h264Decoder.isESType = true
+                self.h264Decoder.videoDecoderDelegate = self
+                
                 self.tsLoader.initializeLoader {
-                    self.tsLoader.fetchTsStream { (result) in
-                        switch result {
-                        case .failure(let error):
-                            completion(.failure(error))
-                        case .success(let tsStreams):
-                            guard let streams = tsStreams else { return }
-                            var videoDataArray = [UInt8]()
-                            var videoTimings = [CMSampleTimingInfo]()
-
-                            streams.forEach {
-                                switch $0.type {
-                                case .video:
-                                    videoDataArray = $0.actualData
-                                    videoTimings = zip($0.pts, $0.dts).map {
-                                         CMSampleTimingInfo(pts: Int64($0.0),
-                                                            dts: Int64($0.1),
-                                                            fps: 24)
-                                        }
-                                case .audio:
-                                    self.prepareToPlay(with: Data($0.actualData))
-                                    
-                                case .unknown:
-                                    return
-                                }
-                            }
-                            self.h264Decoder.isESType = true
-                            self.h264Decoder.videoDecoderDelegate = self
-                            
-                            let task = BlockOperation { self.h264Decoder.decode(frames: videoDataArray,
-                                                                                presentationTimestamps: videoTimings)
-                                
-                            }
-                            self.taskManager.addWithDependency(task: task)
-                            
-                            self.startTask()
-//                            self.fetchingQueue.async {
-//                                var hasMore = true
-//                                let semaphore = DispatchSemaphore(value: 1)
-//                                while hasMore {
-//                                    semaphore.wait()
-//                                    self.fetchNextItem(completion: { (result) in
-//
-//                                        switch result {
-//
-//                                        case .failure:
-//                                            hasMore = false
-//                                            semaphore.signal()
-//                                        case .success(let data):
-//                                            semaphore.signal()
-//                                            if data == nil { hasMore = false }
-//                                        }
-//                                    })
-//                                }
-//                            }
-                       
-                           
-                            completion(.success(true))
-                        }
+                    guard self.requestNextTsItem() else {
+                        completion(.failure(APIError.invalidData))
+                        return
                     }
+                  //  self.requestNextTsItem()
+                    completion(.success(true))
                 }
             }
         }
     }
     
-    private func fetchNextItem(completion: @escaping (Result<Bool?, Error>) -> Void) {
-        
-        self.tsLoader.fetchTsStream { (result) in
-           
+    private func requestNextTsItem() -> Bool {
+     
+        let isSuccess = tsLoader.fetchTsStreamSynchronously { [weak self] (result) in
+    
             switch result {
-                
-            case .failure(let error):
-                completion(.failure(error))
+            case .failure:
+          
                 return
-            case .success(let tsStreams):
-                guard let streams = tsStreams else {
-                    completion(.success(nil))
-                    return
-                }
-                var videoDataArray = [UInt8]()
-                var videoTimings = [CMSampleTimingInfo]()
                 
-                streams.forEach {
-                    switch $0.type {
-                    case .video:
-                        videoDataArray = $0.actualData
-                        videoTimings = zip($0.pts, $0.dts).map {
-                            CMSampleTimingInfo(pts: Int64($0.0),
-                            dts: Int64($0.1),
-                            fps: 24)
-                        }
-                    case .audio:
-                        print("d")
-                       // self.prepareToPlay(with: Data($0.actualData))
+            case .success(let tsStreams):
+        
+                self?.processStream(tsStreams)
+            }
+        }
+        return isSuccess
+    }
+    
+    private func processStream(_ streams: [DataStream]) {
+   
+        streams.forEach {
+            switch $0.type {
+            case .video:
+               let timings = zip($0.pts, $0.dts).map {
+                    CMSampleTimingInfo(pts: Int64($0.0),
+                                       dts: Int64($0.1),
+                                       fps: 24)
+               }
+               
+               let parser = NALParser()
+               let nalus = parser.parse(nalus: $0.actualData,
+                                        type: .annexB)
+               
+               var count = -1
+               var currentSlicePayload: [UInt8] = []
+               
+               for nal in nalus {
+                
+                var item: DispatchWorkItem?
+                if nal.type == .idr || nal.type == .slice {
+                    currentSlicePayload.append(contentsOf: nal.payload)
+                   continue
                     
-                    case .unknown:
-                        completion(.failure(APIError.invalidData))
-                        return
+                } else if nal.type == .aud {
+                    if !currentSlicePayload.isEmpty {
+                        count += 1
+                        if count >= timings.count - 1 { break }
+                        
+                        let mergedNAL = NALUnit(type: .idr, payload: currentSlicePayload)
+                        item = DispatchWorkItem {
+                            self.h264Decoder.decode(nal: mergedNAL, pts: timings[count])
+                        }
+                        currentSlicePayload = []
+                    } else {
+                           continue
+                    }
+
+                } else {
+                    item = DispatchWorkItem {
+                        self.h264Decoder.decode(nal: nal)
                     }
                 }
+
+                self.decodeQueue.sync(execute: item!)
+               }
+               
+            case .audio:
+                print("d")
+                // self.prepareToPlay(with: Data($0.actualData))
                 
-                self.h264Decoder.decode(frames: videoDataArray,
-                presentationTimestamps: videoTimings)
-                completion(.success(true))
+            case .unknown:
+                return
             }
         }
     }
@@ -326,7 +326,7 @@ class MoviePlayer: NSObject {
             while true {
               //  if !self.h264Decoder.hasDecodeDone { continue }
                 semaphore.wait()
-                self.tsLoader.fetchTsStream(completion: { (result) in
+                self.tsLoader.fetchTsStreamSynchronously(completion: { (result) in
                     
                     switch result {
                         
@@ -335,13 +335,11 @@ class MoviePlayer: NSObject {
                         return
                     case .success(let tsStreams):
                         semaphore.signal()
-                        guard let streams = tsStreams else {
-                            return
-                        }
+                      
                         var videoDataArray = [UInt8]()
                         var videoTimings = [CMSampleTimingInfo]()
                         
-                        streams.forEach {
+                        tsStreams.forEach {
                             switch $0.type {
                             case .video:
                                 videoDataArray = $0.actualData
@@ -364,7 +362,7 @@ class MoviePlayer: NSObject {
                                                 presentationTimestamps: videoTimings)
                         
                         }
-                        self.taskManager.addWithDependency(task: task)
+                        self.taskManager.add(task: task)
                     }
                 })
                // AsynchronousOperation(operation: self.fetchNextItem).start()
@@ -426,14 +424,14 @@ extension MoviePlayer: DisplayLinkedQueueDelegate {
     }
 }
 
-extension MoviePlayer: TaskMangerDelegate {
-    func requestMoreTask() -> Operation {
-        let task = TSOperation(operation: fetchNextItem)
-        
-        task.delegate = taskManager
-        return task
-    }
-}
+//extension MoviePlayer: TaskMangerDelegate {
+//    func requestMoreTask() -> Operation {
+//      //  let task = TSOperation(operation: requestNextTsItem())
+//
+//        //task.delegate = taskManager
+//        return task
+//    }
+//}
 
 class ListIndex {
     var gear: Int = 0

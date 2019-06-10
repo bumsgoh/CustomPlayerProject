@@ -37,13 +37,14 @@
 		CE0810C122A4D623009ED5DB /* NetworkLoadPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE0810C022A4D623009ED5DB /* NetworkLoadPolicy.swift */; };
 		CE0810C422A52E35009ED5DB /* Math.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE0810C322A52E35009ED5DB /* Math.swift */; };
 		CE0810C622A52E43009ED5DB /* MediaModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE0810C522A52E43009ED5DB /* MediaModels.swift */; };
-		CE0810C822A60F11009ED5DB /* NALType.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE0810C722A60F11009ED5DB /* NALType.swift */; };
+		CE0810C822A60F11009ED5DB /* NALUnit.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE0810C722A60F11009ED5DB /* NALUnit.swift */; };
 		CE0810CA22A6449F009ED5DB /* CoreMedia+.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE0810C922A6449F009ED5DB /* CoreMedia+.swift */; };
 		CE0810CD22A65132009ED5DB /* ParserModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE0810CC22A65132009ED5DB /* ParserModels.swift */; };
 		CE2D62C72282C9940078D2C5 /* MediaFileReadable.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE2D62C62282C9940078D2C5 /* MediaFileReadable.swift */; };
 		CE2D62CD2282D4BC0078D2C5 /* MediaPlayable.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE2D62CC2282D4BC0078D2C5 /* MediaPlayable.swift */; };
 		CE2D62D4228572BF0078D2C5 /* MoviePlayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE2D62D3228572BF0078D2C5 /* MoviePlayer.swift */; };
 		CE2D62D6228B9C180078D2C5 /* TSParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE2D62D5228B9C180078D2C5 /* TSParser.swift */; };
+		CE5BF09A22AE29C5007F4725 /* NALParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE5BF09922AE29C5007F4725 /* NALParser.swift */; };
 		CE72B2332293E3F600E19CDC /* animation.h264 in Resources */ = {isa = PBXBuildFile; fileRef = CE72B2322293E3F600E19CDC /* animation.h264 */; };
 		CEF94B82226E8F7D006B7528 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = CEF94B81226E8F7D006B7528 /* AppDelegate.swift */; };
 		CEF94B84226E8F7D006B7528 /* PlayerViewContoller.swift in Sources */ = {isa = PBXBuildFile; fileRef = CEF94B83226E8F7D006B7528 /* PlayerViewContoller.swift */; };
@@ -93,13 +94,14 @@
 		CE0810C022A4D623009ED5DB /* NetworkLoadPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkLoadPolicy.swift; sourceTree = "<group>"; };
 		CE0810C322A52E35009ED5DB /* Math.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Math.swift; sourceTree = "<group>"; };
 		CE0810C522A52E43009ED5DB /* MediaModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaModels.swift; sourceTree = "<group>"; };
-		CE0810C722A60F11009ED5DB /* NALType.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NALType.swift; sourceTree = "<group>"; };
+		CE0810C722A60F11009ED5DB /* NALUnit.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NALUnit.swift; sourceTree = "<group>"; };
 		CE0810C922A6449F009ED5DB /* CoreMedia+.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "CoreMedia+.swift"; sourceTree = "<group>"; };
 		CE0810CC22A65132009ED5DB /* ParserModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ParserModels.swift; sourceTree = "<group>"; };
 		CE2D62C62282C9940078D2C5 /* MediaFileReadable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaFileReadable.swift; sourceTree = "<group>"; };
 		CE2D62CC2282D4BC0078D2C5 /* MediaPlayable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaPlayable.swift; sourceTree = "<group>"; };
 		CE2D62D3228572BF0078D2C5 /* MoviePlayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MoviePlayer.swift; sourceTree = "<group>"; };
 		CE2D62D5228B9C180078D2C5 /* TSParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TSParser.swift; sourceTree = "<group>"; };
+		CE5BF09922AE29C5007F4725 /* NALParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NALParser.swift; sourceTree = "<group>"; };
 		CE72B2322293E3F600E19CDC /* animation.h264 */ = {isa = PBXFileReference; lastKnownFileType = file; path = animation.h264; sourceTree = "<group>"; };
 		CEF94B7E226E8F7D006B7528 /* CustomPlayer.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = CustomPlayer.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		CEF94B81226E8F7D006B7528 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
@@ -153,7 +155,6 @@
 			children = (
 				CEF94B9B226EDE78006B7528 /* MultiMediaVideoTypeDecoderDelegate.swift */,
 				CEF94B95226EB7D9006B7528 /* H264Decoder.swift */,
-				CE0810C722A60F11009ED5DB /* NALType.swift */,
 			);
 			path = Decoder;
 			sourceTree = "<group>";
@@ -217,6 +218,7 @@
 		C9A8A2222277DF6E00EB3FBC /* Parser */ = {
 			isa = PBXGroup;
 			children = (
+				CE5BF09822AE29B9007F4725 /* NALParser */,
 				CE0810CB22A65121009ED5DB /* Models */,
 				CE2D62C82282CB9B0078D2C5 /* Mpeg4Parser */,
 				C9A7559B229EB8CB0043E812 /* TSParser */,
@@ -289,6 +291,15 @@
 				CE2D62D3228572BF0078D2C5 /* MoviePlayer.swift */,
 			);
 			path = VideoPlayer;
+			sourceTree = "<group>";
+		};
+		CE5BF09822AE29B9007F4725 /* NALParser */ = {
+			isa = PBXGroup;
+			children = (
+				CE0810C722A60F11009ED5DB /* NALUnit.swift */,
+				CE5BF09922AE29C5007F4725 /* NALParser.swift */,
+			);
+			path = NALParser;
 			sourceTree = "<group>";
 		};
 		CEF94B75226E8F7D006B7528 = {
@@ -505,7 +516,7 @@
 				C9C28ED222915DA900337CC7 /* MasterPlaylist.swift in Sources */,
 				C91E441122833A7600435465 /* AudioPlayer.swift in Sources */,
 				CE2D62D4228572BF0078D2C5 /* MoviePlayer.swift in Sources */,
-				CE0810C822A60F11009ED5DB /* NALType.swift in Sources */,
+				CE0810C822A60F11009ED5DB /* NALUnit.swift in Sources */,
 				C9A7559E229EBBBF0043E812 /* TSLoader.swift in Sources */,
 				CE0810CD22A65132009ED5DB /* ParserModels.swift in Sources */,
 				CE2D62C72282C9940078D2C5 /* MediaFileReadable.swift in Sources */,
@@ -524,6 +535,7 @@
 				CE0810BF229F5051009ED5DB /* NetworkChecker.swift in Sources */,
 				CEF94BDF227BCD38006B7528 /* DecodeModels.swift in Sources */,
 				CEF94BDB227BCC66006B7528 /* TrackDecodable.swift in Sources */,
+				CE5BF09A22AE29C5007F4725 /* NALParser.swift in Sources */,
 				CEFE47C8229242EB006D6AFE /* NetworkError.swift in Sources */,
 				CEF94B96226EB7D9006B7528 /* H264Decoder.swift in Sources */,
 				CEF94B82226E8F7D006B7528 /* AppDelegate.swift in Sources */,

@@ -19,7 +19,7 @@ class H264Decoder {
     
     private var spsSize: Int = 0
     private var ppsSize: Int = 0
-
+    var count = 0
     var sps: [UInt8]?
     var pps: [UInt8]?
     var sampleSizeArray: [Int] = []
@@ -44,6 +44,8 @@ class H264Decoder {
     
     var isBufferFull: Bool = false
     
+    private var presentationTimeStamps: [CMSampleTimingInfo] = []
+    
     private var callback: VTDecompressionOutputCallback = {(
         decompressionOutputRefCon: UnsafeMutableRawPointer?,
         sourceFrameRefCon: UnsafeMutableRawPointer?,
@@ -56,75 +58,76 @@ class H264Decoder {
 //        let decoder: H264Decoder = unsafeBitCast(decompressionOutputRefCon,
 //                                                 to: H264Decoder.self)
         
-        let decoder: H264Decoder = Unmanaged<H264Decoder>.fromOpaque(decompressionOutputRefCon!).takeUnretainedValue()
-        
-        guard let decodedBuffer: CVPixelBuffer = imageBuffer else { return }
-        let pointer = CVPixelBufferGetBaseAddress(decodedBuffer)
-        var timingInfo:CMSampleTimingInfo = CMSampleTimingInfo(
-                    duration: duration,
-                    presentationTimeStamp: presentationTimeStamp,
-                    decodeTimeStamp: CMTime.invalid
-                )
-
-                var formatDescription: CMVideoFormatDescription? = nil
-                CMVideoFormatDescriptionCreateForImageBuffer(
-                    allocator: kCFAllocatorDefault,
-                    imageBuffer: decodedBuffer,
-                    formatDescriptionOut: &formatDescription
-                )
-        
-        
-        
-        var decodedSampleBuffer: CMSampleBuffer?
-        
-        CMSampleBufferCreateReadyWithImageBuffer(allocator: nil,
-                                                 imageBuffer: decodedBuffer,
-                                                 formatDescription: formatDescription!,
-                                                 sampleTiming: &timingInfo,
-                                                 sampleBufferOut: &decodedSampleBuffer)
-        guard let sample = decodedSampleBuffer else { return }
-       // decoder.callbackCount += 1
-       // print(decoder.callbackCount)
-        decoder.videoDecoderDelegate?.prepareToDisplay(with: sample)
-        
-    
-
-
-
-//         decoder.videoDecoderDelegate?.prepareToDisplay(with: decodedSampleBuffer!)
-//         CVPixelBufferLockBaseAddress(decodedBuffer, CVPixelBufferLockFlags(rawValue: 0))
-//        var timingInfo:CMSampleTimingInfo = CMSampleTimingInfo(
-//            duration: duration,
-//            presentationTimeStamp: presentationTimeStamp,
-//            decodeTimeStamp: CMTime.invalid
-//        )
+//        let decoder: H264Decoder = Unmanaged<H264Decoder>.fromOpaque(decompressionOutputRefCon!).takeUnretainedValue()
 //
-//        var formatDescription: CMVideoFormatDescription? = nil
-//        CMVideoFormatDescriptionCreateForImageBuffer(
-//            allocator: kCFAllocatorDefault,
-//            imageBuffer: decodedBuffer,
-//            formatDescriptionOut: &formatDescription
-//        )
+//        guard let decodedBuffer: CVPixelBuffer = imageBuffer else { return }
+//        let pointer = CVPixelBufferGetBaseAddress(decodedBuffer)
+//        var timingInfo:CMSampleTimingInfo = CMSampleTimingInfo(
+//                    duration: duration,
+//                    presentationTimeStamp: presentationTimeStamp,
+//                    decodeTimeStamp: CMTime.invalid
+//                )
+//
+//                var formatDescription: CMVideoFormatDescription? = nil
+//                CMVideoFormatDescriptionCreateForImageBuffer(
+//                    allocator: kCFAllocatorDefault,
+//                    imageBuffer: decodedBuffer,
+//                    formatDescriptionOut: &formatDescription
+//                )
+//
 //
 //
 //        var decodedSampleBuffer: CMSampleBuffer?
-//        CMSampleBufferCreateForImageBuffer(
-//            allocator: kCFAllocatorDefault,
-//            imageBuffer: decodedBuffer,
-//            dataReady: true,
-//            makeDataReadyCallback: nil,
-//            refcon: nil,
-//            formatDescription: formatDescription!,
-//            sampleTiming: &timingInfo,
-//            sampleBufferOut: &decodedSampleBuffer
-//        )
-//        decoder.count += 1
-//        print(decoder.count)
-//        CVPixelBufferUnlockBaseAddress(decodedBuffer, CVPixelBufferLockFlags(rawValue: 0))
 //
+//        CMSampleBufferCreateReadyWithImageBuffer(allocator: nil,
+//                                                 imageBuffer: decodedBuffer,
+//                                                 formatDescription: formatDescription!,
+//                                                 sampleTiming: &timingInfo,
+//                                                 sampleBufferOut: &decodedSampleBuffer)
 //        guard let sample = decodedSampleBuffer else { return }
-//
+//       // decoder.callbackCount += 1
+//       // print(decoder.callbackCount)
 //        decoder.videoDecoderDelegate?.prepareToDisplay(with: sample)
+//
+//
+//
+
+        let decoder: H264Decoder = unsafeBitCast(decompressionOutputRefCon,
+                                                         to: H264Decoder.self)
+        guard let decodedBuffer: CVPixelBuffer = imageBuffer else { return }
+        
+         CVPixelBufferLockBaseAddress(decodedBuffer, CVPixelBufferLockFlags(rawValue: 0))
+        var timingInfo:CMSampleTimingInfo = CMSampleTimingInfo(
+            duration: duration,
+            presentationTimeStamp: presentationTimeStamp,
+            decodeTimeStamp: CMTime.invalid
+        )
+
+        var formatDescription: CMVideoFormatDescription? = nil
+        CMVideoFormatDescriptionCreateForImageBuffer(
+            allocator: kCFAllocatorDefault,
+            imageBuffer: decodedBuffer,
+            formatDescriptionOut: &formatDescription
+        )
+
+
+        var decodedSampleBuffer: CMSampleBuffer?
+        CMSampleBufferCreateForImageBuffer(
+            allocator: kCFAllocatorDefault,
+            imageBuffer: decodedBuffer,
+            dataReady: true,
+            makeDataReadyCallback: nil,
+            refcon: nil,
+            formatDescription: formatDescription!,
+            sampleTiming: &timingInfo,
+            sampleBufferOut: &decodedSampleBuffer
+        )
+       
+        CVPixelBufferUnlockBaseAddress(decodedBuffer, CVPixelBufferLockFlags(rawValue: 0))
+
+      //  guard let sample = decodedSampleBuffer else { return }
+
+        decoder.videoDecoderDelegate?.prepareToDisplay(with: decodedSampleBuffer!)
     }
   
 
@@ -140,6 +143,37 @@ class H264Decoder {
     
     func resumeDecoding() {
         decodeQueue.resume()
+    }
+    
+    func decode(nal: NALUnit, pts: CMSampleTimingInfo? = nil) {
+        
+        switch nal.type {
+        case .idr:
+            guard let pts = pts else { return }
+            decodeVideoPacket(packet: nal.payload,
+                              timingInfo: pts)
+            
+        case .slice:
+            guard let pts = pts else { return }
+            decodeVideoPacket(packet: nal.payload,
+                              timingInfo: pts)
+            
+        case .sps:
+            sps = nal.payload
+            updateDecompressionSession()
+            
+        case .pps:
+            pps = nal.payload
+            updateDecompressionSession()
+            
+        default:
+            break
+           
+        }
+    }
+    
+    func setPTS(tiemStamps: [CMSampleTimingInfo]) {
+        self.presentationTimeStamps = tiemStamps
     }
     
     func decode(frames: [UInt8], presentationTimestamps: [CMSampleTimingInfo]) {
@@ -229,11 +263,11 @@ class H264Decoder {
         self.decodeCount = currentFrameSlices.count
         for (index, nal) in currentFrameSlices.enumerated() {
          
-            let task = BlockOperation {
+           // let task = BlockOperation { [weak self] in
                 self.decodeVideoPacket(packet: nal, timingInfo: presentationTimestamps[index])
 
-            }
-            taskManager.add(task: task)
+          //  }
+          //  taskManager.add(task: task)
         }
         return
     }
@@ -292,16 +326,18 @@ class H264Decoder {
                 
         }
        
+        print(count)
         
+        count += 1
         var sampleBuffer: CMSampleBuffer?
-        let timing = timingInfo
+        var timing = timingInfo
         guard CMSampleBufferCreateReady(
             allocator: kCFAllocatorDefault,
             dataBuffer: blockBuffer,
             formatDescription: formatDescription,
             sampleCount: 1,
             sampleTimingEntryCount: 1,
-            sampleTimingArray: [timing],
+            sampleTimingArray: &timing,
             sampleSizeEntryCount: 1,
             sampleSizeArray: [packet.count],
             sampleBufferOut: &sampleBuffer) == kCMBlockBufferNoErr,
@@ -309,22 +345,29 @@ class H264Decoder {
                 print("fail")
                 return
         }
-
+        print("sam count:\(count) \(sampleBuffer)")
+        if !CMSampleBufferIsValid(sampleBuffer!){
+            print("invalid")
+            return
+            
+        }
+    //    self.videoDecoderDelegate?.prepareToDisplay(with: sampleBuffer!)
         guard let session = decompressionSession else {
             print("failed to fetch session")
             return
         }
         var flag = VTDecodeInfoFlags()
-
+        
         guard VTDecompressionSessionDecodeFrame(
             session,
             sampleBuffer: derivedSampleBuffer,
-            flags: [._EnableAsynchronousDecompression, ._EnableTemporalProcessing],
+            flags: [._EnableAsynchronousDecompression],
             frameRefcon: nil,
             infoFlagsOut: &flag) == 0 else {
                 assertionFailure("fail decom")
                 return
         }
+       
     }
     
     private func decodeVideoPacket(frames: [UInt8], presentationTimestamps: [CMSampleTimingInfo]) {

@@ -14,7 +14,8 @@ protocol DisplayLinkedQueueDelegate: class {
 }
 
 final class DisplayLinkedQueue: NSObject {
-    
+    var enCount = 0
+    var deCount = 0
     private let lockQueue = DispatchQueue(label: "com.bumslap.DisplayLinkedQueue.lock")
     private let bufferSize = 128
     
@@ -41,6 +42,8 @@ final class DisplayLinkedQueue: NSObject {
     
     func enqueue(_ buffer: CMSampleBuffer) {
         lockQueue.async {
+            print("enqued: \(self.enCount)")
+            self.enCount += 1
             self.duration += buffer.duration.seconds
             self.buffers.append(buffer)
             self.bufferCount += 1
@@ -62,6 +65,8 @@ final class DisplayLinkedQueue: NSObject {
         }
         if first.presentationTimeStamp.seconds <= displayLink.timestamp {
             lockQueue.async {
+                print("dequed: \(self.deCount)")
+                self.deCount += 1
                 self.buffers.removeFirst()
                 self.bufferCount -= 1
                 if self.buffers.count <= self.bufferSize / 2 {
@@ -70,9 +75,11 @@ final class DisplayLinkedQueue: NSObject {
                     self.isBufferFull = false
                     
                 }
+               
             }
+             self.delegate?.queue(first)
             
-            delegate?.queue(first)
+            
         }
     }
     
