@@ -18,6 +18,7 @@
 		C9A755A122A8072E0043E812 /* TSOperation.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9A755A022A8072E0043E812 /* TSOperation.swift */; };
 		C9A755A322A807470043E812 /* TaskManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9A755A222A807470043E812 /* TaskManager.swift */; };
 		C9A755A522ACD6350043E812 /* AsyncOperation.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9A755A422ACD6350043E812 /* AsyncOperation.swift */; };
+		C9A755A722AE88E20043E812 /* NALParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9A755A622AE88E20043E812 /* NALParser.swift */; };
 		C9A8A2072272ECEC00EB3FBC /* ContainerPool.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9A8A2042272ECEC00EB3FBC /* ContainerPool.swift */; };
 		C9A8A2092272ECEC00EB3FBC /* Container.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9A8A2062272ECEC00EB3FBC /* Container.swift */; };
 		C9A8A2132277DF0500EB3FBC /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9A8A2122277DF0500EB3FBC /* Models.swift */; };
@@ -44,7 +45,6 @@
 		CE2D62CD2282D4BC0078D2C5 /* MediaPlayable.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE2D62CC2282D4BC0078D2C5 /* MediaPlayable.swift */; };
 		CE2D62D4228572BF0078D2C5 /* MoviePlayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE2D62D3228572BF0078D2C5 /* MoviePlayer.swift */; };
 		CE2D62D6228B9C180078D2C5 /* TSParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE2D62D5228B9C180078D2C5 /* TSParser.swift */; };
-		CE5BF09A22AE29C5007F4725 /* NALParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE5BF09922AE29C5007F4725 /* NALParser.swift */; };
 		CE72B2332293E3F600E19CDC /* animation.h264 in Resources */ = {isa = PBXBuildFile; fileRef = CE72B2322293E3F600E19CDC /* animation.h264 */; };
 		CEF94B82226E8F7D006B7528 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = CEF94B81226E8F7D006B7528 /* AppDelegate.swift */; };
 		CEF94B84226E8F7D006B7528 /* PlayerViewContoller.swift in Sources */ = {isa = PBXBuildFile; fileRef = CEF94B83226E8F7D006B7528 /* PlayerViewContoller.swift */; };
@@ -75,6 +75,7 @@
 		C9A755A022A8072E0043E812 /* TSOperation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TSOperation.swift; sourceTree = "<group>"; };
 		C9A755A222A807470043E812 /* TaskManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskManager.swift; sourceTree = "<group>"; };
 		C9A755A422ACD6350043E812 /* AsyncOperation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AsyncOperation.swift; sourceTree = "<group>"; };
+		C9A755A622AE88E20043E812 /* NALParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NALParser.swift; sourceTree = "<group>"; };
 		C9A8A2042272ECEC00EB3FBC /* ContainerPool.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ContainerPool.swift; sourceTree = "<group>"; };
 		C9A8A2062272ECEC00EB3FBC /* Container.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Container.swift; sourceTree = "<group>"; };
 		C9A8A2122277DF0500EB3FBC /* Models.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
@@ -101,7 +102,6 @@
 		CE2D62CC2282D4BC0078D2C5 /* MediaPlayable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaPlayable.swift; sourceTree = "<group>"; };
 		CE2D62D3228572BF0078D2C5 /* MoviePlayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MoviePlayer.swift; sourceTree = "<group>"; };
 		CE2D62D5228B9C180078D2C5 /* TSParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TSParser.swift; sourceTree = "<group>"; };
-		CE5BF09922AE29C5007F4725 /* NALParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NALParser.swift; sourceTree = "<group>"; };
 		CE72B2322293E3F600E19CDC /* animation.h264 */ = {isa = PBXFileReference; lastKnownFileType = file; path = animation.h264; sourceTree = "<group>"; };
 		CEF94B7E226E8F7D006B7528 /* CustomPlayer.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = CustomPlayer.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		CEF94B81226E8F7D006B7528 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
@@ -297,7 +297,7 @@
 			isa = PBXGroup;
 			children = (
 				CE0810C722A60F11009ED5DB /* NALUnit.swift */,
-				CE5BF09922AE29C5007F4725 /* NALParser.swift */,
+				C9A755A622AE88E20043E812 /* NALParser.swift */,
 			);
 			path = NALParser;
 			sourceTree = "<group>";
@@ -514,6 +514,7 @@
 				CEFE47C42292416E006D6AFE /* HTTPConnetion.swift in Sources */,
 				CE0810C422A52E35009ED5DB /* Math.swift in Sources */,
 				C9C28ED222915DA900337CC7 /* MasterPlaylist.swift in Sources */,
+				C9A755A722AE88E20043E812 /* NALParser.swift in Sources */,
 				C91E441122833A7600435465 /* AudioPlayer.swift in Sources */,
 				CE2D62D4228572BF0078D2C5 /* MoviePlayer.swift in Sources */,
 				CE0810C822A60F11009ED5DB /* NALUnit.swift in Sources */,
@@ -535,7 +536,6 @@
 				CE0810BF229F5051009ED5DB /* NetworkChecker.swift in Sources */,
 				CEF94BDF227BCD38006B7528 /* DecodeModels.swift in Sources */,
 				CEF94BDB227BCC66006B7528 /* TrackDecodable.swift in Sources */,
-				CE5BF09A22AE29C5007F4725 /* NALParser.swift in Sources */,
 				CEFE47C8229242EB006D6AFE /* NetworkError.swift in Sources */,
 				CEF94B96226EB7D9006B7528 /* H264Decoder.swift in Sources */,
 				CEF94B82226E8F7D006B7528 /* AppDelegate.swift in Sources */,

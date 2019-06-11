@@ -42,7 +42,7 @@ final class DisplayLinkedQueue: NSObject {
     
     func enqueue(_ buffer: CMSampleBuffer) {
         lockQueue.async {
-            print("enqued: \(self.enCount)")
+           // print("enqued: \(self.enCount)")
             self.enCount += 1
             self.duration += buffer.duration.seconds
             self.buffers.append(buffer)
@@ -65,7 +65,7 @@ final class DisplayLinkedQueue: NSObject {
         }
         if first.presentationTimeStamp.seconds <= displayLink.timestamp {
             lockQueue.async {
-                print("dequed: \(self.deCount)")
+             //   print("dequed: \(self.deCount)")
                 self.deCount += 1
                 self.buffers.removeFirst()
                 self.bufferCount -= 1

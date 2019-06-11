@@ -10,10 +10,7 @@ import Foundation
 import VideoToolbox
 
 class H264Decoder {
-  
-    private let decodeQueue = DispatchQueue(label: "com.bumslap.h264DecoderQueue")
-    let taskManager = TaskManager()
-    let queue = OperationQueue()
+
     private var formatDescription: CMVideoFormatDescription?
     private var decompressionSession: VTDecompressionSession?
     
@@ -22,22 +19,7 @@ class H264Decoder {
     var count = 0
     var sps: [UInt8]?
     var pps: [UInt8]?
-    var sampleSizeArray: [Int] = []
-    
-    private var decodeCount = 0
-    private var callbackCount = 0
-    var hasDecodeDone: Bool {
-        get {
-            if decodeCount < callbackCount {
-                callbackCount = 0
-                return true
-            } else {
-                return false
-            }
-        }
-    }
-    var isESType: Bool = false
-    
+ 
     weak var videoDecoderDelegate: MultiMediaVideoTypeDecoderDelegate?
     
     private lazy var startCode: [UInt8] = []
@@ -100,7 +82,7 @@ class H264Decoder {
         var timingInfo:CMSampleTimingInfo = CMSampleTimingInfo(
             duration: duration,
             presentationTimeStamp: presentationTimeStamp,
-            decodeTimeStamp: CMTime.invalid
+            decodeTimeStamp: presentationTimeStamp
         )
 
         var formatDescription: CMVideoFormatDescription? = nil
@@ -125,9 +107,9 @@ class H264Decoder {
        
         CVPixelBufferUnlockBaseAddress(decodedBuffer, CVPixelBufferLockFlags(rawValue: 0))
 
-      //  guard let sample = decodedSampleBuffer else { return }
+        guard let sample = decodedSampleBuffer else { return }
 
-        decoder.videoDecoderDelegate?.prepareToDisplay(with: decodedSampleBuffer!)
+        decoder.videoDecoderDelegate?.prepareToDisplay(with: sample)
     }
   
 
@@ -135,14 +117,6 @@ class H264Decoder {
     
     deinit {
         print("h264 deinit")
-    }
-    
-    func suspendDecoding() {
-        decodeQueue.suspend()
-    }
-    
-    func resumeDecoding() {
-        decodeQueue.resume()
     }
     
     func decode(nal: NALUnit, pts: CMSampleTimingInfo? = nil) {
@@ -172,141 +146,6 @@ class H264Decoder {
         }
     }
     
-    func setPTS(tiemStamps: [CMSampleTimingInfo]) {
-        self.presentationTimeStamps = tiemStamps
-    }
-    
-    func decode(frames: [UInt8], presentationTimestamps: [CMSampleTimingInfo]) {
-        if !isESType { updateDecompressionSession() }
-
-        if Array(frames[0...3]) == VideoCodingConstant.startCodeAType {
-            self.startCode = VideoCodingConstant.startCodeAType
-        } else if Array(frames[0...2]) == VideoCodingConstant.startCodeBType {
-            self.startCode = VideoCodingConstant.startCodeBType
-        } 
-        
-        var mutableFrames = frames
-        var index = startCode.count
-        var startCodeFlag = false
-        var currentFrameSlices: [[UInt8]] = []
-        var tempArray: [UInt8] = []
-        var timingCount = 0
-     //   decodeQueue.async { [weak self] in
-      //      guard let self = self else { return}
-        
-        if !self.isESType {
-            var count = 0
-            var packets: [[UInt8]] = []
-            
-            while true {
-                    if mutableFrames.isEmpty { break }
-                    let packet = Array(mutableFrames[0..<self.sampleSizeArray[count]])
-                    packets.append(packet)
-                    mutableFrames.removeSubrange(0..<self.sampleSizeArray[count])
-                    count += 1
-            }
-            
-            for (index, packet) in packets.enumerated() {
-              let task =  BlockOperation { [weak self] in
-                    self?.decodeVideoPacket(packet: packet, timingInfo: presentationTimestamps[index])
-
-                }
-                
-                taskManager.add(task: task)
-            }
-            return
-        }
-        var hasDone = false
-        while !hasDone {
-          //  if isBufferFull { continue }
-            while Array(mutableFrames[index..<(index + VideoCodingConstant.startCodeBType.count)])
-                != VideoCodingConstant.startCodeBType
-                && Array(mutableFrames[index..<(index + VideoCodingConstant.startCodeAType.count)]) != VideoCodingConstant.startCodeAType {
-                    
-                    if index + VideoCodingConstant.startCodeAType.count > mutableFrames.count - 1
-                        && !mutableFrames.isEmpty {
-                        let nal = Array(mutableFrames[0...])
-                        self.processNAL(nal: nal,
-                                        targetSlices: &currentFrameSlices,
-                                        dumpArray: &tempArray,
-                                        timingInfo: presentationTimestamps[timingCount])
-                    
-                        
-                        hasDone = true
-                        break
-                    }
-                index += 1
-            }
-            
-            var nal = Array(mutableFrames[0..<index])
-            mutableFrames.removeSubrange(0..<index)
-            
-            if startCodeFlag {
-                nal.insert(0, at: 0)
-            }
-            
-    
-            self.processNAL(nal: nal,
-                            targetSlices: &currentFrameSlices,
-                            dumpArray: &tempArray,
-                            timingInfo: presentationTimestamps[timingCount])
-            
-            if Array(mutableFrames[0..<3]) == VideoCodingConstant.startCodeBType {
-                index = VideoCodingConstant.startCodeBType.count
-                startCodeFlag = true
-            } else {
-                index = VideoCodingConstant.startCodeAType.count
-                startCodeFlag = false
-            }
-        }
-        
-        self.decodeCount = currentFrameSlices.count
-        for (index, nal) in currentFrameSlices.enumerated() {
-         
-           // let task = BlockOperation { [weak self] in
-                self.decodeVideoPacket(packet: nal, timingInfo: presentationTimestamps[index])
-
-          //  }
-          //  taskManager.add(task: task)
-        }
-        return
-    }
-    
-    private func processNAL(nal: [UInt8],
-                    targetSlices: inout [[UInt8]],
-                    dumpArray: inout [UInt8],
-                    timingInfo: CMSampleTimingInfo) {
-        let startCodeSize = 4
-        var packet = nal
-        if isESType {
-            var lengthOfNAL = CFSwapInt32HostToBig((UInt32(packet.count - 4)))
-            memcpy(&packet, &lengthOfNAL, startCodeSize)
-        }
-        let nalType = packet[4] & 0x1F
-        
-        switch nalType {
-        case NALType.idr.rawValue, NALType.slice.rawValue:
-            dumpArray.append(contentsOf: packet)
-            
-        case NALType.sps.rawValue:
-            spsSize = packet.count - startCodeSize
-            sps = Array(packet[startCodeSize..<packet.count])
-            updateDecompressionSession()
-        case NALType.pps.rawValue:
-            ppsSize = packet.count - startCodeSize
-            pps = Array(packet[startCodeSize..<packet.count])
-            updateDecompressionSession()
-            
-        case NALType.aud.rawValue:
-            if !dumpArray.isEmpty {
-              //  self.decodeVideoPacket(packet: slice, timingInfo: timingInfo)
-                targetSlices.append(dumpArray)
-                dumpArray = []
-            }
-        default:
-            break
-        }
-    }
     
     private func decodeVideoPacket(packet:[UInt8], timingInfo: CMSampleTimingInfo) {
         let bufferPointer = UnsafeMutablePointer<UInt8>(mutating: packet)
@@ -323,12 +162,8 @@ class H264Decoder {
             flags: 0,
             blockBufferOut: &blockBuffer) == kCMBlockBufferNoErr else {
                 return
-                
         }
-       
-        print(count)
-        
-        count += 1
+
         var sampleBuffer: CMSampleBuffer?
         var timing = timingInfo
         guard CMSampleBufferCreateReady(
@@ -345,13 +180,21 @@ class H264Decoder {
                 print("fail")
                 return
         }
-        print("sam count:\(count) \(sampleBuffer)")
-        if !CMSampleBufferIsValid(sampleBuffer!){
-            print("invalid")
-            return
+        
+        if let attachments = CMSampleBufferGetSampleAttachmentsArray(sampleBuffer!, createIfNecessary: true) {
+            let dictionary = unsafeBitCast(
+                CFArrayGetValueAtIndex(attachments, 0),
+                to: CFMutableDictionary.self)
             
+            CFDictionarySetValue(
+                dictionary,
+                Unmanaged.passUnretained(kCMSampleAttachmentKey_DisplayImmediately).toOpaque(),
+                Unmanaged.passUnretained(kCFBooleanTrue).toOpaque()
+            )
         }
-    //    self.videoDecoderDelegate?.prepareToDisplay(with: sampleBuffer!)
+        
+       // print("sam count:\(count) \(sampleBuffer)")
+       
         guard let session = decompressionSession else {
             print("failed to fetch session")
             return
@@ -373,7 +216,7 @@ class H264Decoder {
     private func decodeVideoPacket(frames: [UInt8], presentationTimestamps: [CMSampleTimingInfo]) {
         var blockBuffer: CMBlockBuffer?
         let dataLength = frames.count
-        let sizeArray = sampleSizeArray
+        let sizeArray = [Int]()
         
         var mergedData = Data(frames)
         mergedData.withUnsafeMutableBytes { (bytes: UnsafeMutablePointer<UInt8>) -> Void in
@@ -468,6 +311,8 @@ class H264Decoder {
             kCVPixelBufferIOSurfacePropertiesKey: [:] as AnyObject,
             kCVPixelBufferOpenGLESCompatibilityKey: NSNumber(booleanLiteral: true)
         ]
+        
+        
         
         var didSessionCreate:VTDecompressionOutputCallbackRecord = VTDecompressionOutputCallbackRecord(
             decompressionOutputCallback: callback,

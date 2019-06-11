@@ -9,7 +9,7 @@
 import Foundation
 
 class TSLoader: NSObject {
-    let semaphore = DispatchSemaphore(value: 1)
+    
     private let url: URL
     private let httpConnection: HTTPConnetion
     private let networkChecker: NetworkChecker = NetworkChecker.shared
@@ -21,6 +21,8 @@ class TSLoader: NSObject {
     private var isLoaderReady: Bool = false
     
     private lazy var m3u8Parser = M3U8Parser(url: url)
+    
+    let semaphore = DispatchSemaphore(value: 1)
   
     init(url: URL) {
         self.url = url
@@ -52,13 +54,12 @@ class TSLoader: NSObject {
         }
     }
     
-    func fetchTsStreamSynchronously(completion: @escaping (Result<[DataStream], Error>) -> Void) -> Bool {
+    func fetchTsStream(completion: @escaping (Result<[DataStream], Error>) -> Void) -> Bool {
         
         
-        self.semaphore.wait()
+     
         guard isLoaderReady,
             let currentPlaylistIndex = currentPlayingItemIndex else {
-            semaphore.signal()
             completion(.failure(APIError.waitRequest))
             return false
         }
@@ -66,34 +67,32 @@ class TSLoader: NSObject {
         let gear = policy.shouldUpdateGear()
         
         if gear == -1 {
-            semaphore.signal()
             completion(.failure(APIError.responseUnsuccessful))
             return false
         }
 
         guard let targetMediaPlaylist = masterPlaylist?
             .mediaPlaylists[gear] else {
-                semaphore.signal()
                 completion(.failure(APIError.invalidData))
                 return false
                 
         }
 
-        
-        print("currGear\(currentPlaylistIndex.gear), currIdx \(currentPlaylistIndex.index)")
-        
-        if targetMediaPlaylist.videoMediaSegments.count - 1 < currentPlaylistIndex.index {
-            semaphore.signal()
-            completion(.failure(APIError.invalidData))
-            return false
-        }
-        
+       
         if !targetMediaPlaylist.isParsed {
             m3u8Parser.parseMediaPlaylist(list: targetMediaPlaylist) {
+                if targetMediaPlaylist.videoMediaSegments.count - 1 < currentPlaylistIndex.index {
+                    completion(.failure(APIError.invalidData))
+                    return
+                }
+                
+                if targetMediaPlaylist.videoMediaSegments.count - 1 < currentPlaylistIndex.index {
+                    completion(.failure(APIError.invalidData))
+                    return
+                }
                 
                 guard let path = targetMediaPlaylist
                     .videoMediaSegments[currentPlaylistIndex.index].path else {
-                        self.semaphore.signal()
                         completion(.failure(APIError.urlFailure))
                         return
                 }
@@ -101,7 +100,6 @@ class TSLoader: NSObject {
                 self.httpConnection.request(url: url) { (result, response) in
                     switch result {
                     case .failure:
-                        self.semaphore.signal()
                         completion(.failure(APIError.requestFailed))
                         
                     case .success(let tsData):
@@ -110,17 +108,20 @@ class TSLoader: NSObject {
                         let tsStream = tsParser.parse()
                         
                         currentPlaylistIndex.index += 1
-                         self.semaphore.signal()
                         completion(.success(tsStream))
                     }
                 }
             }
         } else {
+            if targetMediaPlaylist.videoMediaSegments.count - 1 < currentPlaylistIndex.index {
+                completion(.failure(APIError.invalidData))
+                return false
+            }
+            
         
             guard let path = targetMediaPlaylist
                 .videoMediaSegments[currentPlaylistIndex.index].path,
                 let url = URL(string: path) else {
-                    semaphore.signal()
                     completion(.failure(APIError.urlFailure))
                     return false
             }
@@ -128,7 +129,6 @@ class TSLoader: NSObject {
             self.httpConnection.request(url: url) { (result, response) in
                 switch result {
                 case .failure:
-                    self.semaphore.signal()
                     completion(.failure(APIError.requestFailed))
                     return
                 case .success(let tsData):
@@ -136,7 +136,6 @@ class TSLoader: NSObject {
                     let tsParser = TSParser(target: tsData)
                     let tsStream = tsParser.parse()
                     currentPlaylistIndex.index += 1
-                    self.semaphore.signal()
                     completion(.success(tsStream))
                 }
             }

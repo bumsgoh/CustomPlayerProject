@@ -27,9 +27,9 @@ class NetworkLoadPolicy {
         }
         var level: NetworkSpeedLevel = .verySlow
         switch networkSpeed {
-        case 0 ..< 5:
+        case 0 ..< 1:
             level = .verySlow
-        case 5 ..< 20:
+        case 1 ..< 20:
             level = .slow
         case 20 ..< 100:
             level = .normal

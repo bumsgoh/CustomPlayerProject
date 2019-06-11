@@ -168,7 +168,7 @@ class PlayerViewContoller: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         setUpViews()
-        print(playTrackSlider.maximumValue)
+       // print(playTrackSlider.maximumValue)
         NotificationCenter.default.addObserver(self, selector: #selector(didReceiveSeekValue(_:)), name: NSNotification.Name(rawValue: "trackValueChangedToSeek"), object: nil)
         setObservers()
         // Do any additional setup after loading the view.
@@ -373,7 +373,7 @@ extension PlayerViewContoller: VideoQueueDelegate {
             
             if self.timebase > 0 {
                
-                currentDuration = TimeInterval(buffers.presentationTimeStamp.seconds - self.timebase) / 100
+                currentDuration = TimeInterval(buffers.presentationTimeStamp.seconds - self.timebase) / 1000
                 self.playTrackSlider.setValue(Float(currentDuration), animated: true)
             } else {
                 currentDuration = TimeInterval(buffers.presentationTimeStamp.seconds)
@@ -383,7 +383,7 @@ extension PlayerViewContoller: VideoQueueDelegate {
             let s: Int = Int(currentDuration) % 60
             let m: Int = Int(currentDuration) / 60
             
-            let formattedDuration = String(format: "%0d:%02d", m, s)
+            let formattedDuration = String(format: "%02d:%02d", m, s)
             self.playerTimerClockLabel.text = formattedDuration
      }
     }
