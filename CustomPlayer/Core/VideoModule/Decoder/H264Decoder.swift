@@ -108,8 +108,11 @@ class H264Decoder {
         CVPixelBufferUnlockBaseAddress(decodedBuffer, CVPixelBufferLockFlags(rawValue: 0))
 
         guard let sample = decodedSampleBuffer else { return }
-
-        decoder.videoDecoderDelegate?.prepareToDisplay(with: sample)
+        print("\((decodedSampleBuffer!.presentationTimeStamp.seconds - 900) / 100))")
+       // if (decodedSampleBuffer!.presentationTimeStamp.seconds - 900) / 100 > 5 {
+            decoder.videoDecoderDelegate?.prepareToDisplay(with: sample)
+      //  }
+        print("out")
     }
   
 
@@ -123,14 +126,25 @@ class H264Decoder {
         
         switch nal.type {
         case .idr:
-            guard let pts = pts else { return }
+            guard let pts = pts else {
+                assertionFailure("no pts")
+                return
+            }
+          
             decodeVideoPacket(packet: nal.payload,
-                              timingInfo: pts)
-            
+                                  timingInfo: pts)
+       
+           
+            print("idr detected")
         case .slice:
-            guard let pts = pts else { return }
+            guard let pts = pts else {
+                assertionFailure("no pts")
+                return
+            }
+            
             decodeVideoPacket(packet: nal.payload,
-                              timingInfo: pts)
+                                  timingInfo: pts)
+            
             
         case .sps:
             sps = nal.payload
@@ -150,7 +164,8 @@ class H264Decoder {
     private func decodeVideoPacket(packet:[UInt8], timingInfo: CMSampleTimingInfo) {
         let bufferPointer = UnsafeMutablePointer<UInt8>(mutating: packet)
         var blockBuffer: CMBlockBuffer?
-
+        
+       // print("packet in: \(packet) with pts\(timingInfo)")
         guard CMBlockBufferCreateWithMemoryBlock(
             allocator: kCFAllocatorDefault,
             memoryBlock: bufferPointer,
@@ -204,12 +219,14 @@ class H264Decoder {
         guard VTDecompressionSessionDecodeFrame(
             session,
             sampleBuffer: derivedSampleBuffer,
-            flags: [._EnableAsynchronousDecompression],
+            flags: [._EnableAsynchronousDecompression, ._EnableTemporalProcessing],
             frameRefcon: nil,
             infoFlagsOut: &flag) == 0 else {
                 assertionFailure("fail decom")
                 return
         }
+        
+         VTDecompressionSessionWaitForAsynchronousFrames(session)
        
     }
     
@@ -266,6 +283,9 @@ class H264Decoder {
             flags: [._EnableAsynchronousDecompression, ._EnableTemporalProcessing],
             frameRefcon: nil,
             infoFlagsOut: &flag) == 0 else { return }
+        
+       
+
     }
     
     private func updateDecompressionSession() {
@@ -303,15 +323,34 @@ class H264Decoder {
         }
         var localSession: VTDecompressionSession?
         
-        let decoderPixelBufferAttributes = NSMutableDictionary()
-        decoderPixelBufferAttributes.setValue(NSNumber(value: kCVPixelFormatType_32BGRA as UInt32), forKey: kCVPixelBufferPixelFormatTypeKey as String)
+//        let decoderPixelBufferAttributes = NSMutableDictionary()
+//        decoderPixelBufferAttributes.setValue(NSNumber(value: kCVPixelFormatType_32BGRA as UInt32), forKey: kCVPixelBufferPixelFormatTypeKey as String)
+//
+//       let attributes = [
+//            kCVPixelBufferPixelFormatTypeKey: NSNumber(value: kCVPixelFormatType_32BGRA),
+//            kCVPixelBufferIOSurfacePropertiesKey: [:] as AnyObject,
+//            kCVPixelBufferOpenGLESCompatibilityKey: NSNumber(booleanLiteral: true)
+//        ]
+//
         
-       let attributes = [
-            kCVPixelBufferPixelFormatTypeKey: NSNumber(value: kCVPixelFormatType_32BGRA),
-            kCVPixelBufferIOSurfacePropertiesKey: [:] as AnyObject,
-            kCVPixelBufferOpenGLESCompatibilityKey: NSNumber(booleanLiteral: true)
+        kVTVideoDecoderSpecification_RequiredDecoderGPURegistryID
+        
+        let decoderSpecification: [NSString: Any] = [
+            //kVTVideoDecoderSpecification_RequiredDecoderGPURegistryID: kCFBooleanTrue!,
+            kVTVideoDecoderSpecification_RequiredDecoderGPURegistryID: kCFBooleanFalse!
         ]
         
+        // Prepare default attributes
+        let dimensions: CMVideoDimensions = CMVideoFormatDescriptionGetDimensions(formatDescription)
+        let defaultAttr: [NSString: Any] = [
+            kCVPixelBufferPixelFormatTypeKey: Int(kCVPixelFormatType_422YpCbCr8),
+            kCVPixelBufferWidthKey: Int(dimensions.width),
+            kCVPixelBufferHeightKey: Int(dimensions.height)
+            //, kCVPixelBufferIOSurfacePropertiesKey: [:]
+            , kCVPixelBufferOpenGLCompatibilityKey: true
+            //, kCVPixelBufferMetalCompatibilityKey: true // __MAC_10_11
+            //, kCVPixelBufferOpenGLTextureCacheCompatibilityKey: true // __MAC_10_11
+        ]
         
         
         var didSessionCreate:VTDecompressionOutputCallbackRecord = VTDecompressionOutputCallbackRecord(
@@ -321,8 +360,8 @@ class H264Decoder {
         
         let sessionStatus = VTDecompressionSessionCreate(allocator: kCFAllocatorDefault,
                                                          formatDescription: formatDescription,
-                                                         decoderSpecification: attributes as CFDictionary?,
-                                                         imageBufferAttributes: decoderPixelBufferAttributes,
+                                                         decoderSpecification: decoderSpecification as CFDictionary,
+                                                         imageBufferAttributes: defaultAttr as CFDictionary,
                                                          outputCallback: &didSessionCreate,
                                                          decompressionSessionOut: &localSession)
         if sessionStatus != noErr {

@@ -135,11 +135,26 @@ class PlayerViewContoller: UIViewController {
         return button
     }()
     
+    
+    private let multiTrackButton: UIButton = {
+        let button = UIButton(type: .custom)
+        button.translatesAutoresizingMaskIntoConstraints = false
+        button.setImage(#imageLiteral(resourceName: "multiButton"), for: .normal)
+        button.tintColor = .white
+        return button
+    }()
+    
+    
     private let indicator: UIActivityIndicatorView = {
         let indicator = UIActivityIndicatorView()
         indicator.translatesAutoresizingMaskIntoConstraints = false
         indicator.style = .gray
         return indicator
+    }()
+    
+    private lazy var tapGestureRecognizer: UITapGestureRecognizer = {
+        let recognizer = UITapGestureRecognizer(target: self, action: #selector(viewDidTap))
+        return recognizer
     }()
     
     private lazy var moviePlayer: MoviePlayer? = {
@@ -209,9 +224,11 @@ class PlayerViewContoller: UIViewController {
     }
    
     private func setUpViews() {
+        view.addGestureRecognizer(tapGestureRecognizer)
         view.backgroundColor = .black
         view.addSubview(volumeControllerContainerView)
         view.addSubview(playerView)
+        view.addSubview(multiTrackButton)
         
         volumeControllerContainerView.addSubview(volumeSlider)
         volumeControllerContainerView.addSubview(spekerImage)
@@ -249,11 +266,12 @@ class PlayerViewContoller: UIViewController {
             equalTo: view.heightAnchor,
             multiplier: 0.33).isActive = true
         
-        playerView.addSubview(indicator)
+        view.addSubview(indicator)
         indicator.centerYAnchor.constraint(
             equalTo: playerView.centerYAnchor).isActive = true
         indicator.centerXAnchor.constraint(
             equalTo: playerView.centerXAnchor).isActive = true
+        
         
         setUpPlayerController()
     }
@@ -279,6 +297,17 @@ class PlayerViewContoller: UIViewController {
         playerControllerContainerView.bottomAnchor.constraint(
             equalTo: view.safeAreaLayoutGuide.bottomAnchor,
             constant: -8).isActive = true
+        
+        multiTrackButton.addTarget(self, action: #selector(multiTrackButtonDidTap), for: .touchUpInside)
+        multiTrackButton.isHidden = true
+        multiTrackButton.trailingAnchor.constraint(
+            equalTo: view.safeAreaLayoutGuide.trailingAnchor,
+            constant: -24).isActive = true
+        multiTrackButton.bottomAnchor.constraint(
+            equalTo: view.safeAreaLayoutGuide.bottomAnchor,
+            constant: -8).isActive = true
+        
+        
         
         playerControllerStackView.leadingAnchor.constraint(
             equalTo: playerControllerContainerView.leadingAnchor, constant: 16).isActive = true
@@ -356,6 +385,25 @@ class PlayerViewContoller: UIViewController {
             state = .paused
         }
     }
+    
+    @objc func viewDidTap() {
+        
+        UIView.transition(with: view,
+                          duration: 0.3,
+                          options: .transitionCrossDissolve,
+                          animations: {
+            self.playerControllerContainerView.isHidden = !self.playerControllerContainerView.isHidden
+            
+            self.volumeControllerContainerView.isHidden = !self.volumeControllerContainerView.isHidden
+            
+            self.multiTrackButton.isHidden = !self.multiTrackButton.isHidden
+        })
+    }
+    
+    @objc func multiTrackButtonDidTap() {
+        
+    }
+    
 }
 
 

@@ -8,7 +8,7 @@
 
 import Foundation
 
-class AAC_ADTSDecoder: AudioTrackDecodable {
+class ADTSConverter: AudioTrackDecodable {
     var videoDelegate: MultiMediaVideoTypeDecoderDelegate? = nil
     
     var audioDelegate: MultiMediaAudioTypeDecoderDelegate?

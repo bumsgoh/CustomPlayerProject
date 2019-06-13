@@ -11,7 +11,7 @@ import Foundation
 class NetworkChecker {
     
     static let shared = NetworkChecker()
-    private let historySize: Int = 5
+    private let historySize: Int = 10
     
     private var startTime: Date = Date()
     private var elapsedTime: Float = 0

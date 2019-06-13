@@ -282,53 +282,78 @@ class MoviePlayer: NSObject {
                let parser = NALParser()
                let nalus = parser.parse(frames: $0.actualData,
                                         type: .annexB)
-               var num = 0
-               for nal in nalus {
-                if nal.type != .aud { num += 1}
-                print("no.\(num) \(nal)")
-                print()
-               }
+//               var num = 0
+//               for nal in nalus {
+//                if nal.type != .aud || nal.type != .unspecified { num += 1 }
+//                print("no.\(num) \(nal)")
+//                print()
+//               }
                
-               var count = -1
+               var count = 0
                var currentSlicePayload: [UInt8] = []
                var leadingFlag = false
+//               for nal in nalus {
+//                if nal.type == .unspecified {continue}
+//                var item: DispatchWorkItem?
+//                if nal.type == .idr || nal.type == .slice {
+////                    if leadingFlag {
+////                         currentSlicePayload.append(contentsOf: nal.payload)
+////                        leadingFlag = false
+////                    } else {
+////                        currentSlicePayload.append(contentsOf: nal.payload[4...])
+////                    }
+////
+////                   continue
+//                    item = DispatchWorkItem {
+//                         self.h264Decoder.decode(nal: nal, pts: timings[count])
+//                    }
+//                      count += 1
+//
+//                } else if nal.type == .aud {
+////                    leadingFlag = true
+////                    if !currentSlicePayload.isEmpty {
+////                        count += 1
+////                        if count >= timings.count - 1 { break }
+////
+////                        let mergedNAL = NALUnit(type: .idr, payload: currentSlicePayload)
+////                        item = DispatchWorkItem {
+////                            self.h264Decoder.decode(nal: mergedNAL, pts: timings[count])
+////                        }
+////                        currentSlicePayload = []
+////                    } else {
+////                           continue
+////                    }
+//
+//                    continue
+//
+//                } else {
+//                    item = DispatchWorkItem {
+//                        self.h264Decoder.decode(nal: nal)
+//                    }
+//                }
+//
+//                self.decodeQueue.sync(execute: item!)
+//               }
+
                for nal in nalus {
-                if nal.type == .unspecified {continue}
                 var item: DispatchWorkItem?
                 if nal.type == .idr || nal.type == .slice {
-                    if leadingFlag {
-                         currentSlicePayload.append(contentsOf: nal.payload)
-                        leadingFlag = false
-                    } else {
-                        currentSlicePayload.append(contentsOf: nal.payload[4...])
+                    item = DispatchWorkItem {
+                        self.h264Decoder.decode(nal: nal, pts: timings[count])
                     }
-                   
-                   continue
                     
-                } else if nal.type == .aud {
-                    leadingFlag = true
-                    if !currentSlicePayload.isEmpty {
-                        count += 1
-                        if count >= timings.count - 1 { break }
-                        
-                        let mergedNAL = NALUnit(type: .idr, payload: currentSlicePayload)
-                        item = DispatchWorkItem {
-                            self.h264Decoder.decode(nal: mergedNAL, pts: timings[count])
-                        }
-                        currentSlicePayload = []
-                    } else {
-                           continue
-                    }
-
+                    count += 1
+                    if count >= timings.count - 1 { break }
                 } else {
                     item = DispatchWorkItem {
                         self.h264Decoder.decode(nal: nal)
                     }
                 }
-        
+                
                 self.decodeQueue.sync(execute: item!)
-               }
-               
+                
+                usleep(10000)
+                }
             case .audio:
                 break
                  self.prepareToPlay(with: Data($0.actualData))

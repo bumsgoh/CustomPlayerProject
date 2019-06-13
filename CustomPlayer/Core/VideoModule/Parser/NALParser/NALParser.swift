@@ -114,6 +114,10 @@ class NALParser {
                 
             case NALType.aud.rawValue:
                 return NALUnit(type: .aud, payload: packet)
+                
+            case NALType.sei.rawValue:
+                return NALUnit(type: .sei, payload: packet)
+                
             default:
                 return NALUnit(type: .unspecified, payload: [])
             }
