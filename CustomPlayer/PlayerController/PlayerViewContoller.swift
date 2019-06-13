@@ -174,6 +174,7 @@ class PlayerViewContoller: UIViewController {
     
     init() {
         super.init(nibName: nil, bundle: nil)
+        
     }
     
     required init?(coder aDecoder: NSCoder) {
@@ -186,6 +187,7 @@ class PlayerViewContoller: UIViewController {
        // print(playTrackSlider.maximumValue)
         NotificationCenter.default.addObserver(self, selector: #selector(didReceiveSeekValue(_:)), name: NSNotification.Name(rawValue: "trackValueChangedToSeek"), object: nil)
         setObservers()
+        UIVisualEffectView.appearance(whenContainedInInstancesOf: [UIAlertController.classForCoder() as! UIAppearanceContainer.Type]).effect = UIBlurEffect(style: .dark)
         // Do any additional setup after loading the view.
     }
 
@@ -401,7 +403,33 @@ class PlayerViewContoller: UIViewController {
     }
     
     @objc func multiTrackButtonDidTap() {
+        let alertController = UIAlertController(title: "Multi Track", message: "select video's point of view", preferredStyle: .actionSheet)
+   
+       
+        let orientationAction = UIAlertAction(title: "track #1", style: .default) { (action) in
+           
+        }
+        orientationAction.setValue(UIColor.white, forKey: "titleTextColor")
         
+        let colorAction = UIAlertAction(title: "track #2", style: .default) { (action) in
+          
+        }
+        colorAction.setValue(UIColor.white, forKey: "titleTextColor")
+        
+        let temperatureAction = UIAlertAction(title: "track #3", style: .default) { (action) in
+           
+        }
+        temperatureAction.setValue(UIColor.white, forKey: "titleTextColor")
+       
+        let cancelAction = UIAlertAction(title: "cancel", style: .cancel, handler: nil)
+        
+        alertController.addAction(orientationAction)
+        alertController.addAction(colorAction)
+        alertController.addAction(temperatureAction)
+       
+        alertController.addAction(cancelAction)
+        
+        present(alertController, animated: true)
     }
     
 }
