@@ -403,12 +403,14 @@ class PlayerViewContoller: UIViewController {
     }
     
     @objc func multiTrackButtonDidTap() {
-        let alertController = UIAlertController(title: "Multi Track", message: "select video's point of view", preferredStyle: .actionSheet)
-   
+        let alertController = UIAlertController(title: "Multi Track", message: "select video's point of view", preferredStyle: .alert)
+       
        
         let orientationAction = UIAlertAction(title: "track #1", style: .default) { (action) in
-           
-        }
+            self.moviePlayer?.interruptCall(with: .multiTrackRequest(1))
+                
+            }
+        
         orientationAction.setValue(UIColor.white, forKey: "titleTextColor")
         
         let colorAction = UIAlertAction(title: "track #2", style: .default) { (action) in
@@ -428,7 +430,7 @@ class PlayerViewContoller: UIViewController {
         alertController.addAction(temperatureAction)
        
         alertController.addAction(cancelAction)
-        
+         alertController.view.addSubview(UIView())
         present(alertController, animated: true)
     }
     

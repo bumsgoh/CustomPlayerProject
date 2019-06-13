@@ -16,7 +16,7 @@ class TSLoader: NSObject {
     private let policy: NetworkLoadPolicy
     
     private var masterPlaylist: MasterPlaylist?
-    private var currentPlayingItemIndex: ListIndex?
+    var currentPlayingItemIndex: ListIndex?
     private var currentMediaPlaylist: MediaPlaylist?
     private var isLoaderReady: Bool = false
     
@@ -64,7 +64,7 @@ class TSLoader: NSObject {
             return false
         }
         
-        let gear = policy.shouldUpdateGear()
+        let gear = currentPlaylistIndex.gear//policy.shouldUpdateGear()
         
         if gear == -1 {
             completion(.failure(APIError.responseUnsuccessful))

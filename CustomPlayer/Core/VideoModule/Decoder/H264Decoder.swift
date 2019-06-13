@@ -11,6 +11,7 @@ import VideoToolbox
 
 class H264Decoder {
 
+    var multiTrackThresHoldPts: CMTime?
     private var formatDescription: CMVideoFormatDescription?
     private var decompressionSession: VTDecompressionSession?
     
@@ -73,7 +74,7 @@ class H264Decoder {
 //
 //
 //
-
+        
         let decoder: H264Decoder = unsafeBitCast(decompressionOutputRefCon,
                                                          to: H264Decoder.self)
         guard let decodedBuffer: CVPixelBuffer = imageBuffer else { return }
@@ -108,9 +109,17 @@ class H264Decoder {
         CVPixelBufferUnlockBaseAddress(decodedBuffer, CVPixelBufferLockFlags(rawValue: 0))
 
         guard let sample = decodedSampleBuffer else { return }
+        
+        if let threshold = decoder.multiTrackThresHoldPts {
+            if decodedSampleBuffer!.presentationTimeStamp > threshold {
+                 decoder.videoDecoderDelegate?.prepareToDisplay(with: sample)
+            }
+        } else {
+            decoder.videoDecoderDelegate?.prepareToDisplay(with: sample)
+        }
         print("\((decodedSampleBuffer!.presentationTimeStamp.seconds - 900) / 100))")
        // if (decodedSampleBuffer!.presentationTimeStamp.seconds - 900) / 100 > 5 {
-            decoder.videoDecoderDelegate?.prepareToDisplay(with: sample)
+        
       //  }
         print("out")
     }

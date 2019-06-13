@@ -13,63 +13,47 @@ protocol TaskMangerDelegate: class {
 }
 
 class TaskManager {
+    private let taskToleranceCount = 30
+    private let decodeQueue: DispatchQueue = DispatchQueue(label: "com.decodeQeue")
+    private var tasks: [DispatchWorkItem] = []
+    private var isInterrupted: Bool = false
+    private var taskThresholdCount = 0
+   
     
-    private var needMoreTask: Bool = true
-    private var currentTask: Operation?
-    
-    let queue: OperationQueue = {
-        let queue = OperationQueue()
-        queue.maxConcurrentOperationCount = 1
-        return queue
-    }()
-    
-    weak var delegate: TaskMangerDelegate?
-    
-    func work() -> Bool {
-        guard let delegate = delegate else { return false }
-        if !needMoreTask { return false }
-//        if queue.operations.count > 0 {
-//            operation.addDependency(operationQueue.operations.last!)
-//            // Print dependencies
-//            print("\(operation.name!) should finish after \(operation.dependencies.first!.name!)")
-//        }
-      //  currentTask = delegate.requestMoreTask()
-      //  currentTask?.start()
-        
-        queue.addOperations([delegate.requestMoreTask()], waitUntilFinished: true)
-      //  queue.wait
-        
+    func add(task: DispatchWorkItem) -> Bool {
+        if isInterrupted {
+            taskThresholdCount += 1
+            if taskThresholdCount >= taskToleranceCount {
+                return false
+            }
+        }
+        //tasks.append(task)
+        decodeQueue.sync(execute: task)
         return true
     }
     
-    func add(task: Operation) {
-
-        queue.addOperation(task)
+    func interruptCall() {
+        isInterrupted = true
     }
     
-    func addWithDependency(task: Operation) {
-        if queue.operations.count > 0 {
-             guard let lastOperation = queue.operations.last else { return }
-            task.addDependency(lastOperation)
-        }
-        queue.addOperation(task)
+    func reset() {
+        isInterrupted = false
+        taskThresholdCount = 0
     }
     
     func pauseTask() {
-       // if !queue.isSuspended  {
-            queue.isSuspended = true
-      //  }
+        decodeQueue.suspend()
     }
     
     func resumeTask() {
-       // if queue.isSuspended {
-            queue.isSuspended = false
-       // }
+        decodeQueue.resume()
+    }
+    
+    func cancelAllItems() {
+        tasks.forEach {
+            $0.cancel()
+        }
     }
 }
 
-extension TaskManager: OperationStateDelegate {
-    func stopRunnuing() {
-        needMoreTask = false
-    }
-}
+

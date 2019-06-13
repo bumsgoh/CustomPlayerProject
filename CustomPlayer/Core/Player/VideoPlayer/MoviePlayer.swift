@@ -13,9 +13,7 @@ class MoviePlayer: NSObject {
     let opQueue = OperationQueue()
     private var buffer: [CMSampleBuffer] = []
     private let decodeQueue: DispatchQueue = DispatchQueue(label: "com.decodeQeue")
-    private let fetchingQueue: DispatchQueue = DispatchQueue(label: "com.fetchAndDecodeQueue")
-    private let jobQueue: DispatchQueue = DispatchQueue(label: "decodeQueue")
-    private let lockQueue: DispatchQueue = DispatchQueue(label: "com.lockQueue", qos: .userInitiated, attributes: .concurrent, autoreleaseFrequency: .workItem, target: nil)
+    private let fetchingQueue: DispatchQueue = DispatchQueue(label: "com.fetchQueue")
     private let isFileBasedPlayer: Bool
     private let url: URL
     private let httpConnection: HTTPConnetion
@@ -24,6 +22,7 @@ class MoviePlayer: NSObject {
     private var h264Decoder: H264Decoder = H264Decoder()
     var playContext = 1
     
+    var interruptHandler: InterruptHandler?
     let semaphore = DispatchSemaphore(value: 1)
     private var currentPlayingItemIndex: ListIndex?
     private var state: MediaStatus = .stopped
@@ -35,7 +34,7 @@ class MoviePlayer: NSObject {
         didSet {
             if isPlayable {
                 if !started {
-                    queue.startRunning()
+                    queue.start()
                     audioPlayer.playIfNeeded()
                     started = true
                 }
@@ -89,6 +88,8 @@ class MoviePlayer: NSObject {
             self.isFileBasedPlayer = false
         }
         super.init()
+        
+        setInterruptHandler()
         setObservers()
     }
     
@@ -96,12 +97,30 @@ class MoviePlayer: NSObject {
         queue.removeObserver(self, forKeyPath: "isReady")
         queue.removeObserver(self, forKeyPath: "isBufferFull")
         audioPlayer.removeObserver(self, forKeyPath: "isReady")
+        interruptHandler = nil
     }
     
     func setObservers() {
         queue.addObserver(self, forKeyPath: "isReady", options: [.new, .old], context: &playContext)
         queue.addObserver(self, forKeyPath: "isBufferFull", options: [.new, .old], context: &playContext)
         audioPlayer.addObserver(self, forKeyPath: "isReady", options: [.new, .old], context: &playContext)
+    }
+    
+    func setInterruptHandler() {
+        self.interruptHandler = { (interrupt) in
+            switch interrupt {
+            case .multiTrackRequest(let trackNumber):
+                //tsLoader.
+               // print(trackNumber)
+                self.fetchingQueue.suspend()
+                self.tsLoader.currentPlayingItemIndex?.index -= 1
+                self.tsLoader.currentPlayingItemIndex?.gear = trackNumber
+                self.fetchingQueue.resume()
+              //  self.taskManager.pauseTask()
+            case .seek(let time):
+                print(time)
+            }
+        }
     }
     
     override func observeValue(forKeyPath keyPath: String?, of object: Any?, change: [NSKeyValueChangeKey : Any]?, context: UnsafeMutableRawPointer?) {
@@ -117,7 +136,7 @@ class MoviePlayer: NSObject {
                 let newValue = change?[.newKey] as? Bool else { return }
             if oldValue != newValue {
                 if newValue {
-                    decodeQueue.suspend()
+                    taskManager.pauseTask()
                  //   self.h264Decoder.taskManager.pauseTask()
                     //self.fetchingQueue.suspend()
                 //     print(self.h264Decoder.taskManager.queue.operations.count)
@@ -125,7 +144,7 @@ class MoviePlayer: NSObject {
                    
                    
                 } else {
-                  decodeQueue.resume()
+                  taskManager.resumeTask()
                  //   self.h264Decoder.taskManager.resumeTask()
                    // print(self.h264Decoder.taskManager.queue.operations.count)
                 //    print("resume")
@@ -233,7 +252,7 @@ class MoviePlayer: NSObject {
                 
                 self.tsLoader.initializeLoader {
                    
-                   self.requestNextTsItem()
+                   self.startStreaming()
 //                        while true {
 //                          // self.fetchingQueue.sync {
 //                            let hasMore =
@@ -243,29 +262,29 @@ class MoviePlayer: NSObject {
                     
                      completion(.success(true))
                 }
-                
-                  //  self.requestNextTsItem()
-                
-                
-          //  }
         }
     }
     
-    private func requestNextTsItem() -> Bool {
-     
-        let isSuccess = tsLoader.fetchTsStream { [weak self] (result) in
-    
-            switch result {
-            case .failure:
-          
-                return
-                
-            case .success(let tsStreams):
+    private func startStreaming() {
         
-                self?.processStream(tsStreams)
+        fetchingQueue.async {
+            let semaphore = DispatchSemaphore(value: 1)
+            var hasMore = true
+            while hasMore {
+                semaphore.wait()
+               hasMore = self.tsLoader.fetchTsStream { [weak self] (result) in
+                    semaphore.signal()
+                    switch result {
+                    case .failure:
+                        return
+                        
+                    case .success(let tsStreams):
+                        self?.tsLoader.currentPlayingItemIndex
+                        self?.processStream(tsStreams)
+                    }
+                }
             }
         }
-        return isSuccess
     }
     
     private func processStream(_ streams: [DataStream]) {
@@ -282,58 +301,8 @@ class MoviePlayer: NSObject {
                let parser = NALParser()
                let nalus = parser.parse(frames: $0.actualData,
                                         type: .annexB)
-//               var num = 0
-//               for nal in nalus {
-//                if nal.type != .aud || nal.type != .unspecified { num += 1 }
-//                print("no.\(num) \(nal)")
-//                print()
-//               }
-               
+
                var count = 0
-               var currentSlicePayload: [UInt8] = []
-               var leadingFlag = false
-//               for nal in nalus {
-//                if nal.type == .unspecified {continue}
-//                var item: DispatchWorkItem?
-//                if nal.type == .idr || nal.type == .slice {
-////                    if leadingFlag {
-////                         currentSlicePayload.append(contentsOf: nal.payload)
-////                        leadingFlag = false
-////                    } else {
-////                        currentSlicePayload.append(contentsOf: nal.payload[4...])
-////                    }
-////
-////                   continue
-//                    item = DispatchWorkItem {
-//                         self.h264Decoder.decode(nal: nal, pts: timings[count])
-//                    }
-//                      count += 1
-//
-//                } else if nal.type == .aud {
-////                    leadingFlag = true
-////                    if !currentSlicePayload.isEmpty {
-////                        count += 1
-////                        if count >= timings.count - 1 { break }
-////
-////                        let mergedNAL = NALUnit(type: .idr, payload: currentSlicePayload)
-////                        item = DispatchWorkItem {
-////                            self.h264Decoder.decode(nal: mergedNAL, pts: timings[count])
-////                        }
-////                        currentSlicePayload = []
-////                    } else {
-////                           continue
-////                    }
-//
-//                    continue
-//
-//                } else {
-//                    item = DispatchWorkItem {
-//                        self.h264Decoder.decode(nal: nal)
-//                    }
-//                }
-//
-//                self.decodeQueue.sync(execute: item!)
-//               }
 
                for nal in nalus {
                 var item: DispatchWorkItem?
@@ -350,9 +319,12 @@ class MoviePlayer: NSObject {
                     }
                 }
                 
-                self.decodeQueue.sync(execute: item!)
+                if !taskManager.add(task: item!) {
+                    h264Decoder.multiTrackThresHoldPts = timings[count].presentationTimeStamp
+                    break
+                }
                 
-                usleep(10000)
+             //  usleep(50000)
                 }
             case .audio:
                 break
@@ -368,7 +340,7 @@ class MoviePlayer: NSObject {
         
         if isPlayable {
             started = true
-            queue.startRunning()
+            queue.start()
             audioPlayer.playIfNeeded()
         } else {
             started = false
@@ -377,7 +349,7 @@ class MoviePlayer: NSObject {
     }
     
     func pause() {
-        queue.stopRunning()
+        queue.pause()
         audioPlayer.pause()
         started = false
     }
@@ -385,6 +357,12 @@ class MoviePlayer: NSObject {
     func seek(to time: TimeInterval) {
         audioPlayer.seek(to: time)
        // audioPlayer.parseDeliveredData(data: dataFromDecoder)
+    }
+    
+    
+    func interruptCall(with interrupt: Interrupt) {
+        guard let handler = interruptHandler else { return }
+        handler(interrupt)
     }
 }
 

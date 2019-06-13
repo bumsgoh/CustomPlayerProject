@@ -20,7 +20,7 @@ final class DisplayLinkedQueue: NSObject {
     private let bufferSize = 128
     
     var running: Bool = false
-    var bufferTime: TimeInterval = 3 // sec
+    var bufferTime: TimeInterval = 0.5 // sec
     
     @objc dynamic var isBufferFull: Bool = false
     private var bufferCount = 0
@@ -83,7 +83,12 @@ final class DisplayLinkedQueue: NSObject {
         }
     }
     
-    func startRunning() {
+    func fetchPtsOfLastItemInBuffer() -> CMTime? {
+        guard let pts =  buffers.last?.presentationTimeStamp else { return nil }
+        return pts
+    }
+    
+    func start() {
         lockQueue.async {
             guard !self.running else { return }
             self.displayLink = CADisplayLink(target: self, selector: #selector(self.update(displayLink:)))
@@ -91,7 +96,7 @@ final class DisplayLinkedQueue: NSObject {
         }
     }
     
-    func stopRunning() {
+    func pause() {
         lockQueue.async {
             guard self.running else { return }
             self.displayLink = nil
