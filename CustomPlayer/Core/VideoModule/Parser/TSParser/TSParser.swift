@@ -65,8 +65,8 @@ class TSParser {
                 || header.pid == 0 { continue } // pid 1fff null packet, if 0 PAT Packet
 
             let pesStartIndex: Int = header.hasAfField ? Int(byteConvertedPacket[4]) + 4 + 1 : 4
-            if pesStartIndex > 184 {continue}
-            let streamId = byteConvertedPacket[(pesStartIndex + 3)]
+        
+            
             
             if !header.payloadUnitStartIndicator {
                 if header.pid == videoPid {
@@ -80,7 +80,7 @@ class TSParser {
                 }
                 continue
             } else {
-                
+                let streamId = byteConvertedPacket[(pesStartIndex + 3)]
                 let streamLength = (UInt16(byteConvertedPacket[pesStartIndex + 4]) << 8) | UInt16(byteConvertedPacket[pesStartIndex + 5])
                 let timeCodeFlag = (byteConvertedPacket[pesStartIndex + 7] >> 6) & 0x03
                 let pesHeaderLength = byteConvertedPacket[pesStartIndex + 8]
