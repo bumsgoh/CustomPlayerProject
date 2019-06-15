@@ -14,7 +14,7 @@ protocol TaskMangerDelegate: class {
 
 class TaskManager {
     private let taskToleranceCount = 30
-    private let decodeQueue: DispatchQueue = DispatchQueue(label: "com.decodeQeue")
+    private let decodeQueue: DispatchQueue = DispatchQueue(label: "decodeQueue", qos: .userInteractive, attributes: .concurrent, autoreleaseFrequency: .workItem, target: nil)
     private var tasks: [DispatchWorkItem] = []
     private var isInterrupted: Bool = false
     private var taskThresholdCount = 0

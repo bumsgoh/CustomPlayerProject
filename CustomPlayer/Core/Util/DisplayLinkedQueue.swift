@@ -20,7 +20,7 @@ final class DisplayLinkedQueue: NSObject {
     private let bufferSize = 128
     
     var running: Bool = false
-    var bufferTime: TimeInterval = 0.5 // sec
+    var bufferTime: TimeInterval = 0.04 // sec
     
     @objc dynamic var isBufferFull: Bool = false
     private var bufferCount = 0
@@ -42,6 +42,7 @@ final class DisplayLinkedQueue: NSObject {
     
     func enqueue(_ buffer: CMSampleBuffer) {
         lockQueue.async {
+            print("call")
            // print("enqued: \(self.enCount)")
             self.enCount += 1
             self.duration += buffer.duration.seconds
@@ -53,8 +54,10 @@ final class DisplayLinkedQueue: NSObject {
             }
             
             if !self.isReady {
-                self.isReady = self.duration <= self.bufferTime
+                self.isReady = self.duration >= self.bufferTime
             }
+            print("vie is \(self.isReady)")
+            
         }
     }
     

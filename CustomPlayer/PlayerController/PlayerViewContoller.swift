@@ -467,7 +467,7 @@ extension PlayerViewContoller: VideoQueueDelegate {
             
             if self.timebase > 0 {
                
-                currentDuration = TimeInterval(buffers.presentationTimeStamp.seconds - self.timebase) / 1000
+                currentDuration = TimeInterval(buffers.presentationTimeStamp.seconds - self.timebase) / 100
                 self.playTrackSlider.setValue(Float(currentDuration), animated: true)
             } else {
                 currentDuration = TimeInterval(buffers.presentationTimeStamp.seconds)

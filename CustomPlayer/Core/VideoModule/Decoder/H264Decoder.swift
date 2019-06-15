@@ -117,11 +117,11 @@ class H264Decoder {
         } else {
             decoder.videoDecoderDelegate?.prepareToDisplay(with: sample)
         }
-        print("\((decodedSampleBuffer!.presentationTimeStamp.seconds - 900) / 100))")
+       // print("\((decodedSampleBuffer!.presentationTimeStamp.seconds - 900) / 100))")
        // if (decodedSampleBuffer!.presentationTimeStamp.seconds - 900) / 100 > 5 {
         
       //  }
-        print("out")
+     //   print("out")
     }
   
 

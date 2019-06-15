@@ -163,8 +163,9 @@ class TSParser {
                 }
             }
         }
-        streams.append(videoStream)
         streams.append(audioStream)
+        streams.append(videoStream)
+        
         return streams
     }
 }

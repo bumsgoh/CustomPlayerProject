@@ -14,7 +14,7 @@ import AVFoundation
 
 class AudioPlayer: NSObject {
     
-    @objc dynamic var isReady: Bool = false
+    @objc dynamic var isAudioReady: Bool = false
     @objc dynamic var state: MediaStatus = .stopped
 
     private var streamDescription: AudioStreamBasicDescription?
@@ -102,12 +102,14 @@ class AudioPlayer: NSObject {
                                                                 to: AudioPlayer.self)
 
         guard numberBytes > 1 else { return }
+    
         for index in 0..<numberPackets {
             audioPlayerSelfPointer.appendBuffer(inputData, inPacketDescription: &packetDescriptions[Int(index)])
         }
+    
         audioPlayerSelfPointer.enqueuePacket(with: audioPlayerSelfPointer.readIndex)
         audioPlayerSelfPointer.readIndex += audioPlayerSelfPointer.dataBuffer.count
-
+        audioPlayerSelfPointer.isAudioReady = true
     
 
     }
@@ -239,7 +241,7 @@ class AudioPlayer: NSObject {
                                 UInt32(targetData.count),
                                 descPointer)
         
-        self.isReady = true
+        //self.isAudioReady = true
         AudioQueueFreeBuffer(audioQueue, audioQueuebuffer!)
         
     }
@@ -262,7 +264,7 @@ class AudioPlayer: NSObject {
             //if state == .paused {
               //  parseFlags = .discontinuity
             //} else {
-        parseFlags = .discontinuity
+      //  parseFlags = .discontinuity
                 guard let fileId = fileStreamID else { return }
                 parseFlags = AudioFileStreamParseFlags(rawValue: 0)
                 assertDependOnMultiMediaValueStatus(AudioFileStreamParseBytes(fileId,
