@@ -152,6 +152,8 @@ class PlayerViewContoller: UIViewController {
         return indicator
     }()
     
+    private var playerViewHeightAnchor: NSLayoutConstraint?
+    
     private lazy var tapGestureRecognizer: UITapGestureRecognizer = {
         let recognizer = UITapGestureRecognizer(target: self, action: #selector(viewDidTap))
         return recognizer
@@ -189,6 +191,16 @@ class PlayerViewContoller: UIViewController {
         setObservers()
         UIVisualEffectView.appearance(whenContainedInInstancesOf: [UIAlertController.classForCoder() as! UIAppearanceContainer.Type]).effect = UIBlurEffect(style: .dark)
         // Do any additional setup after loading the view.
+    }
+    
+    
+    override func viewWillTransition(to size: CGSize, with coordinator: UIViewControllerTransitionCoordinator) {
+        super.viewWillTransition(to: size, with: coordinator)
+        if UIDevice.current.orientation.isLandscape {
+            playerViewHeightAnchor?.constant = size.height
+        } else {
+            playerViewHeightAnchor?.constant = view.frame.height * 0.2
+        }
     }
 
     private func setObservers() {
@@ -264,9 +276,13 @@ class PlayerViewContoller: UIViewController {
             equalTo: view.leadingAnchor).isActive = true
         playerView.trailingAnchor.constraint(
             equalTo: view.trailingAnchor).isActive = true
-        playerView.heightAnchor.constraint(
-            equalTo: view.heightAnchor,
-            multiplier: 0.33).isActive = true
+        
+        if UIDevice.current.orientation.isLandscape {
+           playerViewHeightAnchor = NSLayoutConstraint(item: playerView, attribute: .height, relatedBy: .equal, toItem: view, attribute: .height, multiplier: 1, constant: 1)
+        } else {
+            playerViewHeightAnchor = NSLayoutConstraint(item: playerView, attribute: .height, relatedBy: .equal, toItem: view, attribute: .height, multiplier: 0.33, constant: 1)
+        }
+        playerViewHeightAnchor?.isActive = true
         
         view.addSubview(indicator)
         indicator.centerYAnchor.constraint(

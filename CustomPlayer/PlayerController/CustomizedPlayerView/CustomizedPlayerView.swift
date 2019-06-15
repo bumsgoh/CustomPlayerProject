@@ -13,7 +13,7 @@ class CustomizedPlayerView: UIView {
     
     private let videoPlayerLayer: AVSampleBufferDisplayLayer = {
         let layer = AVSampleBufferDisplayLayer()
-        layer.videoGravity = AVLayerVideoGravity.resizeAspect
+        layer.videoGravity = .resizeAspectFill
         layer.backgroundColor = #colorLiteral(red: 1, green: 1, blue: 1, alpha: 0)
         return layer
     }()
