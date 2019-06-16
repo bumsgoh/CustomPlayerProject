@@ -100,7 +100,8 @@ class AudioPlayer: NSObject {
         packetDescriptions) -> Void in
         let audioPlayerSelfPointer: AudioPlayer = unsafeBitCast(clientData,
                                                                 to: AudioPlayer.self)
-
+    
+    print(numberPackets)
         guard numberBytes > 1 else { return }
     
         for index in 0..<numberPackets {
@@ -108,7 +109,7 @@ class AudioPlayer: NSObject {
         }
     
         audioPlayerSelfPointer.enqueuePacket(with: audioPlayerSelfPointer.readIndex)
-        audioPlayerSelfPointer.readIndex += audioPlayerSelfPointer.dataBuffer.count
+        audioPlayerSelfPointer.readIndex += Int(numberPackets) //(audioPlayerSelfPointer.dataBuffer.count - 1)
         audioPlayerSelfPointer.isAudioReady = true
     
 
@@ -205,9 +206,10 @@ class AudioPlayer: NSObject {
     }
     
     func enqueuePacket(with number: Int) {
+        print("buffer: \(dataBuffer.count)")
         guard let audioQueue = audioQueue else { return }
         var audioQueuebuffer: AudioQueueBufferRef?
-        var targetData = Array(dataBuffer[number...])
+        var targetData = Array(dataBuffer[(number)...])
         var targetDescriptions = Array(packetDescriptions[number...])
         let descPointer = UnsafePointer<AudioStreamPacketDescription>(&targetDescriptions)
         
@@ -264,9 +266,10 @@ class AudioPlayer: NSObject {
             //if state == .paused {
               //  parseFlags = .discontinuity
             //} else {
-      //  parseFlags = .discontinuity
+        parseFlags = .discontinuity
+        print("data Count: \(data.count)")
                 guard let fileId = fileStreamID else { return }
-                parseFlags = AudioFileStreamParseFlags(rawValue: 0)
+               // parseFlags = AudioFileStreamParseFlags(rawValue: 0)
                 assertDependOnMultiMediaValueStatus(AudioFileStreamParseBytes(fileId,
                                                        UInt32(data.count),
                                                        (data as NSData).bytes,

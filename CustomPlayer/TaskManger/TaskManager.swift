@@ -15,20 +15,24 @@ protocol TaskMangerDelegate: class {
 class TaskManager {
     private let taskToleranceCount = 30
     private let decodeQueue: DispatchQueue = DispatchQueue(label: "decodeQueue", qos: .userInteractive, attributes: .concurrent, autoreleaseFrequency: .workItem, target: nil)
+     private let processQueue: DispatchQueue = DispatchQueue(label: "processQueue", qos: .userInteractive, attributes: .concurrent, autoreleaseFrequency: .workItem, target: nil)
     private var tasks: [DispatchWorkItem] = []
     private var isInterrupted: Bool = false
     private var taskThresholdCount = 0
    
     
     func add(task: DispatchWorkItem) -> Bool {
-        if isInterrupted {
-            taskThresholdCount += 1
-            if taskThresholdCount >= taskToleranceCount {
-                return false
+        
+            if isInterrupted {
+                taskThresholdCount += 1
+                if taskThresholdCount >= taskToleranceCount {
+                    return false
+                }
             }
-        }
-        //tasks.append(task)
-        decodeQueue.sync(execute: task)
+            //tasks.append(task)
+            decodeQueue.sync(execute: task)
+            
+        
         return true
     }
     

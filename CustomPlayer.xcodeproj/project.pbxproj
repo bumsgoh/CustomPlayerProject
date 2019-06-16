@@ -39,6 +39,7 @@
 		CE0810CA22A6449F009ED5DB /* CoreMedia+.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE0810C922A6449F009ED5DB /* CoreMedia+.swift */; };
 		CE0810CD22A65132009ED5DB /* ParserModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE0810CC22A65132009ED5DB /* ParserModels.swift */; };
 		CE0F177922B214B000BDFB9D /* InterruptHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE0F177822B214B000BDFB9D /* InterruptHandler.swift */; };
+		CE0F178522B6068200BDFB9D /* oResult.mp4 in Resources */ = {isa = PBXBuildFile; fileRef = CE0F178422B6068200BDFB9D /* oResult.mp4 */; };
 		CE2D62C72282C9940078D2C5 /* MediaFileReadable.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE2D62C62282C9940078D2C5 /* MediaFileReadable.swift */; };
 		CE2D62D4228572BF0078D2C5 /* MoviePlayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE2D62D3228572BF0078D2C5 /* MoviePlayer.swift */; };
 		CE2D62D6228B9C180078D2C5 /* TSParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE2D62D5228B9C180078D2C5 /* TSParser.swift */; };
@@ -93,6 +94,7 @@
 		CE0810C922A6449F009ED5DB /* CoreMedia+.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "CoreMedia+.swift"; sourceTree = "<group>"; };
 		CE0810CC22A65132009ED5DB /* ParserModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ParserModels.swift; sourceTree = "<group>"; };
 		CE0F177822B214B000BDFB9D /* InterruptHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InterruptHandler.swift; sourceTree = "<group>"; };
+		CE0F178422B6068200BDFB9D /* oResult.mp4 */ = {isa = PBXFileReference; lastKnownFileType = file; path = oResult.mp4; sourceTree = "<group>"; };
 		CE2D62C62282C9940078D2C5 /* MediaFileReadable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaFileReadable.swift; sourceTree = "<group>"; };
 		CE2D62D3228572BF0078D2C5 /* MoviePlayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MoviePlayer.swift; sourceTree = "<group>"; };
 		CE2D62D5228B9C180078D2C5 /* TSParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TSParser.swift; sourceTree = "<group>"; };
@@ -303,6 +305,7 @@
 		CEF94B75226E8F7D006B7528 = {
 			isa = PBXGroup;
 			children = (
+				CE0F178422B6068200BDFB9D /* oResult.mp4 */,
 				CE0810BB229D02B0009ED5DB /* outputfilename.mp4 */,
 				CE72B2322293E3F600E19CDC /* animation.h264 */,
 				C91E43FC2281E12D00435465 /* ten.mp4 */,
@@ -476,6 +479,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				CE0F178522B6068200BDFB9D /* oResult.mp4 in Resources */,
 				CE0810BC229D02B0009ED5DB /* outputfilename.mp4 in Resources */,
 				CE72B2332293E3F600E19CDC /* animation.h264 in Resources */,
 				C91E43FD2281E12D00435465 /* ten.mp4 in Resources */,

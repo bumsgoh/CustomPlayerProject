@@ -148,7 +148,7 @@ class PlayerViewContoller: UIViewController {
     private let indicator: UIActivityIndicatorView = {
         let indicator = UIActivityIndicatorView()
         indicator.translatesAutoresizingMaskIntoConstraints = false
-        indicator.style = .gray
+        indicator.style = .white
         return indicator
     }()
     
@@ -204,7 +204,10 @@ class PlayerViewContoller: UIViewController {
     }
 
     private func setObservers() {
-        moviePlayer?.addObserver(self, forKeyPath: "isPlayable", options: .new, context: &moviePlayableContext)
+        moviePlayer?.addObserver(self,
+                                 forKeyPath: "isPlayable",
+                                 options: [.new, .old ],
+                                 context: &moviePlayableContext)
     }
    
 
@@ -217,10 +220,21 @@ class PlayerViewContoller: UIViewController {
         }
         
         if keyPath == #keyPath(MoviePlayer.isPlayable) {
-            guard let isPlayable = change?[.newKey] as? Bool else { return }
-            if isPlayable {
-                self.isPlayable = true
-              //  print("now")
+            guard let oldValue = change?[.oldKey] as? Bool,
+                let newValue = change?[.newKey] as? Bool else { return }
+            if oldValue != newValue {
+                if newValue {
+                    DispatchQueue.main.async {
+                         self.indicator.stopAnimating()
+                    }
+                   
+                    
+                    
+                } else {
+                    DispatchQueue.main.async {
+                        self.indicator.startAnimating()
+                    }
+                }
             }
         }
     }
@@ -354,6 +368,7 @@ class PlayerViewContoller: UIViewController {
             playButton.setImage(#imageLiteral(resourceName: "pauseBtn"), for: .normal)
             if state == .paused {
                 playButton.isEnabled = true
+                moviePlayer?.resume()
                 return
             }
             indicator.startAnimating()
@@ -379,22 +394,12 @@ class PlayerViewContoller: UIViewController {
                         
                         let formattedDuration = String(format: "%0d:%02d", m, s)
                         self.playerTimerDurationLabel.text = formattedDuration
-                        self.moviePlayer?.play()
+                        self.moviePlayer?.resume()
                     }
                    
                 }
             })
            
-//            self.moviePlayer?.loadPlayerAsynchronously(completion: { [weak self] (result) in
-//
-//                switch result {
-//                case .failure(let error):
-//                    print(error.localizedDescription)
-//                case .success(let data):
-//                    print(data)
-//                }
-//            })
-//
         } else {
             
             playButton.setImage(#imageLiteral(resourceName: "playBtn"), for: .normal)

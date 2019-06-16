@@ -12,7 +12,7 @@ import VideoToolbox
 class MoviePlayer: NSObject {
     let opQueue = OperationQueue()
     private var buffer: [CMSampleBuffer] = []
-    private let processQueue: DispatchQueue = DispatchQueue(label: "processQueue", qos: .userInteractive, attributes: .concurrent, autoreleaseFrequency: .workItem, target: nil)
+   
     private let fetchingQueue: DispatchQueue = DispatchQueue(label: "com.fetchQueue")
     private let isFileBasedPlayer: Bool
     private let url: URL
@@ -140,14 +140,14 @@ class MoviePlayer: NSObject {
                  //   self.h264Decoder.taskManager.pauseTask()
                 //   self.fetchingQueue.suspend()
                 //     print(self.h264Decoder.taskManager.queue.operations.count)
-                 //   print("stop")
+                    print("stop")
                    
                    
                 } else {
                   taskManager.resumeTask()
                  //   self.h264Decoder.taskManager.resumeTask()
                    // print(self.h264Decoder.taskManager.queue.operations.count)
-                //    print("resume")
+                    print("resume")
                //     self.fetchingQueue.resume()
                   
                 }
@@ -179,10 +179,7 @@ class MoviePlayer: NSObject {
         }
         
         isPlayable =  isVideoReady && isAudioReady
-        print("vide\(isVideoReady)")
-        print("aud\(isAudioReady)")
-        print(isPlayable)
-//        if isPlayable { queue.startRunning() }
+
     }
     
     func loadPlayerAsynchronously(completion: @escaping (Result<Bool, Error>) -> Void) {
@@ -198,9 +195,14 @@ class MoviePlayer: NSObject {
                     case .failure(let error):
                         completion(.failure(error))
                     case .success(let streams):
+                        self.h264Decoder.videoDecoderDelegate = self
+                        let metaData =  mp4Parser.fetchMetaData()
+                        self.totalDuration = Int(metaData.totalDuration)
+                        
                         var videoDataArray = [UInt8]()
                         var videoTimings = [CMSampleTimingInfo]()
-                        
+                      
+                        completion(.success(true))
                         streams.forEach {
                             switch $0.type {
                             case .video:
@@ -209,27 +211,26 @@ class MoviePlayer: NSObject {
                                     CMSampleTimingInfo(pts: Int64($0.0), dts: Int64($0.1), fps: 24)
                                 }
                             case .audio:
-                                break
-                            //    print("d")
-                             ///   self.prepareToPlay(with: Data($0.actualData))
-                                self.isAudioReady = true
+                        
+                                self.prepareToPlay(with: Data($0.actualData))
+
                             case .unknown:
                                 return
                             }
                         }
-                        self.h264Decoder.videoDecoderDelegate = self
-                        
-                        let metaData =  mp4Parser.fetchMetaData()
-                        self.totalDuration = Int(metaData.totalDuration)
+
+
+                         completion(.success(true))
                         let parser = NALParser(sps: metaData.sequenceParameters.toUInt8Array,
                                                pps: metaData.pictureParameters.toUInt8Array)
-                        
+
                         let nalus = parser.parse(frames: videoDataArray,
                                                 type: .avcc,
                                                 sizeArray: metaData.sampleSizeArray)
                         var count = 0
-                        for nal in nalus {
-                            var item: DispatchWorkItem?
+                        self.fetchingQueue.async {
+                            for nal in nalus {
+                                var item: DispatchWorkItem?
                                 if nal.type == .idr || nal.type == .slice {
                                     item = DispatchWorkItem {
                                         self.h264Decoder.decode(nal: nal, pts: videoTimings[count])
@@ -242,10 +243,12 @@ class MoviePlayer: NSObject {
                                         self.h264Decoder.decode(nal: nal)
                                     }
                                 }
-                            
-                            self.taskManager.add(task: item!)
+                                
+                                self.taskManager.add(task: item!)
+                            }
                         }
-                        completion(.success(true))
+                    
+                       
                     }
                 }
             } else {
@@ -361,12 +364,13 @@ class MoviePlayer: NSObject {
 //        }
     }
 
-    func play() {
+    func resume() {
         
         if isPlayable {
             started = true
             queue.start()
-            audioPlayer.playIfNeeded()
+        audioPlayer.playIfNeeded()
+
         } else {
             started = false
         }
@@ -374,9 +378,10 @@ class MoviePlayer: NSObject {
     }
     
     func pause() {
+ 
         queue.pause()
         audioPlayer.pause()
-        started = false
+        started = true
     }
     
     func seek(to time: TimeInterval) {

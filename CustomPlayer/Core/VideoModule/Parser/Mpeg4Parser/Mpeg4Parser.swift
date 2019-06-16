@@ -273,7 +273,10 @@ class Mpeg4Parser {
 
             case .audio:
                 let audioStream = DataStream()
-                audioStream.actualData = Array(packet.joined())
+                audioStream.actualData = Array(packet.map {
+                    $0.addADTS
+                }.joined())
+                
                 audioStream.type = .audio
                 audioStream.pts = presentationTimestamp
                 audioStream.dts = presentationTimestamp
