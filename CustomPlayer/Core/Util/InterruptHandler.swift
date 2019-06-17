@@ -12,5 +12,5 @@ typealias InterruptHandler = (Interrupt) -> Void
 
 enum Interrupt {
     case seek(Int)
-    case multiTrackRequest(Int)
+    case multiTrackRequest(URL)
 }

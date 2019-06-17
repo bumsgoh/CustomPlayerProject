@@ -15,12 +15,17 @@ class TSLoader: NSObject {
     private let networkChecker: NetworkChecker = NetworkChecker.shared
     private let policy: NetworkLoadPolicy
     
-    private var masterPlaylist: MasterPlaylist?
+    
     var currentPlayingItemIndex: ListIndex?
+    
+    private var masterPlaylist: MasterPlaylist?
     private var currentMediaPlaylist: MediaPlaylist?
     private var isLoaderReady: Bool = false
     
-    private lazy var m3u8Parser = M3U8Parser(url: url)
+    private let playlistCache = NSCache<NSString, MasterPlaylist>()
+    //private let tsCache = NSCache<NSString, )>()
+    
+    private lazy var m3u8Parser = M3U8Parser()
     
     let semaphore = DispatchSemaphore(value: 1)
   
@@ -30,25 +35,42 @@ class TSLoader: NSObject {
         self.policy = NetworkLoadPolicy()
         super.init()
         self.policy.delegate = self
+       // playlistCache.countLimit = 30
     }
   
     
-    func initializeLoader(completion: @escaping () -> Void) {
-        m3u8Parser.parseMasterPlaylist { [weak self] (result, response) in
-            guard let self = self else { return }
-            switch result {
-            case .failure:
-                assertionFailure("fail to get masetPlaylist")
-                
-            case .success(let playlist):
-                self.masterPlaylist = playlist
-                let gear = self.policy.selectFirstPlaylistGear()
-                self.currentMediaPlaylist = playlist.mediaPlaylists[gear]
-                self.currentPlayingItemIndex = ListIndex(gear: gear, index: 0)
-                guard let mediaPlaylist = self.currentMediaPlaylist else { return }
-                self.m3u8Parser.parseMediaPlaylist(list: mediaPlaylist) {
-                    self.isLoaderReady = true
-                    completion()
+    func load(with url: URL, index: Int = 0, completion: @escaping () -> Void) {
+        
+        if let cachedPlaylist = playlistCache.object(forKey: url.absoluteString as NSString) {
+            self.masterPlaylist = cachedPlaylist
+            let gear = self.policy.selectFirstPlaylistGear()
+            self.currentMediaPlaylist = cachedPlaylist.mediaPlaylists[gear]
+            self.currentPlayingItemIndex = ListIndex(gear: gear, index: index)
+            guard let mediaPlaylist = self.currentMediaPlaylist else { return }
+            self.m3u8Parser.parseMediaPlaylist(list: mediaPlaylist) {
+                self.isLoaderReady = true
+                completion()
+                return
+            }
+            
+        } else {
+            m3u8Parser.parseMasterPlaylist(with: url) { [weak self] (result, response) in
+                guard let self = self else { return }
+                switch result {
+                case .failure:
+                    assertionFailure("fail to get masetPlaylist")
+                    
+                case .success(let playlist):
+                    self.masterPlaylist = playlist
+                    self.playlistCache.setObject(playlist, forKey: url.absoluteString as NSString)
+                    let gear = self.policy.selectFirstPlaylistGear()
+                    self.currentMediaPlaylist = playlist.mediaPlaylists[gear]
+                    self.currentPlayingItemIndex = ListIndex(gear: gear, index: index)
+                    guard let mediaPlaylist = self.currentMediaPlaylist else { return }
+                    self.m3u8Parser.parseMediaPlaylist(list: mediaPlaylist) {
+                        self.isLoaderReady = true
+                        completion()
+                    }
                 }
             }
         }
@@ -64,7 +86,7 @@ class TSLoader: NSObject {
             return false
         }
         
-        let gear = currentPlaylistIndex.gear//policy.shouldUpdateGear()
+        let gear = policy.shouldUpdateGear()
         
         if gear == -1 {
             completion(.failure(APIError.responseUnsuccessful))

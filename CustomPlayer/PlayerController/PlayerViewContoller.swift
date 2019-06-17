@@ -24,7 +24,7 @@ class PlayerViewContoller: UIViewController {
     var timebase: Double = 0
     var isFirstFrame = true
     var currentVolume: Float = 1
-   
+   var currentDuration: TimeInterval = 0
     
     private let volumeControllerContainerView: UIView = {
         let view = UIView()
@@ -160,9 +160,10 @@ class PlayerViewContoller: UIViewController {
     }()
     
     private lazy var moviePlayer: MoviePlayer? = {
-        guard let url = URL(string: "https://video-dev.github.io/streams/x36xhzz/x36xhzz.m3u8") else {
+        guard let url: URL = URL(string: "https://video-dev.github.io/streams/x36xhzz/x36xhzz.m3u8") else {
             return nil
         }
+        
         //https://video-dev.github.io/streams/x36xhzz/x36xhzz.m3u8
         //https://devstreaming-cdn.apple.com/videos/streaming/examples/bipbop_4x3/bipbop_4x3_variant.m3u8
         //https://video-dev.github.io/streams/test_001/stream.m3u8
@@ -383,7 +384,7 @@ class PlayerViewContoller: UIViewController {
                         guard let duration = self.moviePlayer?.totalDuration else { return }
                         self.state = .playing
                         let durationSeconds = duration / 1000
-                        self.indicator.stopAnimating()
+                        
                         self.playButton.isEnabled = true
                         
                         self.playTrackSlider.maximumValue = Float(durationSeconds)
@@ -395,6 +396,7 @@ class PlayerViewContoller: UIViewController {
                         let formattedDuration = String(format: "%0d:%02d", m, s)
                         self.playerTimerDurationLabel.text = formattedDuration
                         self.moviePlayer?.resume()
+                        self.indicator.stopAnimating()
                     }
                    
                 }
@@ -427,28 +429,45 @@ class PlayerViewContoller: UIViewController {
         let alertController = UIAlertController(title: "Multi Track", message: "select video's point of view", preferredStyle: .alert)
        
        
-        let orientationAction = UIAlertAction(title: "track #1", style: .default) { (action) in
-            self.moviePlayer?.interruptCall(with: .multiTrackRequest(1))
+        let firstTrack = UIAlertAction(title: "track #1", style: .default) { (action) in
+            
+            guard let firstTrackURL: URL = URL(string: "https://video-dev.github.io/streams/test_001/stream.m3u8") else {
+                return
+            }
+          
+            self.moviePlayer?.interruptCall(with: .multiTrackRequest(firstTrackURL))
                 
             }
         
-        orientationAction.setValue(UIColor.white, forKey: "titleTextColor")
+        firstTrack.setValue(UIColor.white, forKey: "titleTextColor")
         
-        let colorAction = UIAlertAction(title: "track #2", style: .default) { (action) in
-          
+        let secondTrack = UIAlertAction(title: "track #2", style: .default) { (action) in
+            guard let secondTrackURL: URL = URL(string: "https://video-dev.github.io/streams/x36xhzz/x36xhzz.m3u8") else {
+                return
+            }
+            
+            self.moviePlayer?.interruptCall(with: .multiTrackRequest(secondTrackURL))
+            
         }
-        colorAction.setValue(UIColor.white, forKey: "titleTextColor")
         
-        let temperatureAction = UIAlertAction(title: "track #3", style: .default) { (action) in
-           
-        }
-        temperatureAction.setValue(UIColor.white, forKey: "titleTextColor")
+        secondTrack.setValue(UIColor.white, forKey: "titleTextColor")
+        
+        let thirdTrack = UIAlertAction(title: "track #3", style: .default) { (action) in
+            guard let thirdTrackURL: URL = URL(string: "https://video-dev.github.io/streams/x36xhzz/x36xhzz.m3u8") else {
+                return
+            }
+            
+            self.moviePlayer?.interruptCall(with: .multiTrackRequest(thirdTrackURL))
+            
+    }
+        
+        thirdTrack.setValue(UIColor.white, forKey: "titleTextColor")
        
         let cancelAction = UIAlertAction(title: "cancel", style: .cancel, handler: nil)
         
-        alertController.addAction(orientationAction)
-        alertController.addAction(colorAction)
-        alertController.addAction(temperatureAction)
+        alertController.addAction(firstTrack)
+        alertController.addAction(secondTrack)
+        alertController.addAction(thirdTrack)
        
         alertController.addAction(cancelAction)
          alertController.view.addSubview(UIView())
@@ -468,19 +487,20 @@ extension PlayerViewContoller: VideoQueueDelegate {
                 self.timebase = buffers.presentationTimeStamp.seconds
                 self.isFirstFrame = false
             }
-            var currentDuration: TimeInterval = 0
-            
-            if self.timebase > 0 {
-               
-                currentDuration = TimeInterval(buffers.presentationTimeStamp.seconds - self.timebase) / 100
-                self.playTrackSlider.setValue(Float(currentDuration), animated: true)
-            } else {
-                currentDuration = TimeInterval(buffers.presentationTimeStamp.seconds)
-                self.playTrackSlider.setValue(Float(currentDuration), animated: true)
-            }
-            
-            let s: Int = Int(currentDuration) % 60
-            let m: Int = Int(currentDuration) / 60
+            self.currentDuration += 0.03
+//
+//            if self.timebase > 0 {
+//
+//                currentDuration = TimeInterval(buffers.presentationTimeStamp.seconds - self.timebase) / 1000
+//                self.playTrackSlider.setValue(Float(currentDuration), animated: true)
+//            } else {
+//                currentDuration = TimeInterval(buffers.presentationTimeStamp.seconds)
+//
+//            }
+//
+             self.playTrackSlider.setValue(Float(self.currentDuration), animated: true)
+            let s: Int = Int(self.currentDuration) % 60
+            let m: Int = Int(self.currentDuration) / 60
             
             let formattedDuration = String(format: "%02d:%02d", m, s)
             self.playerTimerClockLabel.text = formattedDuration

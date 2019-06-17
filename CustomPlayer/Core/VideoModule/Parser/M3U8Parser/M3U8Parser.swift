@@ -10,25 +10,24 @@ import Foundation
 
 class M3U8Parser {
     
-    private let url: URL
+    
     private let httpConnection: HTTPConnetion
     
-    private var baseURL: String {
-        get {
-            var splitedURL = url.absoluteString.split(separator: "/")
-            splitedURL.remove(at: (splitedURL.count - 1))
-            splitedURL[0].append(contentsOf: "/")
-            let newURL = String(splitedURL.joined(separator: "/"))
-            return newURL
-        }
-    }
-    
-    init (url: URL) {
-        self.url = url
+    init () {
+  
         self.httpConnection = HTTPConnetion()
     }
     
-    func parseMasterPlaylist(completion: @escaping (Result<MasterPlaylist,Error>, URLResponse?) -> Void) {
+    func extractBaseURL(from url: URL) -> String {
+        var splitedURL = url.absoluteString.split(separator: "?")[0].split(separator: "/")
+        splitedURL.remove(at: (splitedURL.count - 1))
+        splitedURL[0].append(contentsOf: "/")
+        let newURL = String(splitedURL.joined(separator: "/"))
+        return newURL
+    }
+    
+    func parseMasterPlaylist(with url: URL, completion: @escaping (Result<MasterPlaylist,Error>, URLResponse?) -> Void) {
+        
         httpConnection.request(url: url) { (result, response) in
             switch result {
             case .failure:
@@ -49,9 +48,9 @@ class M3U8Parser {
                     if hasStreamInfo {
                         guard let mediaPlaylist = currentMedialist else { return }
                         if line.hasPrefix("http") {
-                            mediaPlaylist.path = line
+                            mediaPlaylist.path = line //+ "?__gda__=1560759141_52fdc5cdc1a6487ea4c184a716c76076"
                         } else {
-                            mediaPlaylist.path = self.baseURL + "/\(line)"
+                            mediaPlaylist.path = self.extractBaseURL(from: url) + "/\(line)"
                         }
                         
                         masterPlaylist.mediaPlaylists.append(mediaPlaylist)

@@ -7,17 +7,31 @@
 //
 
 import Foundation
+import CoreMedia
 
-class NALParser {
-    private let sps: [UInt8]
-    private let pps: [UInt8]
+class NALProcessor {
+    weak var delegate: MultiMediaVideoTypeDecoderDelegate?
+    private var sps: [UInt8] = []
+    private var pps: [UInt8] = []
+    private var pts: [CMSampleTimingInfo]?
+    private lazy var h264Decoder: H264Decoder = {
+        let decoder = H264Decoder()
+        decoder.videoDecoderDelegate = delegate
+        return decoder
+    }()
+    private let taskManager: TaskManager
     
-    init(sps: [UInt8] = [], pps: [UInt8] = []) {
+    init(taskManager: TaskManager) {
+        self.taskManager = taskManager
+    }
+    
+    func setMetaData(sps: [UInt8], pps: [UInt8]) {
         self.sps = sps
         self.pps = pps
     }
     
-    func parse(frames: [UInt8], type: NALFormat, sizeArray: [Int] = []) -> [NALUnit] {
+    func process(frames: [UInt8], type: NALFormat, pts: [CMSampleTimingInfo], sizeArray: [Int] = []) {
+        self.pts = pts
         var startCode: [UInt8] = []
         
         if Array(frames[0...3]) == VideoCodingConstant.startCodeAType {
@@ -30,9 +44,6 @@ class NALParser {
         var index = startCode.count
         var startCodeFlag = false
 
-        var nalus: [NALUnit] = []
-        //   decodeQueue.async { [weak self] in
-        //      guard let self = self else { return}
         switch type {
         case .annexB:
             var hasDone = false
@@ -45,8 +56,9 @@ class NALParser {
                         if index + VideoCodingConstant.startCodeAType.count > mutableFrames.count - 1
                             && !mutableFrames.isEmpty {
                             let nal = Array(mutableFrames[0...])
-                            let nalu = self.processNAL(nal: nal, type: .annexB)
-                            nalus.append(nalu)
+                             self.processNAL(nal: nal, type: .annexB)
+                           // nalus.append(nalu)
+                            
                             hasDone = true
                             break
                         }
@@ -61,8 +73,8 @@ class NALParser {
                 }
                 
                 
-                let nalu =  processNAL(nal: nal, type: .annexB)
-                nalus.append(nalu)
+               processNAL(nal: nal, type: .annexB)
+              //  nalus.append(nalu)
                 
                 if Array(mutableFrames[0..<3]) == VideoCodingConstant.startCodeBType {
                     index = VideoCodingConstant.startCodeBType.count
@@ -72,25 +84,26 @@ class NALParser {
                     startCodeFlag = false
                 }
             }
-            return nalus
+
         case .avcc:
             var count = 0
-            var nalus: [NALUnit] = [NALUnit(type: .sps, payload: sps) ,NALUnit(type: .pps, payload: pps) ]
-            
+          
+            self.h264Decoder.decode(nal: NALUnit(type: .sps, payload: sps))
+            self.h264Decoder.decode(nal: NALUnit(type: .pps, payload: pps))
             while true {
                 if mutableFrames.isEmpty { break }
                 let nal = Array(mutableFrames[0..<sizeArray[count]])
-                let nalu = processNAL(nal: nal, type: .avcc)
-                nalus.append(nalu)
+                processNAL(nal: nal, type: .avcc)
+                //nalus.append(nalu)
                 mutableFrames.removeSubrange(0..<sizeArray[count])
                 count += 1
             }
-            return nalus
+           
     }
     }
         
         
-        private func processNAL(nal: [UInt8], type: NALFormat) -> NALUnit {
+        private func processNAL(nal: [UInt8], type: NALFormat) {
             let startCodeSize = 4
             var packet = nal
             if type == .annexB {
@@ -101,25 +114,42 @@ class NALParser {
             
             switch nalType {
             case NALType.idr.rawValue:
-                 return NALUnit(type: .idr, payload: packet)
+                guard let pts = self.pts?.removeFirst() else { break }
+                let task = DispatchWorkItem {
+                    self.h264Decoder.decode(nal: NALUnit(type: .idr, payload: packet), pts: pts)
+                }
+                taskManager.add(task: task)
                 
             case NALType.slice.rawValue:
-               return NALUnit(type: .slice, payload: packet)
-                
+                guard let pts = self.pts?.removeFirst() else { break }
+                let task = DispatchWorkItem {
+                    self.h264Decoder.decode(nal: NALUnit(type: .slice, payload: packet), pts: pts)
+                }
+                taskManager.add(task: task)
+             
             case NALType.sps.rawValue:
-                return NALUnit(type: .sps, payload: Array(packet[startCodeSize..<packet.count]))
+                let task = DispatchWorkItem {
+                    self.h264Decoder.decode(nal: NALUnit(type: .sps, payload: Array(packet[startCodeSize..<packet.count])))
+                }
+                taskManager.add(task: task)
                 
             case NALType.pps.rawValue:
-                return NALUnit(type: .pps, payload: Array(packet[startCodeSize..<packet.count]))
+                let task = DispatchWorkItem {
+                    self.h264Decoder.decode(nal: NALUnit(type: .pps, payload: Array(packet[startCodeSize..<packet.count])))
+                }
+                taskManager.add(task: task)
                 
             case NALType.aud.rawValue:
-                return NALUnit(type: .aud, payload: packet)
+                break
+              //  return NALUnit(type: .aud, payload: packet)
                 
             case NALType.sei.rawValue:
-                return NALUnit(type: .sei, payload: packet)
+                break
+                //return NALUnit(type: .sei, payload: packet)
                 
             default:
-                return NALUnit(type: .unspecified, payload: [])
+                break
+               // return NALUnit(type: .unspecified, payload: [])
             }
         }
 }

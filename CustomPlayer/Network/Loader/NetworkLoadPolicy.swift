@@ -25,17 +25,18 @@ class NetworkLoadPolicy {
         guard let networkSpeed = delegate?.currentNetworkSpeed() else {
             return .verySlow
         }
+        print("speed \(networkSpeed)")
         var level: NetworkSpeedLevel = .verySlow
         switch networkSpeed {
-        case 0 ..< 1:
+        case 0 ..< 0.5:
             level = .verySlow
-        case 1 ..< 20:
+        case 0.5 ..< 20:
             level = .slow
-        case 20 ..< 100:
+        case 20 ..< 28:
             level = .normal
-        case 100 ..< 500:
+        case 28 ..< 500:
             level = .fast
-        case 500 ..< 1000:
+        case 500 ..< 10000:
             level = .veryFast
         default:
             level = .verySlow

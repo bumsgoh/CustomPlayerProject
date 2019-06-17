@@ -14,13 +14,12 @@ protocol DisplayLinkedQueueDelegate: class {
 }
 
 final class DisplayLinkedQueue: NSObject {
-    var enCount = 0
-    var deCount = 0
+    
     private let lockQueue = DispatchQueue(label: "com.bumslap.DisplayLinkedQueue.lock")
     private let bufferSize = 128
     
     var running: Bool = false
-    var bufferTime: TimeInterval = 2 // sec
+    var bufferTime: TimeInterval = 0.1 // sec
     
     @objc dynamic var isBufferFull: Bool = false
     private var bufferCount = 0
