@@ -8,15 +8,18 @@
 
 import Foundation
 
-class HTTPConnetion {
-    public var session: URLSession
+class HTTPConnetion: NSObject {
+    public var session: URLSession?
     public var networkChecker: NetworkChecker
     
-    public init() {
+    public override init() {
+        
         self.networkChecker = NetworkChecker.shared
         let configuration = URLSessionConfiguration.default
         configuration.timeoutIntervalForRequest = 3
+        super.init()
         self.session = URLSession(configuration: configuration)
+        
     }
     
     public func request(url: URL?,
@@ -27,7 +30,7 @@ class HTTPConnetion {
             return
         }
         print(url)
-        let task = session.dataTask(with: url) { [weak self] (data, response, error) in
+        session?.dataTask(with: url) { [weak self] (data, response, error) in
             
             if response?.expectedContentLength ?? 0 > 0 {
                 self?.networkChecker.stopTimeTracking()
@@ -49,7 +52,8 @@ class HTTPConnetion {
                 return
             }
             completion(.success(data), response)
-        }
-        task.resume()
+        }.resume()
     }
 }
+
+

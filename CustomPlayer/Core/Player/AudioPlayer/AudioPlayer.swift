@@ -101,7 +101,7 @@ class AudioPlayer: NSObject {
         let audioPlayerSelfPointer: AudioPlayer = unsafeBitCast(clientData,
                                                                 to: AudioPlayer.self)
     
-    print(numberPackets)
+    
         guard numberBytes > 1 else { return }
     
         for index in 0..<numberPackets {
@@ -206,7 +206,7 @@ class AudioPlayer: NSObject {
     }
     
     func enqueuePacket(with number: Int) {
-        print("buffer: \(dataBuffer.count)")
+
         guard let audioQueue = audioQueue else { return }
         var audioQueuebuffer: AudioQueueBufferRef?
         var targetData = Array(dataBuffer[(number)...])
@@ -267,7 +267,7 @@ class AudioPlayer: NSObject {
               //  parseFlags = .discontinuity
             //} else {
         parseFlags = .discontinuity
-        print("data Count: \(data.count)")
+
                 guard let fileId = fileStreamID else { return }
                // parseFlags = AudioFileStreamParseFlags(rawValue: 0)
                 assertDependOnMultiMediaValueStatus(AudioFileStreamParseBytes(fileId,

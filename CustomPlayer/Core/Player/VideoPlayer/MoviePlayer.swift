@@ -11,22 +11,28 @@ import VideoToolbox
 
 class MoviePlayer: NSObject {
     
+    private let fetchOperationQueue: OperationQueue = OperationQueue()
     private let fetchingQueue: DispatchQueue = DispatchQueue(label: "com.fetchQueue")
     private let isFileBasedPlayer: Bool
     private let url: URL
     private let httpConnection: HTTPConnetion
-   
+    let interruptTaskManger = TaskManager()
     private let tsLoader: TSLoader
     private var h264Decoder: H264Decoder = H264Decoder()
     var playContext = 1
     
     var interruptHandler: InterruptHandler?
-    let semaphore = DispatchSemaphore(value: 1)
+    let semaphore = DispatchSemaphore(value: 0)
+    
+    private var multiTrackStartPts: CMTimeValue = 0
     private var currentPlayingItemIndex: ListIndex?
     private var state: MediaStatus = .stopped
     private var audioDecoder: AudioTrackDecodable?
     private var videoDecoder: VideoTrackDecodable?
     private var audioPlayer: AudioPlayer = AudioPlayer()
+    private var isInterrupted: Bool = false
+    private var currentPlayingTSIndex = 0
+    private var currentFps = 0
     
     @objc dynamic var isPlayable: Bool = false {
         didSet {
@@ -62,7 +68,6 @@ class MoviePlayer: NSObject {
     
     private lazy var taskManager: TaskManager = {
         let manager = TaskManager()
-      //  manager.delegate = self
         return manager
     }()
     
@@ -110,12 +115,15 @@ class MoviePlayer: NSObject {
         self.interruptHandler = { (interrupt) in
             switch interrupt {
             case .multiTrackRequest(let trackURL):
-                //tsLoader.
-                guard let currentPlayingIndex = self.tsLoader.currentPlayingItemIndex?.index else { return }
-                self.fetchingQueue.suspend()
-                self.tsLoader.load(with: trackURL, index: currentPlayingIndex) {
+               // self.fetchingQueue.suspend()
+              
+                self.isInterrupted = true
+                self.taskManager.interruptCall()
+                self.tsLoader.load(with: trackURL, index: self.tsLoader.currentPlayingItemIndex!.index - 1) {
+                 //   self.startStreaming()
                     
-                    self.fetchingQueue.resume()
+                    
+                 //   self.fetchingQueue.resume()
                 }
             case .seek(let time):
                 print(time)
@@ -136,19 +144,20 @@ class MoviePlayer: NSObject {
                 let newValue = change?[.newKey] as? Bool else { return }
             if oldValue != newValue {
                 if newValue {
-                    taskManager.pauseTask()
-                 //   self.h264Decoder.taskManager.pauseTask()
-                //   self.fetchingQueue.suspend()
+                    
+                  //  interruptTaskManger.pauseTask()
+                taskManager.pauseTask()
+               //    self.fetchingQueue.suspend()
                 //     print(self.h264Decoder.taskManager.queue.operations.count)
                     print("stop")
                    
                    
                 } else {
-                  taskManager.resumeTask()
-                 //   self.h264Decoder.taskManager.resumeTask()
+                //  interruptTaskManger.resumeTask()
+                taskManager.resumeTask()
                    // print(self.h264Decoder.taskManager.queue.operations.count)
                     print("resume")
-               //     self.fetchingQueue.resume()
+               //    self.fetchingQueue.resume()
                   
                 }
             }
@@ -218,34 +227,13 @@ class MoviePlayer: NSObject {
                                 return
                             }
                         }
+                  
                         self.nalProcessor.setMetaData(sps: metaData.sequenceParameters.toUInt8Array, pps: metaData.pictureParameters.toUInt8Array)
                      
                         self.nalProcessor.process(frames: videoDataArray,
                                                  type: .avcc, pts: videoTimings,
                                                  sizeArray: metaData.sampleSizeArray)
                          completion(.success(true))
-                       
-                       // var count = 0
-//                        self.fetchingQueue.async {
-//                            for nal in nalus {
-//                                var item: DispatchWorkItem?
-//                                if nal.type == .idr || nal.type == .slice {
-//                                    item = DispatchWorkItem {
-//                                        self.h264Decoder.decode(nal: nal, pts: videoTimings[count])
-//                                    }
-//
-//                                    count += 1
-//                                    if count >= videoTimings.count - 1 { break }
-//                                } else {
-//                                    item = DispatchWorkItem {
-//                                        self.h264Decoder.decode(nal: nal)
-//                                    }
-//                                }
-//
-//                                self.taskManager.add(task: item!)
-//                            }
-//                        }
-                    
                        
                     }
                 }
@@ -257,12 +245,6 @@ class MoviePlayer: NSObject {
                 self.tsLoader.load(with: url) {
                    
                    self.startStreaming()
-//                        while true {
-//                          // self.fetchingQueue.sync {
-//                            let hasMore =
-//                            if !hasMore { return }
-//                       // }
-//                    }
                     
                      completion(.success(true))
                 }
@@ -272,11 +254,17 @@ class MoviePlayer: NSObject {
     private func startStreaming() {
         
         fetchingQueue.async {
+       
             let semaphore = DispatchSemaphore(value: 1)
             var hasMore = true
             while hasMore {
+                
+                if self.isInterrupted {
+                 //  self.semaphore.wait()
+                }
+             
                 semaphore.wait()
-               hasMore = self.tsLoader.fetchTsStream { [weak self] (result) in
+               hasMore = self.tsLoader.fetchTsStream {(result) in
                 
                     switch result {
                     case .failure:
@@ -284,10 +272,13 @@ class MoviePlayer: NSObject {
                         return
                         
                     case .success(let tsStreams):
-                       
-                        self?.processStream(tsStreams) {
-                             semaphore.signal()
-                        }
+                        
+                            self.processStream(tsStreams) {
+                               
+                            
+                                  semaphore.signal()
+                            }
+                        
                     }
                 }
             }
@@ -307,11 +298,47 @@ class MoviePlayer: NSObject {
                                        dts: Int64($0.1),
                                        fps: 24)
                 }
+            
+                if self.isInterrupted {
                 
-                self.nalProcessor.process(frames: stream.actualData,
-                                         type: .annexB, pts: timings)
+                  //  taskManager.cancelAllItems()
+                    taskManager.reset()
+                    nalProcessor.reset()
+                    
+                    let isbad = nalProcessor.process(frames: stream.actualData,
+                                              type: .annexB, pts: timings)
+                   
+                    self.isInterrupted = false
+                   
+                  
+                   // nalProcessor.reset()
+                    print("reut")
+                 
+                 //   self.nalProcessor.reset()
+                } else {
+//                    let manager = TaskManager()
+                    let processor = NALProcessor(taskManager: taskManager)
+                    processor.delegate = self
+
+                 //   interruptTaskManger.reset()
+                    
+                    let canMoreProcess = processor.process(frames: stream.actualData,
+                                                              type: .annexB,
+                                                              pts: timings)
+                    print("can more\(canMoreProcess)")
+                    if !canMoreProcess {
+                        
+                        nalProcessor.setMultiTrackStartPts(value: processor.stoppedPts)
+                        print("can pts\(processor.stoppedPts)")
+                    }
+                    
+                }
+   
+
+             
                 
             case .audio:
+                if self.isInterrupted { break }
                 self.prepareToPlay(with: Data(stream.actualData))
                 
             case .unknown:
@@ -320,15 +347,10 @@ class MoviePlayer: NSObject {
            
         }
        
-       // sem.wait()
+
         print("done")
-        completion()
-//        streams.forEach {
-//            print("dddd")
-//
-//
-//
-//        }
+         completion()
+
     }
 
     func resume() {
@@ -358,8 +380,10 @@ class MoviePlayer: NSObject {
     
     
     func interruptCall(with interrupt: Interrupt) {
+        
         guard let handler = interruptHandler else { return }
         handler(interrupt)
+      
     }
 }
 

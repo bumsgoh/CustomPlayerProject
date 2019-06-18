@@ -28,9 +28,9 @@ class NetworkLoadPolicy {
         print("speed \(networkSpeed)")
         var level: NetworkSpeedLevel = .verySlow
         switch networkSpeed {
-        case 0 ..< 0.5:
+        case 0 ..< 0.1:
             level = .verySlow
-        case 0.5 ..< 20:
+        case 0.1 ..< 20:
             level = .slow
         case 20 ..< 28:
             level = .normal
@@ -41,7 +41,7 @@ class NetworkLoadPolicy {
         default:
             level = .verySlow
         }
-        return level
+        return .verySlow
     }
     
     func selectFirstPlaylistGear() -> Int {

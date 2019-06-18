@@ -11,7 +11,7 @@ import VideoToolbox
 
 class H264Decoder {
 
-    var multiTrackThresHoldPts: CMTime?
+    var multiTrackThresHoldPts: CMTimeValue?
     
     private var formatDescription: CMVideoFormatDescription?
     private var decompressionSession: VTDecompressionSession?
@@ -68,13 +68,21 @@ class H264Decoder {
 
         guard let sample = decodedSampleBuffer else { return }
         
+         print(" pts is \(decoder.multiTrackThresHoldPts)")
         if let threshold = decoder.multiTrackThresHoldPts {
-            if decodedSampleBuffer!.presentationTimeStamp > threshold {
-                 decoder.videoDecoderDelegate?.prepareToDisplay(with: sample)
+            if timingInfo.presentationTimeStamp.value < threshold {
+                print("calc")
+                
+            } else {
+                      decoder.videoDecoderDelegate?.prepareToDisplay(with: sample)
             }
         } else {
-            decoder.videoDecoderDelegate?.prepareToDisplay(with: sample)
+            // multiTrackThresHoldPts = nil
+                   decoder.videoDecoderDelegate?.prepareToDisplay(with: sample)
         }
+        
+
+        
     }
   
 
@@ -85,9 +93,9 @@ class H264Decoder {
     }
     
     func decode(nal: NALUnit, pts: CMSampleTimingInfo? = nil) {
-        
         switch nal.type {
         case .idr:
+
             guard let pts = pts else {
                 assertionFailure("no pts")
                 return
@@ -97,6 +105,7 @@ class H264Decoder {
                                   timingInfo: pts)
        
         case .slice:
+
             guard let pts = pts else {
                 assertionFailure("no pts")
                 return
@@ -117,6 +126,11 @@ class H264Decoder {
             break
            
         }
+    }
+    
+    func setThreshold(time: CMTimeValue) {
+
+        self.multiTrackThresHoldPts = time
     }
     
     
@@ -162,17 +176,22 @@ class H264Decoder {
         
         var flag = VTDecodeInfoFlags()
         
+        var decodeFlag: VTDecodeFrameFlags = VTDecodeFrameFlags()
+        
+       
+       
+          decodeFlag = [._EnableAsynchronousDecompression, ._EnableTemporalProcessing]
         guard VTDecompressionSessionDecodeFrame(
             session,
             sampleBuffer: derivedSampleBuffer,
-            flags: [._EnableAsynchronousDecompression, ._EnableTemporalProcessing],
+            flags: decodeFlag,
             frameRefcon: nil,
             infoFlagsOut: &flag) == 0 else {
                 assertionFailure("fail decom")
                 return
         }
         
-         VTDecompressionSessionWaitForAsynchronousFrames(session)
+         //VTDecompressionSessionWaitForAsynchronousFrames(session)
        
     }
     
@@ -251,6 +270,8 @@ class H264Decoder {
         
         spsSize = 0
         ppsSize = 0
+        
+       // multiTrackThresHoldPts = nil
     
     }
 }

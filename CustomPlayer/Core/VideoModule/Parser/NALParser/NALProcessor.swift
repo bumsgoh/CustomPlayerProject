@@ -11,15 +11,18 @@ import CoreMedia
 
 class NALProcessor {
     weak var delegate: MultiMediaVideoTypeDecoderDelegate?
+    
+    var stoppedPts: CMTimeValue = 0
     private var sps: [UInt8] = []
     private var pps: [UInt8] = []
     private var pts: [CMSampleTimingInfo]?
+    private let lockQueue: DispatchQueue = DispatchQueue(label: "lockQueue")
     private lazy var h264Decoder: H264Decoder = {
         let decoder = H264Decoder()
         decoder.videoDecoderDelegate = delegate
         return decoder
     }()
-    private let taskManager: TaskManager
+    var taskManager: TaskManager
     
     init(taskManager: TaskManager) {
         self.taskManager = taskManager
@@ -30,7 +33,21 @@ class NALProcessor {
         self.pps = pps
     }
     
-    func process(frames: [UInt8], type: NALFormat, pts: [CMSampleTimingInfo], sizeArray: [Int] = []) {
+    func setMultiTrackStartPts(value: CMTimeValue) {
+        lockQueue.async {
+            self.h264Decoder.setThreshold(time: value)
+        }
+     
+    }
+    
+    func reset() {
+        lockQueue.async {
+            self.h264Decoder.cleanUp()
+        }
+        
+    }
+    
+    func process(frames: [UInt8], type: NALFormat, pts: [CMSampleTimingInfo], sizeArray: [Int] = []) -> Bool {
         self.pts = pts
         var startCode: [UInt8] = []
         
@@ -56,7 +73,9 @@ class NALProcessor {
                         if index + VideoCodingConstant.startCodeAType.count > mutableFrames.count - 1
                             && !mutableFrames.isEmpty {
                             let nal = Array(mutableFrames[0...])
-                             self.processNAL(nal: nal, type: .annexB)
+                            if !self.processNAL(nal: nal, type: .annexB) {
+                                print("nil in parsing")
+                                return false }
                            // nalus.append(nalu)
                             
                             hasDone = true
@@ -73,7 +92,11 @@ class NALProcessor {
                 }
                 
                 
-               processNAL(nal: nal, type: .annexB)
+               if !self.processNAL(nal: nal, type: .annexB) {
+                print("nil in parsing")
+                return false
+                
+                }
               //  nalus.append(nalu)
                 
                 if Array(mutableFrames[0..<3]) == VideoCodingConstant.startCodeBType {
@@ -100,10 +123,12 @@ class NALProcessor {
             }
            
     }
+        return true
     }
         
         
-        private func processNAL(nal: [UInt8], type: NALFormat) {
+        private func processNAL(nal: [UInt8], type: NALFormat) -> Bool {
+       
             let startCodeSize = 4
             var packet = nal
             if type == .annexB {
@@ -115,42 +140,58 @@ class NALProcessor {
             switch nalType {
             case NALType.idr.rawValue:
                 guard let pts = self.pts?.removeFirst() else { break }
-                let task = DispatchWorkItem {
+                let task = BlockOperation {
                     self.h264Decoder.decode(nal: NALUnit(type: .idr, payload: packet), pts: pts)
                 }
-                taskManager.add(task: task)
+                if !taskManager.add(task: task) {
+                  
+
+                   
+                     stoppedPts = pts.presentationTimeStamp.value
+                   
+                    return false
+                }
+            
                 
             case NALType.slice.rawValue:
-                guard let pts = self.pts?.removeFirst() else { break }
-                let task = DispatchWorkItem {
+                 guard let pts = self.pts?.removeFirst() else { break }
+                let task = BlockOperation {
                     self.h264Decoder.decode(nal: NALUnit(type: .slice, payload: packet), pts: pts)
                 }
-                taskManager.add(task: task)
-             
+                if !taskManager.add(task: task) {
+                   
+                 print("pts is \(pts.presentationTimeStamp.value)")
+                   stoppedPts = pts.presentationTimeStamp.value
+                    
+                    return false
+                }
+              
             case NALType.sps.rawValue:
-                let task = DispatchWorkItem {
+              
+                let task = BlockOperation {
                     self.h264Decoder.decode(nal: NALUnit(type: .sps, payload: Array(packet[startCodeSize..<packet.count])))
                 }
-                taskManager.add(task: task)
+                if !taskManager.add(task: task) {
+                     return false
+                }
+                
+          
                 
             case NALType.pps.rawValue:
-                let task = DispatchWorkItem {
+   
+                let task = BlockOperation {
                     self.h264Decoder.decode(nal: NALUnit(type: .pps, payload: Array(packet[startCodeSize..<packet.count])))
                 }
-                taskManager.add(task: task)
-                
-            case NALType.aud.rawValue:
-                break
-              //  return NALUnit(type: .aud, payload: packet)
-                
-            case NALType.sei.rawValue:
-                break
-                //return NALUnit(type: .sei, payload: packet)
-                
+                if !taskManager.add(task: task) {
+                    return false
+                }
+
             default:
+
                 break
                // return NALUnit(type: .unspecified, payload: [])
             }
+            return true
         }
 }
 

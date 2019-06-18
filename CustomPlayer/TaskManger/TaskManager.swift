@@ -13,50 +13,69 @@ protocol TaskMangerDelegate: class {
 }
 
 class TaskManager {
-    private let taskToleranceCount = 30
-    private let decodeQueue: DispatchQueue = DispatchQueue(label: "decodeQueue", qos: .userInteractive, attributes: .concurrent, autoreleaseFrequency: .workItem, target: nil)
-     private let processQueue: DispatchQueue = DispatchQueue(label: "processQueue", qos: .userInteractive, attributes: .concurrent, autoreleaseFrequency: .workItem, target: nil)
+    private let taskToleranceCount = 20
+    private let decodeQueue: DispatchQueue = DispatchQueue(label: "decodeQueue")
+     private let fetchOperationQueue: OperationQueue = {
+        let queue = OperationQueue()
+        queue.qualityOfService = QualityOfService.userInitiated
+        return queue
+     }()
+     private let lockQueue: DispatchQueue = DispatchQueue(label: "lcokQueue")
     private var tasks: [DispatchWorkItem] = []
     private var isInterrupted: Bool = false
     private var taskThresholdCount = 0
    
     
-    func add(task: DispatchWorkItem) -> Bool {
+    func add(task: BlockOperation) -> Bool {
         
             if isInterrupted {
-                taskThresholdCount += 1
+                lockQueue.async {
+                     self.taskThresholdCount += 1
+                }
                 if taskThresholdCount >= taskToleranceCount {
+                   // task.cancel()
                     return false
                 }
             }
-            //tasks.append(task)
-            decodeQueue.sync(execute: task)
+           // tasks.append(task)
+           // decodeQueue.sync(execute: task)
+    
+        fetchOperationQueue.addOperations([task], waitUntilFinished: true)
+       
             
         
         return true
     }
     
     func interruptCall() {
-        isInterrupted = true
+        lockQueue.async {
+            self.isInterrupted = true
+        }
     }
     
     func reset() {
-        isInterrupted = false
-        taskThresholdCount = 0
+     
+        lockQueue.async {
+            self.isInterrupted = false
+            self.taskThresholdCount = 0
+        }
+       
+      
     }
     
     func pauseTask() {
-        decodeQueue.suspend()
+       // decodeQueue.suspend()
+          fetchOperationQueue.isSuspended = true
     }
     
     func resumeTask() {
-        decodeQueue.resume()
+       // decodeQueue.resume()
+         fetchOperationQueue.isSuspended = false
     }
     
     func cancelAllItems() {
-        tasks.forEach {
-            $0.cancel()
-        }
+        
+       fetchOperationQueue.cancelAllOperations()
     }
 }
 
