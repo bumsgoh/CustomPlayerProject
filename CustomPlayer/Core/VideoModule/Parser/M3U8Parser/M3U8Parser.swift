@@ -10,81 +10,85 @@ import Foundation
 
 class M3U8Parser {
     
-    private let url: String
-    private let rawData: Data
     
-    private var redableData: String {
-        get {
-            return rawData.convertToString
-        }
-    }
-    private var baseURL: String {
-        get {
-            var splitedURL = url.split(separator: "/")
-            splitedURL.remove(at: (splitedURL.count - 1))
-            let newURL = String(splitedURL.joined(separator: "/"))
-            return newURL
-        }
+    private let httpConnection: HTTPConnetion
+    
+    init () {
+  
+        self.httpConnection = HTTPConnetion()
     }
     
-    init(rawData: Data, url: String) {
-        self.url = url
-        self.rawData = rawData
+    func extractBaseURL(from url: URL) -> String {
+        var splitedURL = url.absoluteString.split(separator: "?")[0].split(separator: "/")
+        splitedURL.remove(at: (splitedURL.count - 1))
+        splitedURL[0].append(contentsOf: "/")
+        let newURL = String(splitedURL.joined(separator: "/"))
+        return newURL
     }
     
-    func parseMasterPlaylist() -> MasterPlaylist? {
-        let splitedData = redableData
-            .split(separator: "\n")
-            .map {
-            String($0)
-        }
-        let masterPlaylist = MasterPlaylist()
-        var hasStreamInfo = false
-        var currentMedialist: MediaPlaylist?
+    func parseMasterPlaylist(with url: URL, completion: @escaping (Result<MasterPlaylist,Error>, URLResponse?) -> Void) {
         
-        for line in splitedData {
-            if hasStreamInfo {
-                guard let mediaPlaylist = currentMedialist else { return nil }
-                if line.hasPrefix("http") {
-                     mediaPlaylist.path = line
-                } else {
-                     mediaPlaylist.path = baseURL + "/\(line)"
+        httpConnection.request(url: url) { (result, response) in
+            switch result {
+            case .failure:
+                completion(.failure(APIError.requestFailed), nil)
+                return
+            case .success(let data):
+                let splitedData = data.convertToString
+                    .split(separator: "\n")
+                    .map {
+                        String($0)
+                    }
+                
+                let masterPlaylist = MasterPlaylist()
+                var hasStreamInfo = false
+                var currentMedialist: MediaPlaylist?
+                
+                for line in splitedData {
+                    if hasStreamInfo {
+                        guard let mediaPlaylist = currentMedialist else { return }
+                        if line.hasPrefix("http") {
+                            mediaPlaylist.path = line //+ "?__gda__=1560759141_52fdc5cdc1a6487ea4c184a716c76076"
+                        } else {
+                            mediaPlaylist.path = self.extractBaseURL(from: url) + "/\(line)"
+                        }
+                        
+                        masterPlaylist.mediaPlaylists.append(mediaPlaylist)
+                        hasStreamInfo = false
+                    }
+                    
+                    guard !line.isEmpty || !line.hasPrefix("#EXTM3U") else { continue }
+                    
+                    if line.hasPrefix("#EXT-X-VERSION") {
+                        guard let version = Int(String(line.split(separator: ":")[1])) else { continue }
+                        masterPlaylist.version = version
+                        
+                    } else if line.hasPrefix("#EXT-X-STREAM-INF") {
+                        hasStreamInfo = true
+                        let mediaplaylist = MediaPlaylist()
+                        let attributes = String(line.split(separator: ":")[1])
+                        mediaplaylist.parseMediaInfo(target: attributes)
+                        currentMedialist = mediaplaylist
+                        
+                    } else if line.hasPrefix("#EXT-X-I-FRAME-STREAM-INF") {
+                        // URI - must be
+                    } else{
+                        //TODO: process another tag
+                    }
                 }
-               
-                masterPlaylist.mediaPlaylists.append(mediaPlaylist)
-                hasStreamInfo = false
-            }
-            
-            guard !line.isEmpty || !line.hasPrefix("#EXTM3U") else { continue }
-            
-            if line.hasPrefix("#EXT-X-VERSION") {
-                guard let version = Int(String(line.split(separator: ":")[1])) else { continue }
-                masterPlaylist.version = version
-                
-            } else if line.hasPrefix("#EXT-X-STREAM-INF") {
-                hasStreamInfo = true
-                let mediaplaylist = MediaPlaylist()
-                let attributes = String(line.split(separator: ":")[1])
-                mediaplaylist.parseMediaInfo(target: attributes)
-                currentMedialist = mediaplaylist
-                
-            } else if line.hasPrefix("#EXT-X-I-FRAME-STREAM-INF") {
-                // URI - must be
-            } else{
-                //TODO: process another tag
+                masterPlaylist.mediaPlaylists.sort()
+                completion(.success(masterPlaylist), response)
             }
         }
-        masterPlaylist.mediaPlaylists.sort()
-        return masterPlaylist
     }
     
     func parseMediaPlaylist(list: MediaPlaylist, completion: @escaping () -> Void) {
         guard let stringURL = list.path, let url = URL(string: stringURL) else { return }
-        let httpConnection = HTTPConnetion()
         httpConnection.request(url: url) { (result, response) in
             switch result {
             case .failure:
-                print("")
+                assertionFailure("fail to make mediaPlaylist")
+                
             case .success(let data):
                 let splitedData = data
                     .convertToString
@@ -102,17 +106,8 @@ class M3U8Parser {
                         splitedURL.remove(at: (splitedURL.count - 1))
                         let newURL = String(splitedURL.joined(separator: "/"))
                         mediaSegment.path = newURL + "/\(line)"
-                        
-                        splitedURL.remove(at: (splitedURL.count - 1))
-                        let audioNewURL = String(splitedURL.joined(separator: "/")) + "/a1/"
-                        let audioFileType = String(line.split(separator: ".")[0]) + ".aac"
-                        
-                        let audioURL = audioNewURL + audioFileType
-                        let audioSeg = MediaSegment()
-                        audioSeg.path = audioURL
                         list.videoMediaSegments.append(mediaSegment)
-                        if line.hasPrefix("#EXT-X-BITRATE") { continue }
-                        list.audioMediaSegments.append(audioSeg)
+                     
                         hasStreamInfo = false
                     }
                     guard !line.isEmpty || !line.hasPrefix("#EXTM3U") else { continue }
@@ -144,6 +139,7 @@ class M3U8Parser {
                         //TODO: process another tag
                     }
                 }
+                list.isParsed = true
                 completion() 
             }
         }

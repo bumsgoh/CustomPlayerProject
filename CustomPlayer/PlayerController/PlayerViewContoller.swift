@@ -24,7 +24,7 @@ class PlayerViewContoller: UIViewController {
     var timebase: Double = 0
     var isFirstFrame = true
     var currentVolume: Float = 1
-   
+   var currentDuration: TimeInterval = 0
     
     private let volumeControllerContainerView: UIView = {
         let view = UIView()
@@ -43,7 +43,6 @@ class PlayerViewContoller: UIViewController {
     private lazy var volumeSlider: UISlider = {
         let slider = UISlider(frame: .zero)
         slider.translatesAutoresizingMaskIntoConstraints = false
-        slider.transform = CGAffineTransform(scaleX: 1, y: 1)
         slider.setThumbImage(#imageLiteral(resourceName: "thumbImage"), for: .normal)
         slider.minimumTrackTintColor = #colorLiteral(red: 0.4901509881, green: 0.4902249575, blue: 0.4901347756, alpha: 1)
         slider.maximumTrackTintColor = #colorLiteral(red: 0.2274276018, green: 0.2274659276, blue: 0.2274191976, alpha: 1)
@@ -136,23 +135,41 @@ class PlayerViewContoller: UIViewController {
         return button
     }()
     
+    
+    private let multiTrackButton: UIButton = {
+        let button = UIButton(type: .custom)
+        button.translatesAutoresizingMaskIntoConstraints = false
+        button.setImage(#imageLiteral(resourceName: "multiButton"), for: .normal)
+        button.tintColor = .white
+        return button
+    }()
+    
+    
     private let indicator: UIActivityIndicatorView = {
         let indicator = UIActivityIndicatorView()
         indicator.translatesAutoresizingMaskIntoConstraints = false
-        indicator.style = .gray
+        indicator.style = .white
         return indicator
     }()
     
+    private var playerViewHeightAnchor: NSLayoutConstraint?
+    
+    private lazy var tapGestureRecognizer: UITapGestureRecognizer = {
+        let recognizer = UITapGestureRecognizer(target: self, action: #selector(viewDidTap))
+        return recognizer
+    }()
+    
     private lazy var moviePlayer: MoviePlayer? = {
-        guard let url = URL(string: "https://video-dev.github.io/streams/test_001/stream.m3u8") else {
+        guard let url: URL = URL(string: "https://video-dev.github.io/streams/x36xhzz/x36xhzz.m3u8") else {
             return nil
         }
+        
         //https://video-dev.github.io/streams/x36xhzz/x36xhzz.m3u8
         //https://devstreaming-cdn.apple.com/videos/streaming/examples/bipbop_4x3/bipbop_4x3_variant.m3u8
         //https://video-dev.github.io/streams/test_001/stream.m3u8
         //https://devstreaming-cdn.apple.com/videos/streaming/examples/img_bipbop_adv_example_ts/master.m3u8
-//        guard let filePath = Bundle.main.path(forResource: "outputfilename", ofType: "mp4") else { return nil }
-//        let url = URL(fileURLWithPath: filePath)
+//        guard let filePath = Bundle.main.path(forResource: "you", ofType: "mp4") else { return nil }
+//       let url = URL(fileURLWithPath: filePath)
         let player: MoviePlayer = MoviePlayer(url: url)
         player.delegate = self
         return player
@@ -160,6 +177,7 @@ class PlayerViewContoller: UIViewController {
     
     init() {
         super.init(nibName: nil, bundle: nil)
+        
     }
     
     required init?(coder aDecoder: NSCoder) {
@@ -169,14 +187,28 @@ class PlayerViewContoller: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         setUpViews()
-        print(playTrackSlider.maximumValue)
+       // print(playTrackSlider.maximumValue)
         NotificationCenter.default.addObserver(self, selector: #selector(didReceiveSeekValue(_:)), name: NSNotification.Name(rawValue: "trackValueChangedToSeek"), object: nil)
         setObservers()
+        UIVisualEffectView.appearance(whenContainedInInstancesOf: [UIAlertController.classForCoder() as! UIAppearanceContainer.Type]).effect = UIBlurEffect(style: .dark)
         // Do any additional setup after loading the view.
+    }
+    
+    
+    override func viewWillTransition(to size: CGSize, with coordinator: UIViewControllerTransitionCoordinator) {
+        super.viewWillTransition(to: size, with: coordinator)
+        if UIDevice.current.orientation.isLandscape {
+            playerViewHeightAnchor?.constant = size.height
+        } else {
+            playerViewHeightAnchor?.constant = view.frame.height * 0.2
+        }
     }
 
     private func setObservers() {
-        moviePlayer?.addObserver(self, forKeyPath: "isPlayable", options: .new, context: &moviePlayableContext)
+        moviePlayer?.addObserver(self,
+                                 forKeyPath: "isPlayable",
+                                 options: [.new, .old ],
+                                 context: &moviePlayableContext)
     }
    
 
@@ -189,10 +221,21 @@ class PlayerViewContoller: UIViewController {
         }
         
         if keyPath == #keyPath(MoviePlayer.isPlayable) {
-            guard let isPlayable = change?[.newKey] as? Bool else { return }
-            if isPlayable {
-                self.isPlayable = true
-                print("now")
+            guard let oldValue = change?[.oldKey] as? Bool,
+                let newValue = change?[.newKey] as? Bool else { return }
+            if oldValue != newValue {
+                if newValue {
+                    DispatchQueue.main.async {
+                         self.indicator.stopAnimating()
+                    }
+                   
+                    
+                    
+                } else {
+                    DispatchQueue.main.async {
+                        self.indicator.startAnimating()
+                    }
+                }
             }
         }
     }
@@ -210,9 +253,11 @@ class PlayerViewContoller: UIViewController {
     }
    
     private func setUpViews() {
+        view.addGestureRecognizer(tapGestureRecognizer)
         view.backgroundColor = .black
         view.addSubview(volumeControllerContainerView)
         view.addSubview(playerView)
+        view.addSubview(multiTrackButton)
         
         volumeControllerContainerView.addSubview(volumeSlider)
         volumeControllerContainerView.addSubview(spekerImage)
@@ -246,15 +291,20 @@ class PlayerViewContoller: UIViewController {
             equalTo: view.leadingAnchor).isActive = true
         playerView.trailingAnchor.constraint(
             equalTo: view.trailingAnchor).isActive = true
-        playerView.heightAnchor.constraint(
-            equalTo: view.heightAnchor,
-            multiplier: 0.33).isActive = true
         
-        playerView.addSubview(indicator)
+        if UIDevice.current.orientation.isLandscape {
+           playerViewHeightAnchor = NSLayoutConstraint(item: playerView, attribute: .height, relatedBy: .equal, toItem: view, attribute: .height, multiplier: 1, constant: 1)
+        } else {
+            playerViewHeightAnchor = NSLayoutConstraint(item: playerView, attribute: .height, relatedBy: .equal, toItem: view, attribute: .height, multiplier: 0.33, constant: 1)
+        }
+        playerViewHeightAnchor?.isActive = true
+        
+        view.addSubview(indicator)
         indicator.centerYAnchor.constraint(
             equalTo: playerView.centerYAnchor).isActive = true
         indicator.centerXAnchor.constraint(
             equalTo: playerView.centerXAnchor).isActive = true
+        
         
         setUpPlayerController()
     }
@@ -281,6 +331,17 @@ class PlayerViewContoller: UIViewController {
             equalTo: view.safeAreaLayoutGuide.bottomAnchor,
             constant: -8).isActive = true
         
+        multiTrackButton.addTarget(self, action: #selector(multiTrackButtonDidTap), for: .touchUpInside)
+        multiTrackButton.isHidden = true
+        multiTrackButton.trailingAnchor.constraint(
+            equalTo: view.safeAreaLayoutGuide.trailingAnchor,
+            constant: -24).isActive = true
+        multiTrackButton.bottomAnchor.constraint(
+            equalTo: view.safeAreaLayoutGuide.bottomAnchor,
+            constant: -8).isActive = true
+        
+        
+        
         playerControllerStackView.leadingAnchor.constraint(
             equalTo: playerControllerContainerView.leadingAnchor, constant: 16).isActive = true
         playerControllerStackView.trailingAnchor.constraint(
@@ -306,9 +367,9 @@ class PlayerViewContoller: UIViewController {
         playButton.isEnabled = false
         if playButton.isSelected {
             playButton.setImage(#imageLiteral(resourceName: "pauseBtn"), for: .normal)
-            moviePlayer?.play()
             if state == .paused {
                 playButton.isEnabled = true
+                moviePlayer?.resume()
                 return
             }
             indicator.startAnimating()
@@ -323,7 +384,7 @@ class PlayerViewContoller: UIViewController {
                         guard let duration = self.moviePlayer?.totalDuration else { return }
                         self.state = .playing
                         let durationSeconds = duration / 1000
-                        self.indicator.stopAnimating()
+                        
                         self.playButton.isEnabled = true
                         
                         self.playTrackSlider.maximumValue = Float(durationSeconds)
@@ -334,21 +395,13 @@ class PlayerViewContoller: UIViewController {
                         
                         let formattedDuration = String(format: "%0d:%02d", m, s)
                         self.playerTimerDurationLabel.text = formattedDuration
+                        self.moviePlayer?.resume()
+                        self.indicator.stopAnimating()
                     }
                    
                 }
             })
            
-//            self.moviePlayer?.loadPlayerAsynchronously(completion: { [weak self] (result) in
-//
-//                switch result {
-//                case .failure(let error):
-//                    print(error.localizedDescription)
-//                case .success(let data):
-//                    print(data)
-//                }
-//            })
-//
         } else {
             
             playButton.setImage(#imageLiteral(resourceName: "playBtn"), for: .normal)
@@ -357,6 +410,70 @@ class PlayerViewContoller: UIViewController {
             state = .paused
         }
     }
+    
+    @objc func viewDidTap() {
+        
+        UIView.transition(with: view,
+                          duration: 0.3,
+                          options: .transitionCrossDissolve,
+                          animations: {
+            self.playerControllerContainerView.isHidden = !self.playerControllerContainerView.isHidden
+            
+            self.volumeControllerContainerView.isHidden = !self.volumeControllerContainerView.isHidden
+            
+            self.multiTrackButton.isHidden = !self.multiTrackButton.isHidden
+        })
+    }
+    
+    @objc func multiTrackButtonDidTap() {
+        let alertController = UIAlertController(title: "Multi Track", message: "select video's point of view", preferredStyle: .alert)
+       
+       
+        let firstTrack = UIAlertAction(title: "track #1", style: .default) { (action) in
+            
+            guard let firstTrackURL: URL = URL(string: "https://video-dev.github.io/streams/test_001/stream.m3u8") else {
+                return
+            }
+          
+            self.moviePlayer?.interruptCall(with: .multiTrackRequest(firstTrackURL))
+                
+            }
+        
+        firstTrack.setValue(UIColor.white, forKey: "titleTextColor")
+        
+        let secondTrack = UIAlertAction(title: "track #2", style: .default) { (action) in
+            guard let secondTrackURL: URL = URL(string: "https://video-dev.github.io/streams/x36xhzz/x36xhzz.m3u8") else {
+                return
+            }
+            
+            self.moviePlayer?.interruptCall(with: .multiTrackRequest(secondTrackURL))
+            
+        }
+        
+        secondTrack.setValue(UIColor.white, forKey: "titleTextColor")
+        
+        let thirdTrack = UIAlertAction(title: "track #3", style: .default) { (action) in
+            guard let thirdTrackURL: URL = URL(string: "https://video-dev.github.io/streams/x36xhzz/x36xhzz.m3u8") else {
+                return
+            }
+            
+            self.moviePlayer?.interruptCall(with: .multiTrackRequest(thirdTrackURL))
+            
+    }
+        
+        thirdTrack.setValue(UIColor.white, forKey: "titleTextColor")
+       
+        let cancelAction = UIAlertAction(title: "cancel", style: .cancel, handler: nil)
+        
+        alertController.addAction(firstTrack)
+        alertController.addAction(secondTrack)
+        alertController.addAction(thirdTrack)
+       
+        alertController.addAction(cancelAction)
+         alertController.view.addSubview(UIView())
+        present(alertController, animated: true)
+    }
+    
 }
 
 
@@ -370,21 +487,22 @@ extension PlayerViewContoller: VideoQueueDelegate {
                 self.timebase = buffers.presentationTimeStamp.seconds
                 self.isFirstFrame = false
             }
-            var currentDuration: TimeInterval = 0
+            self.currentDuration += 0.03
+//
+//            if self.timebase > 0 {
+//
+//                currentDuration = TimeInterval(buffers.presentationTimeStamp.seconds - self.timebase) / 1000
+//                self.playTrackSlider.setValue(Float(currentDuration), animated: true)
+//            } else {
+//                currentDuration = TimeInterval(buffers.presentationTimeStamp.seconds)
+//
+//            }
+//
+             self.playTrackSlider.setValue(Float(self.currentDuration), animated: true)
+            let s: Int = Int(self.currentDuration) % 60
+            let m: Int = Int(self.currentDuration) / 60
             
-            if self.timebase > 0 {
-               
-                currentDuration = TimeInterval(buffers.presentationTimeStamp.seconds - self.timebase) / 100
-                self.playTrackSlider.setValue(Float(currentDuration), animated: true)
-            } else {
-                currentDuration = TimeInterval(buffers.presentationTimeStamp.seconds)
-                self.playTrackSlider.setValue(Float(currentDuration), animated: true)
-            }
-            
-            let s: Int = Int(currentDuration) % 60
-            let m: Int = Int(currentDuration) / 60
-            
-            let formattedDuration = String(format: "%0d:%02d", m, s)
+            let formattedDuration = String(format: "%02d:%02d", m, s)
             self.playerTimerClockLabel.text = formattedDuration
      }
     }

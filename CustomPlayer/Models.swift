@@ -1036,22 +1036,3 @@ class Meta: HalfContainer {
     }
 }
 
-struct Chunk {
-    var sampleDescriptionIndex: Int = 0
-    var firstSample: Int = 0
-    var sampleCount: Int = 0
-    var startSample: Int = 0
-    var offset: Int = 0
-    
-    init() {}
-}
-
-struct Sample {
-    var size: Int = 0
-    var offset: Int = 0
-    var startTime: Int = 0
-    var duration: Int = 0
-    var compositionTimeOffset: Int = 0
-    
-    init() {}
-}

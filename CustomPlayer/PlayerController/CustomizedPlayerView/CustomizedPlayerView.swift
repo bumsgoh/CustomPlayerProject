@@ -13,7 +13,7 @@ class CustomizedPlayerView: UIView {
     
     private let videoPlayerLayer: AVSampleBufferDisplayLayer = {
         let layer = AVSampleBufferDisplayLayer()
-        layer.videoGravity = AVLayerVideoGravity.resizeAspect
+        layer.videoGravity = .resizeAspect
         layer.backgroundColor = #colorLiteral(red: 1, green: 1, blue: 1, alpha: 0)
         return layer
     }()
@@ -76,7 +76,12 @@ class CustomizedPlayerView: UIView {
     
     func displayFrame(_ sample: CMSampleBuffer) {
         DispatchQueue.main.async {
-            self.videoPlayerLayer.enqueue(sample)
+            if self.videoPlayerLayer.isReadyForMoreMediaData {
+                
+                self.videoPlayerLayer.enqueue(sample)
+              //  self.videoPlayerLayer.setNeedsDisplay()
+            }
+            
         }
     }
 
