@@ -17,27 +17,14 @@ AVPlayer에 커스터마이징이 불가능한 부분을 개선하기 위해서 
 
 ### Tech stack
 
-* Firebase Rest API
-* SQLite3
-* Photos
-
-## Deployment
-
-2019.02.21 예정
+* VideoToolbox / AudioToolbox
+* AVFoundation
 
 
 ## Versioning
 
 version 1.0
-
-## Contributor
-  *Mentor*  - [Chope](https://github.com/yoonhg84)
-
-  *team D1*  - [SangbumGoh](https://github.com/bumsgoh)</n>
-             - [SeonghunKim](https://github.com/Seonghun23)</n>
-             - [JiwonGong](https://github.com/jyeoni0919)</n>
-           
-           
+                  
 ## License
 
 MIT License
