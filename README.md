@@ -38,7 +38,7 @@ MIT License
 
 ## InApp
 
-<img width="577" alt="스크린샷 2019-05-27 오전 3 38 05" src="https://user-images.githubusercontent.com/34180216/60952909-1efdf780-a337-11e9-9dbb-12dd9930193d.png">
+<img width="330" alt="스크린샷 2019-05-27 오전 3 38 05" src="https://user-images.githubusercontent.com/34180216/60952909-1efdf780-a337-11e9-9dbb-12dd9930193d.png">
 
 # 참고 
 h.264 에 관한 ref : https://github.com/zerdzhong/SwfitH264Demo
