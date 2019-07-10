@@ -95,13 +95,13 @@ class Ftyp: Container {
     var data: Data = Data()
     
     var majorBrand: String = ""
-    var minorVersion: String = ""
+    var minorVersion: Int = 0
     var compatibleBrand: [String] = []
     
     func parse() {
         let dataArray = data.slice(in: [4,4,4,4])
         majorBrand = dataArray[0].convertToString
-        minorVersion = dataArray[1].convertToString
+        minorVersion = dataArray[1].convertToInt
         compatibleBrand = [dataArray[2].convertToString]
                            //dataArray[3].convertToString]
     }
@@ -251,7 +251,24 @@ class Tkhd: Container {
     var height: Int = 0
     
     init() {}
-    
+    /**
+     *header                normalHeaderSize/largeHeaderSize
+     *version            1
+     *flags                3
+     *creation_time        4
+     *modification_time    4
+     *track_id            4
+     *_reserved            4
+     *duration            4
+     *_reserved            8
+     *layer                2
+     *alternate_group    2
+     *volume                2    //[8.8]  e.g. max value 0x0100 = 1.0
+     *_reserved            2
+     *matrix                36
+     *width                4    //[16.16]
+     *height                4
+     */
     func parse() {
         let dataArray = data.slice(in: [1,3,4,4,4,4,4,8,2,2,2,2,36,4,4])
         version = dataArray[0].convertToInt
@@ -267,8 +284,8 @@ class Tkhd: Container {
         alternateGroup = dataArray[9].convertToInt
         volume = dataArray[10].convertToInt
         matrix = []
-        width = dataArray[12].convertToInt
-        height = dataArray[13].convertToInt
+        width = dataArray[13].convertToInt
+        height = dataArray[14].convertToInt
     }
 }
 

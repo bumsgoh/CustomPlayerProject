@@ -11,7 +11,6 @@ import Foundation
 class FileReader: FileStreamReadable {
     
     let fileHandler: FileHandle
-    let readQueue: DispatchQueue = DispatchQueue.global(qos: .default)
     
     init?(url: URL) {
         guard let handler = try? FileHandle(forReadingFrom: url) else {
@@ -20,17 +19,14 @@ class FileReader: FileStreamReadable {
         self.fileHandler = handler
     }
     
-    func read(length: Int, completion: @escaping (Data)->()) {
-        readQueue.async { [weak self] in
-            guard let self = self else { return }
-            let data = self.fileHandler.readData(ofLength: length)
-            completion(data)
-        }
+    func read(length: Int) -> Data {
+        return fileHandler.readData(ofLength: length)
     }
     
     func seek(offset: UInt64) {
         fileHandler.seek(toFileOffset: offset)
     }
+    
     
     func close() {
         fileHandler.closeFile()

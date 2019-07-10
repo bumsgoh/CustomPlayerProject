@@ -12,7 +12,7 @@ protocol FileStreamReadable {
     
     var fileHandler: FileHandle { get }
 
-    func read(length: Int, completion: @escaping (Data)->()) 
+    func read(length: Int) -> Data
 
     func seek(offset: UInt64)
     

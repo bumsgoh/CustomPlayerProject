@@ -10,7 +10,6 @@ import Foundation
 
 class Mpeg4Parser {
     
-    private(set) var status: MediaStatus = .paused
     private(set) var fileReader: FileStreamReadable
     private(set) var root = RootType()
     
@@ -25,19 +24,16 @@ class Mpeg4Parser {
     
     private let containerPool: ContainerPool = ContainerPool()
     private let headerSize = 8
-    private let jobQueue: DispatchQueue = DispatchQueue(label: "mp4JobQueue")
-    
-    
+    private let parsingQueue: DispatchQueue = DispatchQueue.global(qos: .userInteractive)
     
     init(fileReader: FileStreamReadable) {
         self.fileReader = fileReader
     }
     
-    private func extractTypeHeader(completion: @escaping ((Int, String))->()) {
-        fileReader.read(length: 8) {(data) in
-            let result = self.converToHeaderInfo(data: data)
-            completion(result)
-        }
+    private func extractTypeHeader() -> (Int, String) {
+        let extractedData = fileReader.read(length: 8)
+        let result = self.converToHeaderInfo(data: extractedData)
+        return result
     }
     
     private func converToHeaderInfo(data: Data) -> (Int, String) {
@@ -51,14 +47,10 @@ class Mpeg4Parser {
     }
     
     func parse(completion: @escaping (Result<[DataStream], Error>) -> Void) {
-        status = .paused
-        jobQueue.async { 
+        parsingQueue.async { 
             
             var containers: [HalfContainer] = []
             self.root.size = Int(self.fileReader.fileHandler.seekToEndOfFile()) + self.headerSize
-            
-            
-            self.status = .paused
             containers = self.doParse(root: self.root)
             
             while let item = containers.first {
@@ -66,15 +58,13 @@ class Mpeg4Parser {
                 let parentContainers = self.doParse(root: item)
                 containers.append(contentsOf: parentContainers)
             }
-        
+            
             self.root.parse()
             let tracks = self.makeTracks()
             let streams = self.processTracks(tracks: tracks)
-            self.status = .prepared
             self.cleanUp()
             completion(.success(streams))
         }
-       
     }
     
     private func doParse(root: HalfContainer) -> [HalfContainer] {
@@ -86,37 +76,35 @@ class Mpeg4Parser {
         var sizeOfChildren = 0
         
        repeat {
-            extractTypeHeader() { [weak self] (headerData) in
-                guard let self = self else { return }
+            let headerData = extractTypeHeader()
+            let size = headerData.0
+            let headerName = headerData.1
+        
+            sizeOfChildren += size
+            if (sizeOfChildren) == (currentRootContainer.size - 8)  {
+                isfinished = true
+            }
+            currentOffset = self.fileReader.currentOffset()
+            let extractedData =  self.fileReader.read(length: size - headerSize)
+
+            do {
+                let typeOfContainer = try self.containerPool.pullOutContainer(with: headerName)
+                var box = self.containerPool.pullOutFileTypeContainer(with: typeOfContainer)
+                box.size = size
                 
-                let size = headerData.0
-                let headerName = headerData.1
+                if box.isParent {
+                    guard var castedBox = box as? HalfContainer else { break }
+                    castedBox.offset = currentOffset
+                    containers.append(castedBox)
+                } else {
+                    box.data = extractedData.subdata(in: 0..<(size - headerSize))
+                }
                 
-                sizeOfChildren += size
-                if (sizeOfChildren) == (currentRootContainer.size - 8)  {
-                    isfinished = true
-                }
-                currentOffset = self.fileReader.currentOffset()
-                    self.fileReader.read(length: size - self.headerSize) { (data) in
-                        do {
-                            let typeOfContainer = try self.containerPool.pullOutContainer(with: headerName)
-                            var box = self.containerPool.pullOutFileTypeContainer(with: typeOfContainer)
-                            box.size = size
-                            
-                            if box.isParent {
-                                guard var castedBox = box as? HalfContainer else { return }
-                                castedBox.offset = currentOffset
-                                containers.append(castedBox)
-                            } else {
-                                box.data = data[0..<(size - self.headerSize)]
-                            }
-                            currentRootContainer.children.append(box)
-                        } catch {
-                            assertionFailure("initialization box failed")
-                            return
-                        }
-                    }
-                }
+                currentRootContainer.children.append(box)
+            } catch {
+                assertionFailure("initialization box failed")
+            }
+    
             }  while !isfinished
         return containers
     }
@@ -234,6 +222,7 @@ class Mpeg4Parser {
     }
     
     private func processTracks(tracks: [Track]) -> [DataStream] {
+        print("track processing")
         var streams: [DataStream] = []
         for track in tracks {
             var packet: [Data] = []
@@ -242,9 +231,8 @@ class Mpeg4Parser {
             for sample in track.samples {
                 
                 fileReader.seek(offset: UInt64(sample.offset))
-                fileReader.read(length: sample.size) { (data) in
-                    packet.append(data)
-                }
+                let extractedData = fileReader.read(length: sample.size)
+                packet.append(extractedData)
             }
             presentationTimestamp = track.samples.map {
                 $0.startTime + $0.compositionTimeOffset

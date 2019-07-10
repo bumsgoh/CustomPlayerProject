@@ -68,7 +68,6 @@ class H264Decoder {
 
         guard let sample = decodedSampleBuffer else { return }
         
-         print(" pts is \(decoder.multiTrackThresHoldPts)")
         if let threshold = decoder.multiTrackThresHoldPts {
             if timingInfo.presentationTimeStamp.value < threshold {
                 print("calc")
