@@ -28,6 +28,11 @@ version 1.0
 ## License
 
 MIT License
+
+## Architecture
+
+<img width="1000" alt="tri_3" src="https://user-images.githubusercontent.com/34180216/60952707-b57de900-a336-11e9-8954-a6d639b21745.png">
+
 # 참고 
 h.264 에 관한 ref : https://github.com/zerdzhong/SwfitH264Demo
 https://github.com/evernoteHW/AudioRecordDemo
