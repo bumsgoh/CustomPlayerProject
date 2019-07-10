@@ -28,20 +28,18 @@ extension URL {
 
 extension Data {
     var convertToInt: Int {
-        var uIntArray: [UInt8] = []
-        self.forEach {
-            uIntArray.append($0)
-        }
-        return uIntArray.tohexNumbers.toDecimalValue
+        
+        let string = self.map { String(format: "%02hhx", $0) }.joined()
+        return Int(string, radix: 16)!
     }
     
     func slice(in sizes: [Int]) -> [Data] {
         
-        var offset = 0
+        var offset = self.startIndex
         var slicedData: [Data] = []
         
         for size in sizes {
-            if self.count > (offset + size) {
+            if self.count >= (offset + size) {
                 slicedData.append(self.subdata(in: offset..<(offset + size)))
                 offset += size
             } else {
