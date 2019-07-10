@@ -7,7 +7,7 @@ AVPlayer에 커스터마이징이 불가능한 부분을 개선하기 위해서 
 
 ## Getting Started
 
-#### Local 파일(.mp4<H.264/AAC>) 재생 
+#### Local 파일(.mp4<H.264/AAC>) 재생
  - MPEG-4 Parser 
  - NAL Parser (H.264) 
  
